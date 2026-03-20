@@ -58,7 +58,6 @@ To keep things simple, [Apprise](https://github.com/caronc/apprise) shall be int
   2. The document locks on rocksdb don't play very nice with concurrency (e.g. there's usually multiple `whois` tasks running at the same time)
 - There is no cleanup cron for the `job_queue` yet (TODO)
 - Orphan containers may be left behind if the orchestrator crashes. When I tried using `AutoRemove: true` in the container settings the containers exited before finishing. AFAIK it's a bug with Bun. This is not a big deal as they're not left running, but a cleanup cron will be needed for those as well. (TODO)
-- `probe`, `seo`, and `whois` tools don't fail when there's a database error. (TODO)
 
 ## Ideas
 

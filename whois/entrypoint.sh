@@ -40,5 +40,11 @@ if [ "$DEBUG" = "false" ]; then
     exec >/dev/null 2>&1
 fi
 
+response=$(curl -X POST -u "$SURREAL_USER:$SURREAL_PASS" -H "surreal-ns: $SURREAL_NAMESPACE" -H "surreal-db: $SURREAL_DATABASE" -H "Accept: application/json" -d "$query" $SURREAL_PROTOCOL://$SURREAL_ADDRESS/sql)
+
 echo "WHOIS results for $JOB_ID on $IP:"
-curl -X POST -u "$SURREAL_USER:$SURREAL_PASS" -H "surreal-ns: $SURREAL_NAMESPACE" -H "surreal-db: $SURREAL_DATABASE" -H "Accept: application/json" -d "$query" $SURREAL_PROTOCOL://$SURREAL_ADDRESS/sql
+echo "$response"
+
+if echo "$response" | grep -q '"status":"ERR"'; then
+  exit 1
+fi

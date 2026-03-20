@@ -1,0 +1,5 @@
+- [] Test and refine
+- [] Ability to manually select nuclei templates
+- [] Generate a score
+- [] Send the combined results to the database
+- [] Dockerization
