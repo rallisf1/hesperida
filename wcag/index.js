@@ -41,7 +41,7 @@ const scoreCalc = (impact) => {
 
   const result = {
     job: new RecordId('jobs', job_id.split(':')[1]),
-    score: 100 - (pass_score / (pass_score / error_score)), // percentage
+    score: Number((100 - (pass_score / (pass_score / error_score))).toFixed(2)), // percentage
     passes,
     warnings,
     errors,

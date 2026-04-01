@@ -2,11 +2,13 @@ import tls from "node:tls";
 import {DateTime, RecordId, Surreal, Table, type Values} from 'surrealdb';
 import type {SSL} from './types'
 
-const host = Bun.argv[2]
+const url = Bun.argv[2]
 const job_id = Bun.argv[3]
 
-if(!host) throw new Error(`Host parameter missing!`);
+if(!url) throw new Error(`Host parameter missing!`);
 if(!job_id) throw new Error(`Job ID parameter missing!`);
+
+const host = new URL(url).hostname;
 
 const joinIfNeeded = (item: string | string[] | undefined): string => {
   if(typeof item === "undefined") return "";

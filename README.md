@@ -14,7 +14,7 @@ A self-hosted web scanner that shows you how both people and bots see your websi
 | SSL         | -                               | ✅         | Uses `node:tls` to get basic certificate info                                     |
 | WCAG        | [@axe-core/playwright](https://www.npmjs.com/package/@axe-core/playwright), [playwright](https://github.com/microsoft/playwright)            | ✅            | Check against Web Accessibility rules (also takes a full-height screenshot)                                             |
 | Whois       | [whois](https://github.com/rfc1036/whois)                           | ✅         | Gets IP whois info                                                                |
-| Security    | ?                               | TBA        | Standard vulnerability scanning                                                   |
+| Security    | [nuclei](https://github.com/projectdiscovery/nuclei), [wapiti](https://github.com/wapiti-scanner/wapiti), [nikto](https://github.com/sullo/nikto) | ✅         | Standard vulnerability scanning                                                   |
 | Stress Test | ?                               | TBA        | HTTP load testing                                                                 |
 
 ### Dashboard

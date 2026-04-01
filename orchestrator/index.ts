@@ -2,7 +2,7 @@ import { setInterval, clearInterval } from 'node:timers';
 import {RecordId, Surreal, Table, eq} from 'surrealdb';
 import Dockerode from 'dockerode';
 import type { Job, Queue, Tool, Website } from './types';
-import { domainTools, slowTools, tools } from './constants';
+import { slowTools, tools } from './constants';
 import { readdir } from "node:fs/promises";
 import { PassThrough } from 'node:stream';
 
@@ -10,13 +10,13 @@ const DEBUG = Bun.env.DEBUG == "true";
 let RUNNERS = 0;
 const NUMCORES = navigator.hardwareConcurrency;
 const REBUILD = Bun.argv[2] == "--rebuild"
-const Env = [`SURREAL_USER=${Bun.env.SURREAL_USER}`, `SURREAL_PASS=${Bun.env.SURREAL_PASS}`, `SURREAL_NAMESPACE=${Bun.env.SURREAL_NAMESPACE}`, `SURREAL_DATABASE=${Bun.env.SURREAL_DATABASE}`, `SURREAL_ADDRESS=${Bun.env.SURREAL_ADDRESS}`, `SURREAL_PROTOCOL=${Bun.env.SURREAL_PROTOCOL}`, `DEBUG=${Bun.env.DEBUG}`];
+const ENV = [`SURREAL_USER=${Bun.env.SURREAL_USER}`, `SURREAL_PASS=${Bun.env.SURREAL_PASS}`, `SURREAL_NAMESPACE=${Bun.env.SURREAL_NAMESPACE}`, `SURREAL_DATABASE=${Bun.env.SURREAL_DATABASE}`, `SURREAL_ADDRESS=${Bun.env.SURREAL_ADDRESS}`, `SURREAL_PROTOCOL=${Bun.env.SURREAL_PROTOCOL}`, `DEBUG=${Bun.env.DEBUG}`];
 
 console.log('Hesperida Orchestrator starting...');
 
 const docker = new Dockerode({socketPath: '/var/run/docker.sock'});
 
-if(DEBUG) console.debug(`Docker environment variables: ${JSON.stringify(Env)}`);
+if(DEBUG) console.debug(`Docker environment variables: ${JSON.stringify(ENV)}`);
 
 for (const tool of tools) {
     let imageExists = false;
@@ -71,6 +71,31 @@ process.on("beforeExit", async () => {
     await db.close();
 });
 
+const parseTaskOptions = (options: Record<string, unknown>): string[] => {
+    const result: string[] = [];
+    for (const [key, value] of Object.entries(options)) {
+        if (typeof value === 'undefined') continue;
+        if (value === null) {
+            result.push(`${key}=`);
+            continue;
+        }
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            result.push(`${key}=${value}`);
+            continue;
+        }
+        result.push(`${key}=${JSON.stringify(value)}`);
+    }
+    return result;
+}
+
+const getToolTaskOptions = (jobOptions: unknown, tool: Tool): Record<string, unknown> | undefined => {
+    if(!jobOptions || typeof jobOptions !== 'object' || Array.isArray(jobOptions)) return undefined;
+    const optionsByTool = jobOptions as Record<string, unknown>;
+    const toolOptions = optionsByTool[tool];
+    if(!toolOptions || typeof toolOptions !== 'object' || Array.isArray(toolOptions)) return undefined;
+    return toolOptions as Record<string, unknown>;
+}
+
 const runTask = async (task: Partial<Queue>, task_id: RecordId | null): Promise<boolean> => {
     if(DEBUG) console.debug(`Runner started for ${task_id} with data: ${JSON.stringify(task)}`);
     let isRetry = Object.hasOwn(task, 'status') && task.status === 'waiting';
@@ -82,6 +107,7 @@ const runTask = async (task: Partial<Queue>, task_id: RecordId | null): Promise<
     if(slowTools.includes(task.type as Tool)) RUNNERS++;
 
     let runSuccessfully = false;
+    const Env = task.options ? [...ENV, ...parseTaskOptions(task.options)] : ENV;
     try {
         const container = await docker.createContainer({
             Image: `hesperida-${task.type}`,
@@ -170,11 +196,14 @@ newJobs.subscribe(async ({action, value, recordId}) => {
             status: 'processing'
         });
         const website = await db.select<Website>(value.website as Job["website"]);
-        const probeSuccess = await runTask({
+        const task: Queue = {
             job: recordId,
             type: 'probe',
             target: website?.url
-        }, null);
+        }
+        const probeOptions = getToolTaskOptions(value.options, 'probe');
+        if(probeOptions) task.options = probeOptions;
+        const probeSuccess = await runTask(task, null);
         if(!probeSuccess) {
             await db.update<Job>(recordId).merge({
                 status: 'failed'
@@ -193,21 +222,26 @@ newJobs.subscribe(async ({action, value, recordId}) => {
                         WHERE job = $job_id;`, { job_id:  recordId }).collect<[{ip:string[]}[]]>();
                     const IPs = result.length ? result[0]!.ip : [];
                     for (const IP of IPs) {
-                        await db.create<Queue>(queue).content({
+                        const task: Queue = {
                             job: recordId,
                             type: tool,
                             status: 'pending',
                             target: IP
-                        });
+                        }
+                        const whoisOptions = getToolTaskOptions(value.options, 'whois');
+                        if(whoisOptions) task.options = whoisOptions;
+                        await db.create<Queue>(queue).content(task);
                     }
                 } else {
-                    const target = domainTools.includes(tool) ? new URL(website?.url!).hostname : website?.url;
-                    await db.create<Queue>(queue).content({
+                    const task: Queue = {
                         job: recordId,
                         type: tool,
                         status: 'pending',
-                        target
-                    });
+                        target: website?.url
+                    }
+                    const toolOptions = getToolTaskOptions(value.options, tool);
+                    if(toolOptions) task.options = toolOptions;
+                    await db.create<Queue>(queue).content(task);
                 }
             }
         }

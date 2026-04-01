@@ -1,14 +1,12 @@
-This is a rewrite based on https://github.com/BruceWy4ne/web-vuln-scanner
+Based on https://github.com/BruceWy4ne/web-vuln-scanner
 
-# notes
+## risk level score
 
-## risk_level
-
-- info
-- low
-- medium
-- high
-- critical
+- info = 0
+- low = 1
+- medium = 3
+- high = 7
+- critical = 10
 
 ## get nuclei templates db
 

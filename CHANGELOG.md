@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.2.0] - 2026-04-01
+  
+### Added
+
+- Security scan tool
+- Queued Tasks options passed as environment variables to the containers
+
+#### Tools
+
+- Security scanner (nuclei + nikto + wapiti)
+
+### Changed
+
+- Removed the `domainTools` constant, and implemented domain parsing in the SSL tool's code.
+
+### Fixed
+
+- Limit the WCAG score number to 2 decimals
+
 ## [0.1.1] - 2026-03-20
   
 1. fail on curl error response
