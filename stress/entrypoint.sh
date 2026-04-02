@@ -15,7 +15,8 @@ set -e
 : "${STRESS_TIMEOUT:=10s}"
 : "${STRESS_WORKERS:=10}"
 : "${STRESS_MAX_WORKERS:=100}"
-: "${STRESS_HEADERS:={}}"
+: "${STRESS_HEADERS:=}"
+[ -z "$STRESS_HEADERS" ] && STRESS_HEADERS='{}'
 : "${STRESS_BODY:=}"
 : "${STRESS_LATENCY_WARN_MS:=500}"
 
@@ -32,12 +33,23 @@ if [ -z "$JOB_ID" ]; then
   exit 1
 fi
 
+printf 'STRESS_HEADERS=<%s>\n' "$STRESS_HEADERS"
+echo "$STRESS_HEADERS" | jq -e 'type=="object"'
+
+if ! echo "$STRESS_HEADERS" | jq -e 'type == "object"' >/dev/null 2>&1; then
+  echo "Invalid STRESS_HEADERS value. Expected a JSON object."
+  exit 1
+fi
+
+HEADERS_JSON=$(echo "$STRESS_HEADERS" | jq -c '.')
+
 TMP_DIR="/tmp/stress-$RANDOM-$RANDOM"
 mkdir -p "$TMP_DIR"
 TARGETS_FILE="$TMP_DIR/targets.txt"
 RESULTS_BIN="$TMP_DIR/results.bin"
 REPORT_JSON="$TMP_DIR/report.json"
 RESULTS_JSONL="$TMP_DIR/results.jsonl"
+METRICS_JSON="$TMP_DIR/metrics.json"
 
 cleanup() {
   rm -rf "$TMP_DIR"
@@ -47,7 +59,7 @@ trap cleanup EXIT
 # Build vegeta target format
 {
   echo "${STRESS_METHOD} ${URL}"
-  echo "$STRESS_HEADERS" | jq -r 'to_entries[]? | "\(.key): \(.value)"'
+  echo "$HEADERS_JSON" | jq -r 'to_entries[]? | "\(.key): \(.value)"'
   if [ -n "$STRESS_BODY" ]; then
     echo
     printf '%s\n' "$STRESS_BODY"
@@ -69,26 +81,27 @@ vegeta encode -to=json "$RESULTS_BIN" > "$RESULTS_JSONL"
 
 LAT_WARN_NS=$((STRESS_LATENCY_WARN_MS * 1000000))
 
-passes=$(jq -s --argjson threshold "$LAT_WARN_NS" '
-  [
-    .[]
-    | select((.error == null or .error == "") and (.code >= 200 and .code < 300) and (.latency <= $threshold))
-  ] | length
-' "$RESULTS_JSONL")
+jq -Rs --argjson threshold "$LAT_WARN_NS" '
+  def rows:
+    split("\n")
+    | map(select(length > 0) | fromjson?)
+    | map(select(. != null));
+  {
+    passes: (
+      [ rows[] | select((.error == null or .error == "") and (.code >= 200 and .code < 300) and (.latency <= $threshold)) ] | length
+    ),
+    warnings: (
+      [ rows[] | select((.error == null or .error == "") and (.code >= 200 and .code < 300) and (.latency > $threshold)) ] | length
+    ),
+    errors: (
+      [ rows[] | select((.error != null and .error != "") or (.code < 200 or .code >= 300)) ] | length
+    )
+  }
+' "$RESULTS_JSONL" > "$METRICS_JSON"
 
-warnings=$(jq -s --argjson threshold "$LAT_WARN_NS" '
-  [
-    .[]
-    | select((.error == null or .error == "") and (.code >= 200 and .code < 300) and (.latency > $threshold))
-  ] | length
-' "$RESULTS_JSONL")
-
-errors=$(jq -s '
-  [
-    .[]
-    | select((.error != null and .error != "") or (.code < 200 or .code >= 300))
-  ] | length
-' "$RESULTS_JSONL")
+passes=$(jq -r '.passes' "$METRICS_JSON")
+warnings=$(jq -r '.warnings' "$METRICS_JSON")
+errors=$(jq -r '.errors' "$METRICS_JSON")
 
 total=$((passes + warnings + errors))
 
@@ -98,6 +111,8 @@ else
   score=$(awk -v p="$passes" -v t="$total" 'BEGIN { printf "%.2f", (p * 100.0) / t }')
 fi
 
+report_json=$(jq -Rs 'fromjson? // {}' "$REPORT_JSON")
+
 raw=$(jq -nc \
   --arg target "$URL" \
   --arg rate "$STRESS_RATE" \
@@ -106,10 +121,10 @@ raw=$(jq -nc \
   --arg timeout "$STRESS_TIMEOUT" \
   --arg workers "$STRESS_WORKERS" \
   --arg max_workers "$STRESS_MAX_WORKERS" \
-  --argjson headers "$STRESS_HEADERS" \
+  --argjson headers "$HEADERS_JSON" \
   --arg body "$STRESS_BODY" \
   --argjson latency_warn_ms "$STRESS_LATENCY_WARN_MS" \
-  --argjson report "$(cat "$REPORT_JSON")" \
+  --argjson report "$report_json" \
   '{
     config: {
       target: $target,

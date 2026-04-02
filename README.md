@@ -8,7 +8,7 @@ A self-hosted web scanner that shows you how both people and bots see your websi
 
 | **Type**    | **Dependencies**                | **Status** | **Description**                                                                   |
 |-------------|---------------------------------|------------|-----------------------------------------------------------------------------------|
-| Domain      | [rdapper](https://www.npmjs.com/package/rdapper), [whois](https://github.com/rfc1036/whois)                  | ✅         | Gets basic domain information like registrar, registration and expiry dates, etc. |
+| Domain      | [rdapper](https://www.npmjs.com/package/rdapper), [whois](https://github.com/rfc1036/whois), [subfinder](https://github.com/projectdiscovery/subfinder)                  | ✅         | Gets basic domain info (e.g. registrar, registration/expiry dates, etc) & records  |
 | Probe       | [httpx](https://github.com/projectdiscovery/httpx)                           | ✅         | Gets basic info about the web server, and the tech stack                          |
 | SEO         | [@seomator/seo-audit](https://www.npmjs.com/package/@seomator/seo-audit), [playwright](https://github.com/microsoft/playwright) | ✅         | Check against 251 SEO Audit Rules across 20 categories                            |
 | SSL         | -                               | ✅         | Uses `node:tls` to get basic certificate info                                     |
@@ -60,9 +60,9 @@ To keep things simple, [Apprise](https://github.com/caronc/apprise) shall be int
 
 ## Known bugs
 
-- Task execution fails more often than not. The hardcoded 1 retry after 5 seconds isn't ideal. I have found 2 culprits so far:
-  1. `@axe-core/playwright` sometimes returns a partial response (corrupted JSON)
-  2. The document locks on rocksdb don't play very nice with concurrency (e.g. there's usually multiple `whois` tasks running at the same time)
+- Task execution reliability still needs tuning under heavy concurrency. Known culprits:
+  1. Document locks on rocksdb can conflict with high parallel workloads (e.g. multiple `whois` tasks)
+  2. Not enough resources, upgrade your host
 - There is no cleanup cron for the `job_queue` yet (TODO)
 - Orphan containers may be left behind if the orchestrator crashes. When I tried using `AutoRemove: true` in the container settings the containers exited before finishing. AFAIK it's a bug with Bun. This is not a big deal as they're not left running, but a cleanup cron will be needed for those as well. (TODO)
 
@@ -78,13 +78,7 @@ Things that I don't personally need, but would be helpful to some users. Check t
 
 ### WCAG
 
-1. Currently all rules are checked. There should be an option to select speficic WCAG specs
-2. It only checks desktop mode (1280px width). There should be an option to select target [devices](https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/server/deviceDescriptorsSource.json)
-3. Highlight errors on the screenshot
-
-### Domain
-
-1. Get the DNS records. (it's never a complete list!)
+1. Highlight errors on the screenshot
 
 ### SEO
 
@@ -110,6 +104,17 @@ Things that I don't personally need, but would be helpful to some users. Check t
 ### Stress Testing
 
 [k6](https://github.com/grafana/k6) could be added to address complex workflows (e.g. login).
+The current `stress` tool options are:
+
+- `STRESS_RATE`
+- `STRESS_DURATION`
+- `STRESS_METHOD`
+- `STRESS_TIMEOUT`
+- `STRESS_WORKERS`
+- `STRESS_MAX_WORKERS`
+- `STRESS_HEADERS`
+- `STRESS_BODY`
+- `STRESS_LATENCY_WARN_MS`
 
 ## Hardware Requirements
 
@@ -119,7 +124,7 @@ The more the merrier, but at least:
 
 - 2 CPU Cores / 4 threads (a.k.a. 4 vCores on a standard VPS)
 - 4GB RAM
-- 5GB of available Storage (4GB for the images + 1GB for the actual data)
+- 6GB of available Storage (5GB for the images + 1GB for the actual data)
 
 There is a distinction between light (plain cli tools) and heavy (full browsers) tool containers, and the orchestrator won't run more heavy containers than the available CPU threads.
 
@@ -152,6 +157,21 @@ If you have a better formula submit your [issue](https://github.com/rallisf1/hes
 ### Are the WCAG results reliable?
 
 Before making this I was using [WAVE](https://wave.webaim.org/). Compared to that, axe-core is a bit less reliable, but more strict: All the websites I have checked have given more errors on axe-core, but way less warnings. My take-away from this is that if there are no errors in axe-core, there won't be any errors on WAVE as well. If you just need to fix WCAG errors (e.g. to pass an inspection) you'll be fine, but if your goal is a perfectly WCAG aligned web interface this isn't the tool for you.
+
+### How do you calculate the security score?
+
+Each finding gets a penalty score according to the following table:
+
+| Impact   | Score |
+|----------|-------|
+| critical | 10    |
+| high     | 7     |
+| medium   | 3     |
+| low      | 1     |
+
+Then all the scores are added and a percentage is calculated according to the `SECURITY_SCORE_THRESHOLD` environment variable, which has a default value of `400`. If the total score exceeds `400` you get a 0% Security score (hacker heaven). If the penalty score is 0 you get a 100% Security score (bulletproof). The number `400` is arbitary and based on a few tests. It might need tuning for your use-case, or even after updates (e.g. when more/new severe errors become common).
+
+That said; score calculations used by Hesperida can change between configurations and versions. Thus; there's no point comparing scores across instances.
 
 ### Can I scan any website I want or just my own?
 

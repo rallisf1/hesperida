@@ -49,6 +49,11 @@ interface SecurityResultRecord {
             nuclei_templates: string[];
             nikto_timeout_seconds: number;
         };
+        debug?: {
+            findings_before_dedupe: number;
+            findings_after_dedupe: number;
+            dropped_duplicates: number;
+        };
     };
 }
 
@@ -132,11 +137,12 @@ async function runCommand(args: string[], timeoutSeconds = 0): Promise<{ timedOu
 
     if (timeoutId) clearTimeout(timeoutId);
 
+    /* not helpful
     if (DEBUG) {
         if (stdout.trim().length) console.debug(stdout.trim());
         if (stderr.trim().length) console.debug(stderr.trim());
     }
-
+    */
     return { timedOut, exitCode };
 }
 
@@ -327,7 +333,9 @@ async function main() {
     parseWapiti(wapitiRaw, findings);
     parseNikto(niktoRaw, website, findings);
 
+    const findingsBeforeDedupe = findings.length;
     const tunedFindings = dedupeFindings(findings);
+    const findingsAfterDedupe = tunedFindings.length;
 
     const counters: Record<RiskLevel, number> = {
         critical: 0,
@@ -380,6 +388,13 @@ async function main() {
                 nuclei_templates: nucleiTemplates,
                 nikto_timeout_seconds: niktoTimeout,
             },
+            ...(DEBUG ? {
+                debug: {
+                    findings_before_dedupe: findingsBeforeDedupe,
+                    findings_after_dedupe: findingsAfterDedupe,
+                    dropped_duplicates: findingsBeforeDedupe - findingsAfterDedupe
+                }
+            } : {})
         },
     };
 

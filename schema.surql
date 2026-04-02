@@ -76,7 +76,7 @@ DEFINE FIELD IF NOT EXISTS probe ON jobs TYPE option<record<probe_results>>;
 DEFINE FIELD IF NOT EXISTS seo ON jobs TYPE option<record<seo_results>>;
 DEFINE FIELD IF NOT EXISTS ssl ON jobs TYPE option<record<ssl_results>>;
 DEFINE FIELD IF NOT EXISTS whois ON jobs TYPE option<array<record<whois_results>>>;
-DEFINE FIELD IF NOT EXISTS wcag ON jobs TYPE option<record<wcag_results>>;
+DEFINE FIELD IF NOT EXISTS wcag ON jobs TYPE option<array<record<wcag_results>>>;
 DEFINE FIELD IF NOT EXISTS domain ON jobs TYPE option<record<domain_results>>;
 DEFINE FIELD IF NOT EXISTS security ON jobs TYPE option<record<security_results>>;
 DEFINE FIELD IF NOT EXISTS stress ON jobs TYPE option<record<stress_results>>;
@@ -88,7 +88,14 @@ DEFINE INDEX IF NOT EXISTS job_website_idx ON jobs FIELDS website;
 
 DEFINE EVENT OVERWRITE job_deletion ON jobs WHEN $event = 'DELETE' THEN {
   IF type::is_array($before.whois) AND !array::is_empty($before.whois) { FOR $item in $before.whois { (DELETE $item) } };
-  IF $before.wcag { (DELETE $before.wcag) };
+  IF type::is_array($before.wcag) AND !array::is_empty($before.wcag) {
+    FOR $item in $before.wcag {
+      LET $wcag_result = (SELECT screenshot FROM $item LIMIT 1);
+      LET $screenshot = $wcag_result[0].screenshot;
+      IF $screenshot AND type::file('screenshots', $screenshot).exists() { type::file('screenshots', $screenshot).delete() };
+      (DELETE $item)
+    }
+  };
   IF $before.ssl { (DELETE $before.ssl) };
   IF $before.seo { (DELETE $before.seo) };
   IF $before.probe { (DELETE $before.probe) };
@@ -100,11 +107,14 @@ DEFINE EVENT OVERWRITE job_deletion ON jobs WHEN $event = 'DELETE' THEN {
 };
 
 DEFINE EVENT IF NOT EXISTS job_completion_check ON jobs WHEN $event = 'UPDATE' AND $after.status != 'completed' THEN {
+    LET $has_pending_wcag = ('wcag' IN $after.types) AND (
+        array::len((SELECT id FROM job_queue WHERE job = $after.id AND type = 'wcag' AND status IN ['pending','waiting','processing'])) > 0
+    );
     LET $is_incomplete = (
         ('probe' IN $after.types AND $after.probe = NONE) OR
         ('seo' IN $after.types AND $after.seo = NONE) OR
         ('ssl' IN $after.types AND $after.ssl = NONE) OR
-        ('wcag' IN $after.types AND $after.wcag = NONE) OR
+        ('wcag' IN $after.types AND ($after.wcag = NONE OR $has_pending_wcag)) OR
         ('whois' IN $after.types AND $after.whois = NONE) OR
         ('domain' IN $after.types AND $after.domain = NONE) OR
         ('security' IN $after.types AND $after.security = NONE) OR
@@ -121,8 +131,10 @@ DEFINE EVENT IF NOT EXISTS job_completion_check ON jobs WHEN $event = 'UPDATE' A
 DEFINE TABLE IF NOT EXISTS job_queue TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.user = $auth.id;
 
 DEFINE FIELD IF NOT EXISTS created_at ON job_queue TYPE datetime DEFAULT time::now() READONLY;
+DEFINE FIELD IF NOT EXISTS attempts ON job_queue TYPE int DEFAULT 0;
 DEFINE FIELD IF NOT EXISTS job ON job_queue TYPE record<jobs>;
-DEFINE FIELD IF NOT EXISTS options ON job_queue TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS next_run_at ON job_queue TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE options ON job_queue TYPE option<object> FLEXIBLE;
 DEFINE FIELD OVERWRITE type ON job_queue TYPE string ASSERT $value IN ['seo', 'ssl', 'wcag', 'whois', 'domain', 'security', 'stress'];
 DEFINE FIELD OVERWRITE status ON job_queue TYPE string DEFAULT pending ASSERT $value IN ['pending', 'waiting', 'processing', 'completed', 'failed'];
 DEFINE FIELD IF NOT EXISTS target ON job_queue TYPE string;
@@ -232,6 +244,7 @@ DEFINE FIELD IF NOT EXISTS expirationDate ON domain_results TYPE datetime | null
 DEFINE FIELD IF NOT EXISTS dnssecEnabled ON domain_results TYPE bool;
 DEFINE FIELD IF NOT EXISTS privacyEnabled ON domain_results TYPE bool;
 DEFINE FIELD OVERWRITE nameservers ON domain_results TYPE array<string> | [];
+DEFINE FIELD IF NOT EXISTS records ON domain_results TYPE object FLEXIBLE;
 
 DEFINE EVENT IF NOT EXISTS domain_completion ON domain_results WHEN $event = 'CREATE' THEN {
 	UPDATE jobs SET domain = type::record('domain_results', $after.id) WHERE id = $after.job;
@@ -286,16 +299,18 @@ DEFINE EVENT IF NOT EXISTS stress_completion ON stress_results WHEN $event = 'CR
 DEFINE TABLE IF NOT EXISTS wcag_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.user = $auth.id;
 
 DEFINE FIELD IF NOT EXISTS created_at ON wcag_results TYPE datetime DEFAULT time::now() READONLY;
+DEFINE FIELD IF NOT EXISTS device ON wcag_results TYPE string;
 DEFINE FIELD IF NOT EXISTS errors ON wcag_results TYPE int DEFAULT 0;
 DEFINE FIELD IF NOT EXISTS job ON wcag_results TYPE record<jobs> ASSERT record::exists($value);
 DEFINE FIELD IF NOT EXISTS passes ON wcag_results TYPE int DEFAULT 0;
 DEFINE FIELD IF NOT EXISTS raw ON wcag_results TYPE object FLEXIBLE;
 DEFINE FIELD IF NOT EXISTS score ON wcag_results TYPE number;
+DEFINE FIELD IF NOT EXISTS screenshot ON wcag_results TYPE string;
 DEFINE FIELD IF NOT EXISTS warnings ON wcag_results TYPE int DEFAULT 0;
 
 DEFINE EVENT IF NOT EXISTS wcag_completion ON wcag_results WHEN $event = 'CREATE' THEN {
-	UPDATE jobs SET wcag = type::record('wcag_results', $after.id) WHERE id = $after.job;
-	UPDATE job_queue SET status = 'completed' WHERE job = $after.job AND type = 'wcag';
+	UPDATE jobs SET wcag = array::add(wcag || [], type::record('wcag_results', $after.id)) WHERE id = $after.job;
+	UPDATE job_queue SET status = 'completed' WHERE job = $after.job AND type = 'wcag' AND target = $after.device;
 };
 
 

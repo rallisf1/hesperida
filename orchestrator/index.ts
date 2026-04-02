@@ -1,5 +1,5 @@
 import { setInterval, clearInterval } from 'node:timers';
-import {RecordId, Surreal, Table, eq} from 'surrealdb';
+import {DateTime, RecordId, Surreal, Table, eq} from 'surrealdb';
 import Dockerode from 'dockerode';
 import type { Job, Queue, Tool, Website } from './types';
 import { slowTools, tools } from './constants';
@@ -10,6 +10,9 @@ const DEBUG = Bun.env.DEBUG == "true";
 let RUNNERS = 0;
 const NUMCORES = navigator.hardwareConcurrency;
 const REBUILD = Bun.argv[2] == "--rebuild"
+const configuredAttempts = Number.parseInt(Bun.env.MAX_ATTEMPTS ?? '4', 10);
+const MAX_ATTEMPTS = Number.isFinite(configuredAttempts) ? Math.max(1, configuredAttempts) : 4;
+const RETRY_BACKOFF_MS = [5_000, 15_000, 45_000];
 const ENV = [`SURREAL_USER=${Bun.env.SURREAL_USER}`, `SURREAL_PASS=${Bun.env.SURREAL_PASS}`, `SURREAL_NAMESPACE=${Bun.env.SURREAL_NAMESPACE}`, `SURREAL_DATABASE=${Bun.env.SURREAL_DATABASE}`, `SURREAL_ADDRESS=${Bun.env.SURREAL_ADDRESS}`, `SURREAL_PROTOCOL=${Bun.env.SURREAL_PROTOCOL}`, `DEBUG=${Bun.env.DEBUG}`];
 
 console.log('Hesperida Orchestrator starting...');
@@ -96,12 +99,58 @@ const getToolTaskOptions = (jobOptions: unknown, tool: Tool): Record<string, unk
     return toolOptions as Record<string, unknown>;
 }
 
+const getWcagDevices = (wcagOptions: Record<string, unknown> | undefined): string[] => {
+    const DEFAULT_DEVICE = 'Desktop Chrome';
+    if(!wcagOptions) return [DEFAULT_DEVICE];
+    const devices = wcagOptions.devices;
+    if(!Array.isArray(devices)) return [DEFAULT_DEVICE];
+
+    const seen = new Set<string>();
+    const normalized: string[] = [];
+    for (const device of devices) {
+        if(typeof device !== 'string') continue;
+        const item = device.trim();
+        if(!item.length || seen.has(item)) continue;
+        seen.add(item);
+        normalized.push(item);
+    }
+    return normalized.length ? normalized : [DEFAULT_DEVICE];
+}
+
+const getWcagTaskEnvOptions = (wcagOptions: Record<string, unknown> | undefined): Record<string, unknown> => {
+    if(!wcagOptions) return {};
+    const envOptions: Record<string, unknown> = {};
+
+    const runOnly = wcagOptions.runOnly;
+    if(Array.isArray(runOnly)) {
+        envOptions.WCAG_RUN_ONLY = runOnly.map(v => String(v)).join(',');
+    } else if(typeof runOnly === 'string' && runOnly.trim().length) {
+        envOptions.WCAG_RUN_ONLY = runOnly.trim();
+    }
+
+    const excludeRules = wcagOptions.excludeRules;
+    if(Array.isArray(excludeRules)) {
+        envOptions.WCAG_EXCLUDE_RULES = excludeRules.map(v => String(v)).join(',');
+    } else if(typeof excludeRules === 'string' && excludeRules.trim().length) {
+        envOptions.WCAG_EXCLUDE_RULES = excludeRules.trim();
+    }
+
+    return envOptions;
+}
+
+const getRetryBackoffMs = (attemptNumber: number): number => {
+    const index = Math.max(0, Math.min(RETRY_BACKOFF_MS.length - 1, attemptNumber - 1));
+    return RETRY_BACKOFF_MS[index]!;
+}
+
 const runTask = async (task: Partial<Queue>, task_id: RecordId | null): Promise<boolean> => {
     if(DEBUG) console.debug(`Runner started for ${task_id} with data: ${JSON.stringify(task)}`);
-    let isRetry = Object.hasOwn(task, 'status') && task.status === 'waiting';
+    let attemptNumber = task.attempts ?? 0;
     if(task_id) {
+        attemptNumber += 1;
         await db.update<Queue>(task_id).merge({
-            status: 'processing'
+            status: 'processing',
+            attempts: attemptNumber
         });
     }
     if(slowTools.includes(task.type as Tool)) RUNNERS++;
@@ -147,10 +196,21 @@ const runTask = async (task: Partial<Queue>, task_id: RecordId | null): Promise<
     }
 
     if(!runSuccessfully) {
-        if(task_id) { // 1 retry then fail
-            await db.update<Queue>(task_id).merge({
-                status: isRetry ? 'failed' : 'waiting'
-            });
+        if(task_id) {
+            if(attemptNumber >= MAX_ATTEMPTS) {
+                await db.update<Queue>(task_id).merge({
+                    status: 'failed'
+                });
+                await db.update<Job>(task.job as RecordId).merge({
+                    status: 'failed'
+                });
+            } else {
+                const nextRunAt = new Date(Date.now() + getRetryBackoffMs(attemptNumber));
+                await db.update<Queue>(task_id).merge({
+                    status: 'waiting',
+                    next_run_at: new DateTime(nextRunAt.toISOString())
+                });
+            }
         }
         if(DEBUG) console.error(`Task ${task_id} with type ${task.type} for ${task.job} failed.`);
     }
@@ -163,7 +223,7 @@ if(DEBUG) console.debug('Setting up deferred tasks checker...');
 const waitingInterval = setInterval(async () => {
     if(RUNNERS < NUMCORES) {
         const [tasks] = await db.query(
-            'SELECT * FROM job_queue WHERE status = $status ORDER BY created_at DESC LIMIT 1',
+            'SELECT * FROM job_queue WHERE status = $status AND (next_run_at = NONE OR next_run_at <= time::now()) ORDER BY next_run_at ASC LIMIT 1',
             { status: 'waiting' }
         ).collect<[Queue[]]>();
         if(tasks.length) await runTask(tasks[0], tasks[0].id);
@@ -177,7 +237,8 @@ newTasks.subscribe(async ({action, value, recordId}) => {
         if(RUNNERS >= NUMCORES && slowTools.includes(value.type as Tool)) {
             if(DEBUG) console.warn(`Server resources (${NUMCORES}) reached before ${value.type} for ${recordId}. Adding to wait list.`);
             await db.update<Queue>(recordId).merge({
-                status: 'waiting'
+                status: 'waiting',
+                next_run_at: new DateTime(new Date().toISOString())
             });
         } else {
             await runTask(value, recordId);
@@ -226,10 +287,29 @@ newJobs.subscribe(async ({action, value, recordId}) => {
                             job: recordId,
                             type: tool,
                             status: 'pending',
-                            target: IP
+                            target: IP,
+                            attempts: 0
                         }
                         const whoisOptions = getToolTaskOptions(value.options, 'whois');
                         if(whoisOptions) task.options = whoisOptions;
+                        await db.create<Queue>(queue).content(task);
+                    }
+                } else if(tool === 'wcag') {
+                    const wcagOptions = getToolTaskOptions(value.options, 'wcag');
+                    const devices = getWcagDevices(wcagOptions);
+                    const wcagEnvOptions = getWcagTaskEnvOptions(wcagOptions);
+                    for (const device of devices) {
+                        const task: Queue = {
+                            job: recordId,
+                            type: tool,
+                            status: 'pending',
+                            target: website?.url,
+                            attempts: 0,
+                            options: {
+                                ...wcagEnvOptions,
+                                WCAG_DEVICE_NAME: device
+                            }
+                        }
                         await db.create<Queue>(queue).content(task);
                     }
                 } else {
@@ -237,7 +317,8 @@ newJobs.subscribe(async ({action, value, recordId}) => {
                         job: recordId,
                         type: tool,
                         status: 'pending',
-                        target: website?.url
+                        target: website?.url,
+                        attempts: 0
                     }
                     const toolOptions = getToolTaskOptions(value.options, tool);
                     if(toolOptions) task.options = toolOptions;

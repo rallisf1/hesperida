@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.3.1] - 2026-04-02
+
+### Added
+
+- Queue retries with bounded backoff (`attempts`, `next_run_at`).
+- WCAG multi-device task fanout with per-device screenshots.
+- Domain DNS records in `domain_results.records` via [subfinder](https://github.com/projectdiscovery/subfinder).
+- Usage of Cloudflare's DoH endpoint for DNS TXT resolution fallback.
+- Security debug dedupe counters (`raw.debug` when `DEBUG=true`).
+- Troubleshooting notes in `dev_notes.md`.
+
+### Changed
+
+- `jobs.wcag` now stores an array of WCAG result records.
+- WCAG queue completion now matches task by target device.
+
+### Fixed
+
+- WCAG: install chromium after docker cache invalidation to prevent playwright version mismatch.
+
 ## [0.3.0] - 2026-04-01
 
 ### Added

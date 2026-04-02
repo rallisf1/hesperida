@@ -13,7 +13,7 @@ export interface Job {
     seo?: RecordId<'seo_results'>;
     ssl?: RecordId<'ssl_results'>;
     whois?: RecordId<'whois_results'>;
-    wcag?: RecordId<'wcag_results'>;
+    wcag?: RecordId<'wcag_results'>[];
     domain?: RecordId<'domain_results'>;
     security?: RecordId<'security_results'>;
     stress?: RecordId<'stress_results'>;
@@ -34,6 +34,8 @@ export interface Queue {
     job: RecordId<'jobs'>;
     type: Tool;
     options?: Record<string, unknown>;
+    attempts?: number;
+    next_run_at?: DateTime;
     target: string;
     status: 'pending' | 'waiting' | 'processing' | 'completed' | 'failed';
     created_at?: DateTime;
@@ -81,6 +83,7 @@ export interface Domain {
   dnssecEnabled: boolean;
   privacyEnabled: boolean;
   nameservers: string[];
+  records?: object;
   created_at?: DateTime;
 }
 
