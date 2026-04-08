@@ -2,37 +2,12 @@ import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryOne, toRecordId, withAdminDb } from '$lib/server/db';
+import { canInviteToWebsite, isAdmin } from '$lib/server/policy';
 
 type WebsiteAccessRow = {
 	id: string;
 	owner: unknown;
 	users?: unknown[];
-};
-
-const normalizeRecordId = (value: unknown): string => {
-	const normalizeString = (input: string): string => {
-		const trimmed = input.trim();
-		const unquoted = trimmed.replace(/^['"]+|['"]+$/g, '');
-		const recordIdWrapped = unquoted.match(/^RecordId\((.+)\)$/);
-		const wrappedRaw = recordIdWrapped ? recordIdWrapped[1] : unquoted;
-		const raw = wrappedRaw.replace(/^['"]+|['"]+$/g, '');
-		return raw.replace(/^([a-z_]+):\1:/i, '$1:');
-	};
-
-	if (typeof value === 'string') return normalizeString(value);
-	if (typeof value === 'number' || typeof value === 'bigint') return String(value);
-	if (value && typeof value === 'object') {
-		const maybe = value as { tb?: unknown; id?: unknown };
-		if (typeof maybe.tb === 'string' && typeof maybe.id !== 'undefined') {
-			const idValue = normalizeString(String(maybe.id));
-			return idValue.includes(':') ? idValue : `${maybe.tb}:${idValue}`;
-		}
-		if ('toString' in value && typeof (value as { toString: () => string }).toString === 'function') {
-			const text = (value as { toString: () => string }).toString();
-			if (text && text !== '[object Object]') return normalizeString(text);
-		}
-	}
-	return String(value);
 };
 
 /**
@@ -77,19 +52,25 @@ export const POST: RequestHandler = async (event) => {
 	const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
 	if (!email) return jsonError(event, 400, 'bad_request', 'email is required.');
 
-	const website = await withAdminDb((db) =>
-		queryOne<WebsiteAccessRow>(db, 'SELECT id, owner, users FROM websites WHERE id = type::record($id) LIMIT 1;', {
-			id: websiteId
-		})
-	);
-	if (!website) return jsonError(event, 404, 'not_found', 'Website not found.');
+	if (!canInviteToWebsite(auth.user)) {
+		return jsonError(event, 403, 'forbidden', 'You are not allowed to invite users to this website.');
+	}
 
-	const memberIds = (website.users ?? []).map((id) => normalizeRecordId(id));
-	const ownerId = normalizeRecordId(website.owner);
-	const authUserId = normalizeRecordId(auth.user.id);
-	const isMember = ownerId === authUserId || memberIds.includes(authUserId);
-	const canInvite = auth.user.role === 'admin' || (isMember && auth.user.role === 'editor');
-	if (!canInvite) return jsonError(event, 403, 'forbidden', 'You are not allowed to invite users to this website.');
+	const website = await withAdminDb((db) =>
+		queryOne<WebsiteAccessRow>(
+			db,
+			isAdmin(auth.user)
+				? 'SELECT id, owner, users FROM websites WHERE id = type::record($id) LIMIT 1;'
+				: 'SELECT id, owner, users FROM websites WHERE id = type::record($id) AND (owner = type::record($user) OR type::record($user) IN users) LIMIT 1;',
+			{
+				id: websiteId,
+				user: auth.user.id
+			}
+		)
+	);
+	if (!website) {
+		return jsonError(event, isAdmin(auth.user) ? 404 : 403, isAdmin(auth.user) ? 'not_found' : 'forbidden', isAdmin(auth.user) ? 'Website not found.' : 'You are not allowed to invite users to this website.');
+	}
 
 	let user = await withAdminDb((db) =>
 		queryOne<{ id: string; email: string }>(db, 'SELECT id, email FROM users WHERE email = $email LIMIT 1;', { email })

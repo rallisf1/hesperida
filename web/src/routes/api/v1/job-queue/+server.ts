@@ -1,7 +1,8 @@
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonOk } from '$lib/server/http';
-import { queryMany, withAdminDb } from '$lib/server/db';
+import { queryMany, withAdminDb, withUserDb } from '$lib/server/db';
+import { isAdmin } from '$lib/server/policy';
 
 /**
  * @swagger
@@ -22,17 +23,9 @@ export const GET: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
 
-	const rows = await withAdminDb((db) => {
-		if (auth.user.role === 'admin') {
-			return queryMany(db, 'SELECT * FROM job_queue ORDER BY created_at DESC;');
-		}
-
-		return queryMany(
-			db,
-			'SELECT * FROM job_queue WHERE job.website.owner = type::record($user) OR type::record($user) IN job.website.users ORDER BY created_at DESC;',
-			{ user: auth.user.id }
-		);
-	});
+	const rows = isAdmin(auth.user)
+		? await withAdminDb((db) => queryMany(db, 'SELECT * FROM job_queue ORDER BY created_at DESC;'))
+		: await withUserDb(auth.token, (db) => queryMany(db, 'SELECT * FROM job_queue ORDER BY created_at DESC;'));
 
 	return jsonOk(event, { tasks: rows ?? [] });
 };

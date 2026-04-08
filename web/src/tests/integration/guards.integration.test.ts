@@ -1,6 +1,8 @@
 import { beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { adminOne, createUser, createWebsite, ensureSchema, resetData } from '../helpers/db';
 import { ApiTestClient, randomEmail } from '../helpers/request';
+import { normalizeRecordId } from '../helpers/ids';
+import { signinExistingUser } from '../helpers/fixtures';
 
 const signup = async () => {
 	const email = randomEmail('guard_user');
@@ -14,28 +16,6 @@ const signup = async () => {
 	return { token: res.json?.data?.token as string, email, password };
 };
 
-const signinExisting = async (email: string, password: string): Promise<string> => {
-	const client = new ApiTestClient({ apiKey: null });
-	const res = await client.call({
-		method: 'POST',
-		path: '/api/v1/auth/signin',
-		body: { email, password }
-	});
-	if (res.response.status !== 200) throw new Error(`Signin failed: ${res.response.status}`);
-	return res.json.data.token as string;
-};
-
-const normalizeRecordId = (value: unknown): string => {
-	if (typeof value === 'string') return value.replace(/^RecordId\((.+)\)$/i, '$1').replace(/^['"]|['"]$/g, '');
-	if (value && typeof value === 'object') {
-		const maybe = value as { tb?: unknown; id?: unknown };
-		if (typeof maybe.tb === 'string' && typeof maybe.id !== 'undefined') {
-			const raw = String(maybe.id).replace(/^['"]|['"]$/g, '');
-			return raw.includes(':') ? raw : `${maybe.tb}:${raw}`;
-		}
-	}
-	return String(value);
-};
 setDefaultTimeout(30_000);
 
 describe('API Guard Integration', () => {
@@ -101,7 +81,7 @@ describe('API Guard Integration', () => {
 		const owner = await createUser({ name: 'Owner Guard', email: ownerEmail, password: ownerPassword, role: 'editor' });
 		if (!viewer || !owner) throw new Error('Failed to create guard users');
 
-		const viewerToken = await signinExisting(viewerEmail, viewerPassword);
+		const viewerToken = await signinExistingUser(viewerEmail, viewerPassword);
 		const viewerClient = new ApiTestClient({ bearerToken: viewerToken });
 
 		const websiteCreate = await viewerClient.call({

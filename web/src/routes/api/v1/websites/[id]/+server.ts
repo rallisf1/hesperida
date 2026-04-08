@@ -1,25 +1,15 @@
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
-import { queryOne, toRecordId, withAdminDb } from '$lib/server/db';
+import { queryOne, toRecordId, withAdminDb, withUserDb } from '$lib/server/db';
+import { isAdmin } from '$lib/server/policy';
 
-const getWebsite = async (websiteId: string, userId: string, role?: string) => {
-	return withAdminDb((db) => {
-		if (role === 'admin') {
-			return queryOne(db, 'SELECT * FROM websites WHERE id = type::record($id) LIMIT 1;', {
-				id: websiteId
-			});
-		}
+const getWebsite = async (websiteId: string, token: string, role?: string) => {
+	if (role === 'admin') {
+		return withAdminDb((db) => queryOne(db, 'SELECT * FROM websites WHERE id = type::record($id) LIMIT 1;', { id: websiteId }));
+	}
 
-		return queryOne(
-			db,
-			'SELECT * FROM websites WHERE id = type::record($id) AND (owner = type::record($user) OR type::record($user) IN users) LIMIT 1;',
-			{
-				id: websiteId,
-				user: userId
-			}
-		);
-	});
+	return withUserDb(token, (db) => queryOne(db, 'SELECT * FROM websites WHERE id = type::record($id) LIMIT 1;', { id: websiteId }));
 };
 
 /**
@@ -47,7 +37,7 @@ export const GET: RequestHandler = async (event) => {
 	if ('error' in auth) return auth.error;
 
 	const websiteId = toRecordId('websites', event.params.id);
-	const website = await getWebsite(websiteId, auth.user.id, auth.user.role);
+	const website = await getWebsite(websiteId, auth.token, auth.user.role);
 	if (!website) return jsonError(event, 404, 'not_found', 'Website not found.');
 
 	return jsonOk(event, { website });
@@ -90,7 +80,7 @@ export const PATCH: RequestHandler = async (event) => {
 	if ('error' in auth) return auth.error;
 
 	const websiteId = toRecordId('websites', event.params.id);
-	const existing = await getWebsite(websiteId, auth.user.id, auth.user.role);
+	const existing = await getWebsite(websiteId, auth.token, auth.user.role);
 	if (!existing) return jsonError(event, 404, 'not_found', 'Website not found.');
 
 	let payload: Record<string, unknown>;
@@ -110,9 +100,9 @@ export const PATCH: RequestHandler = async (event) => {
 	}
 
 	try {
-		const website = await withAdminDb((db) =>
-			queryOne(db, 'UPDATE $id MERGE $patch RETURN AFTER;', { id: websiteId, patch })
-		);
+		const website = await (isAdmin(auth.user)
+			? withAdminDb((db) => queryOne(db, 'UPDATE $id MERGE $patch RETURN AFTER;', { id: websiteId, patch }))
+			: withUserDb(auth.token, (db) => queryOne(db, 'UPDATE $id MERGE $patch RETURN AFTER;', { id: websiteId, patch })));
 		return jsonOk(event, { website });
 	} catch (error) {
 		return jsonError(event, 400, 'update_failed', (error as Error).message);
@@ -144,9 +134,11 @@ export const DELETE: RequestHandler = async (event) => {
 	if ('error' in auth) return auth.error;
 
 	const websiteId = toRecordId('websites', event.params.id);
-	const existing = await getWebsite(websiteId, auth.user.id, auth.user.role);
+	const existing = await getWebsite(websiteId, auth.token, auth.user.role);
 	if (!existing) return jsonError(event, 404, 'not_found', 'Website not found.');
 
-	await withAdminDb((db) => db.query('DELETE $id;', { id: websiteId }).collect());
+	await (isAdmin(auth.user)
+		? withAdminDb((db) => db.query('DELETE $id;', { id: websiteId }).collect())
+		: withUserDb(auth.token, (db) => db.query('DELETE $id;', { id: websiteId }).collect()));
 	return jsonOk(event, { deleted: true });
 };

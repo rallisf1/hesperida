@@ -1,33 +1,10 @@
 import { beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { adminOne, createUser, createWebsite, ensureSchema, resetData } from '../helpers/db';
 import { ApiTestClient, randomEmail } from '../helpers/request';
+import { normalizeRecordId, toRouteId } from '../helpers/ids';
+import { signinExistingUser } from '../helpers/fixtures';
 
 setDefaultTimeout(30_000);
-
-const normalizeRecordId = (value: unknown): string => {
-	if (typeof value === 'string') return value.replace(/^RecordId\((.+)\)$/i, '$1').replace(/^['"]|['"]$/g, '');
-	if (value && typeof value === 'object') {
-		const maybe = value as { tb?: unknown; id?: unknown };
-		if (typeof maybe.tb === 'string' && typeof maybe.id !== 'undefined') {
-			const raw = String(maybe.id).replace(/^['"]|['"]$/g, '');
-			return raw.includes(':') ? raw : `${maybe.tb}:${raw}`;
-		}
-	}
-	return String(value);
-};
-
-const routeId = (recordId: string): string => recordId.split(':').slice(1).join(':');
-
-const signin = async (email: string, password: string): Promise<string> => {
-	const client = new ApiTestClient({ apiKey: null });
-	const res = await client.call({
-		method: 'POST',
-		path: '/api/v1/auth/signin',
-		body: { email, password }
-	});
-	if (res.response.status !== 200) throw new Error(`Signin failed: ${res.response.status}`);
-	return res.json.data.token as string;
-};
 
 describe('API Website Invite Integration', () => {
 	beforeAll(async () => {
@@ -55,10 +32,10 @@ describe('API Website Invite Integration', () => {
 		});
 		if (!website) throw new Error('Failed to create website');
 
-		const ownerToken = await signin(ownerEmail, ownerPassword);
+		const ownerToken = await signinExistingUser(ownerEmail, ownerPassword);
 		const client = new ApiTestClient({ bearerToken: ownerToken });
 
-		const invitePath = `/api/v1/websites/${encodeURIComponent(routeId(normalizeRecordId(website.id)))}/invite`;
+		const invitePath = `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/invite`;
 		const firstInvite = await client.call({
 			method: 'POST',
 			path: invitePath,
@@ -97,12 +74,12 @@ describe('API Website Invite Integration', () => {
 		});
 		if (!website) throw new Error('Failed to create website');
 
-		const ownerToken = await signin(ownerEmail, ownerPassword);
+		const ownerToken = await signinExistingUser(ownerEmail, ownerPassword);
 		const client = new ApiTestClient({ bearerToken: ownerToken });
 
 		const invite = await client.call({
 			method: 'POST',
-			path: `/api/v1/websites/${encodeURIComponent(routeId(normalizeRecordId(website.id)))}/invite`,
+			path: `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/invite`,
 			body: { email: unknownEmail }
 		});
 		expect(invite.response.status).toBe(200);
@@ -141,12 +118,12 @@ describe('API Website Invite Integration', () => {
 			}
 		);
 
-		const viewerToken = await signin(viewerEmail, viewerPassword);
+		const viewerToken = await signinExistingUser(viewerEmail, viewerPassword);
 		const client = new ApiTestClient({ bearerToken: viewerToken });
 
 		const res = await client.call({
 			method: 'POST',
-			path: `/api/v1/websites/${encodeURIComponent(routeId(normalizeRecordId(website.id)))}/invite`,
+			path: `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/invite`,
 			body: { email: randomEmail('should_fail_invite') }
 		});
 

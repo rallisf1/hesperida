@@ -1,52 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from 'bun:test';
-import { createJob, createQueueTask, createUser, createWebsite, ensureSchema, resetData } from '../helpers/db';
-import { ApiTestClient, randomEmail } from '../helpers/request';
+import { createJob, createQueueTask, createWebsite, ensureSchema, resetData } from '../helpers/db';
+import { ApiTestClient } from '../helpers/request';
+import { createAndSigninUser } from '../helpers/fixtures';
+import { normalizeRecordId } from '../helpers/ids';
 setDefaultTimeout(30_000);
-
-const normalizeRecordId = (value: unknown): string => {
-	const normalizeString = (input: string): string => {
-		const trimmed = input.trim();
-		const unquoted = trimmed.replace(/^['"]+|['"]+$/g, '');
-		const recordIdWrapped = unquoted.match(/^RecordId\((.+)\)$/);
-		const wrappedRaw = recordIdWrapped ? recordIdWrapped[1] : unquoted;
-		const raw = wrappedRaw.replace(/^['"]+|['"]+$/g, '');
-		return raw.replace(/^([a-z_]+):\1:/i, '$1:');
-	};
-
-	if (typeof value === 'string') return normalizeString(value);
-	if (typeof value === 'number' || typeof value === 'bigint') return String(value);
-	if (value && typeof value === 'object') {
-		const maybe = value as { tb?: unknown; id?: unknown };
-		if (typeof maybe.tb === 'string' && typeof maybe.id !== 'undefined') {
-			const idValue = normalizeString(String(maybe.id));
-			return idValue.includes(':') ? idValue : `${maybe.tb}:${idValue}`;
-		}
-		if ('toString' in value && typeof (value as { toString: () => string }).toString === 'function') {
-			const text = (value as { toString: () => string }).toString();
-			if (text && text !== '[object Object]') return normalizeString(text);
-		}
-	}
-	throw new Error(`Unexpected record id shape: ${JSON.stringify(value)} (${String(value)})`);
-};
-
-const createSignedInUser = async (name: string) => {
-	const email = randomEmail(name.toLowerCase());
-	const password = 'pass12345';
-	const created = await createUser({ name, email, password });
-	if (!created) throw new Error('Failed to create test user');
-
-	const authClient = new ApiTestClient({ apiKey: null });
-	const signin = await authClient.call({
-		method: 'POST',
-		path: '/api/v1/auth/signin',
-		body: { email, password }
-	});
-	if (signin.response.status !== 200) {
-		throw new Error(`Failed to signin test user: ${signin.response.status}`);
-	}
-
-	return { userId: normalizeRecordId(created.id), token: signin.json.data.token as string };
-};
 
 describe('API Job Queue Integration', () => {
 	beforeAll(async () => {
@@ -58,8 +15,8 @@ describe('API Job Queue Integration', () => {
 	});
 
 	test('list returns only owned queue tasks', async () => {
-		const owner = await createSignedInUser('Queue Owner A');
-		const other = await createSignedInUser('Queue Owner B');
+		const owner = await createAndSigninUser('Queue Owner A');
+		const other = await createAndSigninUser('Queue Owner B');
 
 		const ownerWebsite = await createWebsite({
 			user: owner.userId,

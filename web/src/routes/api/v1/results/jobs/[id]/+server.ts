@@ -1,7 +1,8 @@
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
-import { queryOne, toRecordId, withAdminDb } from '$lib/server/db';
+import { queryOne, toRecordId, withAdminDb, withUserDb } from '$lib/server/db';
+import { isAdmin } from '$lib/server/policy';
 
 /**
  * @swagger
@@ -29,15 +30,10 @@ export const GET: RequestHandler = async (event) => {
 
 	const jobId = toRecordId('jobs', event.params.id);
 
-	const job = await withAdminDb((db) =>
-		queryOne(
-			db,
-			auth.user.role === 'admin'
-				? 'SELECT * FROM jobs WHERE id = type::record($id) LIMIT 1 FETCH probe, seo, ssl, whois, wcag, domain, security, stress;'
-				: 'SELECT * FROM jobs WHERE id = type::record($id) AND (website.owner = type::record($user) OR type::record($user) IN website.users) LIMIT 1 FETCH probe, seo, ssl, whois, wcag, domain, security, stress;',
-			{ id: jobId, user: auth.user.id }
-		)
-	);
+	const sql = 'SELECT * FROM jobs WHERE id = type::record($id) LIMIT 1 FETCH probe, seo, ssl, whois, wcag, domain, security, stress;';
+	const job = isAdmin(auth.user)
+		? await withAdminDb((db) => queryOne(db, sql, { id: jobId }))
+		: await withUserDb(auth.token, (db) => queryOne(db, sql, { id: jobId }));
 	if (!job) return jsonError(event, 404, 'not_found', 'Job not found.');
 
 	return jsonOk(event, { job });

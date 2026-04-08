@@ -1,7 +1,8 @@
 import type { RequestHandler } from './$types';
-import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
-import { queryMany, queryOne, withAdminDb } from '$lib/server/db';
+import { queryMany, queryOne, withAdminDb, withUserDb } from '$lib/server/db';
+import { canCreateWebsite, isAdmin } from '$lib/server/policy';
+import { withRequiredUser } from '$lib/server/route';
 
 /**
  * @swagger
@@ -17,21 +18,15 @@ import { queryMany, queryOne, withAdminDb } from '$lib/server/db';
  *         description: Website list
  */
 export const GET: RequestHandler = async (event) => {
-	const auth = await requireUser(event);
-	if ('error' in auth) return auth.error;
-
-	const rows = await withAdminDb((db) => {
-		if (auth.user.role === 'admin') {
-			return queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC;');
+	return withRequiredUser(event, async (auth) => {
+		if (isAdmin(auth.user)) {
+			const rows = await withAdminDb((db) => queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC;'));
+			return jsonOk(event, { websites: rows ?? [] });
 		}
-		return queryMany(
-			db,
-			'SELECT * FROM websites WHERE owner = type::record($user) OR type::record($user) IN users ORDER BY created_at DESC;',
-			{ user: auth.user.id }
-		);
-	});
 
-	return jsonOk(event, { websites: rows ?? [] });
+		const rows = await withUserDb(auth.token, (db) => queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC;'));
+		return jsonOk(event, { websites: rows ?? [] });
+	});
 };
 
 /**
@@ -61,38 +56,38 @@ export const GET: RequestHandler = async (event) => {
  *         $ref: '#/components/responses/BadRequest'
  */
 export const POST: RequestHandler = async (event) => {
-	const auth = await requireUser(event);
-	if ('error' in auth) return auth.error;
-	if (auth.user.role === 'viewer') {
-		return jsonError(event, 403, 'forbidden', 'Viewer users cannot create websites.');
-	}
+	return withRequiredUser(event, async (auth) => {
+		if (!canCreateWebsite(auth.user)) {
+			return jsonError(event, 403, 'forbidden', 'Viewer users cannot create websites.');
+		}
 
-	let payload: Record<string, unknown>;
-	try {
-		payload = await parseJson(event.request);
-	} catch (error) {
-		return jsonError(event, 400, 'bad_request', (error as Error).message);
-	}
+		let payload: Record<string, unknown>;
+		try {
+			payload = await parseJson(event.request);
+		} catch (error) {
+			return jsonError(event, 400, 'bad_request', (error as Error).message);
+		}
 
-	const url = typeof payload.url === 'string' ? payload.url.trim() : '';
-	const description = typeof payload.description === 'string' ? payload.description.trim() : '';
-	const verified = typeof payload.verified === 'boolean' ? payload.verified : false;
+		const url = typeof payload.url === 'string' ? payload.url.trim() : '';
+		const description = typeof payload.description === 'string' ? payload.description.trim() : '';
+		const verified = typeof payload.verified === 'boolean' ? payload.verified : false;
 
-	if (!url || !description) {
-		return jsonError(event, 400, 'bad_request', 'url and description are required.');
-	}
+		if (!url || !description) {
+			return jsonError(event, 400, 'bad_request', 'url and description are required.');
+		}
 
-	try {
-		const website = await withAdminDb((db) =>
-			queryOne(
-				db,
-				'CREATE websites CONTENT { owner: type::record($user), users: [type::record($user)], url: $url, description: $description, verified: $verified } RETURN AFTER;',
-				{ user: auth.user.id, url, description, verified }
-			)
-		);
+		try {
+			const website = await withAdminDb((db) =>
+				queryOne(
+					db,
+					'CREATE websites CONTENT { owner: type::record($user), users: [type::record($user)], url: $url, description: $description, verified: $verified } RETURN AFTER;',
+					{ user: auth.user.id, url, description, verified }
+				)
+			);
 
-		return jsonOk(event, { website }, 201);
-	} catch (error) {
-		return jsonError(event, 400, 'create_failed', (error as Error).message);
-	}
+			return jsonOk(event, { website }, 201);
+		} catch (error) {
+			return jsonError(event, 400, 'create_failed', (error as Error).message);
+		}
+	});
 };
