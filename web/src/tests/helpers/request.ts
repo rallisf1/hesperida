@@ -4,9 +4,11 @@ import * as authSignup from '../../routes/api/v1/auth/signup/+server';
 import * as authSignin from '../../routes/api/v1/auth/signin/+server';
 import * as authSignout from '../../routes/api/v1/auth/signout/+server';
 import * as authMe from '../../routes/api/v1/auth/me/+server';
+import * as authForgot from '../../routes/api/v1/auth/forgot/+server';
 
 import * as websites from '../../routes/api/v1/websites/+server';
 import * as websiteById from '../../routes/api/v1/websites/[id]/+server';
+import * as websiteInvite from '../../routes/api/v1/websites/[id]/invite/+server';
 
 import * as jobs from '../../routes/api/v1/jobs/+server';
 import * as jobById from '../../routes/api/v1/jobs/[id]/+server';
@@ -35,8 +37,10 @@ const routes: RouteEntry[] = [
 	{ regex: /^\/api\/v1\/auth\/signin$/, module: authSignin },
 	{ regex: /^\/api\/v1\/auth\/signout$/, module: authSignout },
 	{ regex: /^\/api\/v1\/auth\/me$/, module: authMe },
+	{ regex: /^\/api\/v1\/auth\/forgot$/, module: authForgot },
 	{ regex: /^\/api\/v1\/users\/me$/, module: userMe },
 	{ regex: /^\/api\/v1\/websites$/, module: websites },
+	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/invite$/, module: websiteInvite },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)$/, module: websiteById },
 	{ regex: /^\/api\/v1\/jobs$/, module: jobs },
 	{ regex: /^\/api\/v1\/jobs\/(?<id>[^/]+)$/, module: jobById },

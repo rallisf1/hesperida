@@ -18,10 +18,12 @@ DEFINE TABLE IF NOT EXISTS users TYPE NORMAL SCHEMAFULL PERMISSIONS FOR select, 
 
 DEFINE FIELD IF NOT EXISTS created_at ON users TYPE datetime READONLY VALUE time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS email ON users TYPE string ASSERT string::is_email($value);
+DEFINE FIELD IF NOT EXISTS forgot_token ON users TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS name ON users TYPE string;
 DEFINE FIELD IF NOT EXISTS password ON users TYPE string;
+DEFINE FIELD IF NOT EXISTS role ON users TYPE string DEFAULT 'editor' ASSERT ['admin', 'editor', 'viewer'].includes($value);
 
-DEFINE ACCESS IF NOT EXISTS users ON DATABASE TYPE RECORD
+DEFINE ACCESS OVERWRITE users ON DATABASE DURATION FOR SESSION 1h TYPE RECORD
 	SIGNIN (
 		SELECT * FROM users WHERE email = $email AND crypto::argon2::compare(password, $password)
 	)
@@ -34,8 +36,11 @@ DEFINE ACCESS IF NOT EXISTS users ON DATABASE TYPE RECORD
 	);
 
 DEFINE INDEX IF NOT EXISTS email_unq ON users FIELDS email UNIQUE;
+DEFINE INDEX IF NOT EXISTS forgot_token_idx ON users FIELDS forgot_token;
 
-DEFINE EVENT IF NOT EXISTS user_delete ON users WHEN $event = 'DELETE' THEN { DELETE websites WHERE user = $before.id };
+DEFINE EVENT OVERWRITE user_delete ON users WHEN $event = 'DELETE' THEN {
+	DELETE websites WHERE owner = $before.id;
+};
 
 -- ------------------------------
 -- TABLE DATA: users
@@ -46,16 +51,18 @@ DEFINE EVENT IF NOT EXISTS user_delete ON users WHEN $event = 'DELETE' THEN { DE
 -- TABLE: websites
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS websites TYPE NORMAL SCHEMAFULL PERMISSIONS FOR select, update, delete, create WHERE user = $auth.id;
+DEFINE TABLE IF NOT EXISTS websites TYPE NORMAL SCHEMAFULL PERMISSIONS FOR select, update, delete, create WHERE owner = $auth.id OR $auth.id IN users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON websites TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS description ON websites TYPE string;
+DEFINE FIELD IF NOT EXISTS owner ON websites TYPE record<users> ASSERT record::exists($value);
 DEFINE FIELD IF NOT EXISTS url ON websites TYPE string ASSERT string::is_url($value);
-DEFINE FIELD IF NOT EXISTS user ON websites TYPE record<users> ASSERT record::exists($value);
+DEFINE FIELD IF NOT EXISTS users ON websites TYPE array<record<users>>;
 DEFINE FIELD IF NOT EXISTS verified ON websites TYPE bool DEFAULT false;
 
 DEFINE INDEX IF NOT EXISTS url_idx ON websites FIELDS url UNIQUE;
-DEFINE INDEX IF NOT EXISTS user_websites_idx ON websites FIELDS user;
+DEFINE INDEX IF NOT EXISTS owner_websites_idx ON websites FIELDS owner;
+DEFINE INDEX IF NOT EXISTS users_websites_idx ON websites FIELDS users;
 
 DEFINE EVENT IF NOT EXISTS website_delete ON websites WHEN $event = 'DELETE' THEN { DELETE jobs WHERE website = $before.id };
 
@@ -64,7 +71,7 @@ DEFINE EVENT IF NOT EXISTS website_delete ON websites WHEN $event = 'DELETE' THE
 -- TABLE: jobs
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS jobs TYPE NORMAL SCHEMAFULL PERMISSIONS FOR delete NONE, FOR select, update, create WHERE website.user = $auth.id;
+DEFINE TABLE IF NOT EXISTS jobs TYPE NORMAL SCHEMAFULL PERMISSIONS FOR delete NONE, FOR select, update, create WHERE website.owner = $auth.id OR $auth.id IN website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON jobs TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD OVERWRITE options ON jobs TYPE option<object> FLEXIBLE;
@@ -128,7 +135,7 @@ DEFINE EVENT IF NOT EXISTS job_completion_check ON jobs WHEN $event = 'UPDATE' A
 -- TABLE: job_queue
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS job_queue TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.user = $auth.id;
+DEFINE TABLE IF NOT EXISTS job_queue TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON job_queue TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS attempts ON job_queue TYPE int DEFAULT 0;
@@ -136,7 +143,7 @@ DEFINE FIELD IF NOT EXISTS job ON job_queue TYPE record<jobs>;
 DEFINE FIELD IF NOT EXISTS next_run_at ON job_queue TYPE datetime DEFAULT time::now();
 DEFINE FIELD OVERWRITE options ON job_queue TYPE option<object> FLEXIBLE;
 DEFINE FIELD OVERWRITE type ON job_queue TYPE string ASSERT $value IN ['seo', 'ssl', 'wcag', 'whois', 'domain', 'security', 'stress'];
-DEFINE FIELD OVERWRITE status ON job_queue TYPE string DEFAULT pending ASSERT $value IN ['pending', 'waiting', 'processing', 'completed', 'failed', 'canceled'];
+DEFINE FIELD OVERWRITE status ON job_queue TYPE string DEFAULT 'pending' ASSERT $value IN ['pending', 'waiting', 'processing', 'completed', 'failed', 'canceled'];
 DEFINE FIELD IF NOT EXISTS target ON job_queue TYPE string;
 
 DEFINE EVENT IF NOT EXISTS job_queue_cancel ON job_queue WHEN $event = 'UPDATE' AND $before.status != 'canceled' AND $after.status = 'canceled' THEN {
@@ -148,7 +155,7 @@ DEFINE EVENT IF NOT EXISTS job_queue_cancel ON job_queue WHEN $event = 'UPDATE' 
 -- TABLE: probe_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS probe_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.user = $auth.id;
+DEFINE TABLE IF NOT EXISTS probe_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
 
 DEFINE FIELD OVERWRITE cdn ON probe_results TYPE object FLEXIBLE;
 DEFINE FIELD IF NOT EXISTS created_at ON probe_results TYPE datetime DEFAULT time::now() READONLY;
@@ -178,7 +185,7 @@ DEFINE EVENT IF NOT EXISTS probe_completion ON probe_results WHEN $event = 'CREA
 -- TABLE: seo_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS seo_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.user = $auth.id;
+DEFINE TABLE IF NOT EXISTS seo_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON seo_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS errors ON seo_results TYPE int DEFAULT 0;
@@ -198,7 +205,7 @@ DEFINE EVENT OVERWRITE seo_completion ON seo_results WHEN $event = 'CREATE' THEN
 -- TABLE: ssl_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS ssl_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.user = $auth.id;
+DEFINE TABLE IF NOT EXISTS ssl_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON ssl_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS issuer ON ssl_results TYPE object;
@@ -225,7 +232,7 @@ DEFINE EVENT OVERWRITE ssl_completion ON ssl_results WHEN $event = 'CREATE' THEN
 -- TABLE: domain_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS domain_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.user = $auth.id;
+DEFINE TABLE IF NOT EXISTS domain_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON domain_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS job ON domain_results TYPE record<jobs> ASSERT record::exists($value);
@@ -260,7 +267,7 @@ DEFINE EVENT IF NOT EXISTS domain_completion ON domain_results WHEN $event = 'CR
 -- TABLE: security_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS security_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.user = $auth.id;
+DEFINE TABLE IF NOT EXISTS security_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON security_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS errors ON security_results TYPE int DEFAULT 0;
@@ -280,7 +287,7 @@ DEFINE EVENT IF NOT EXISTS security_completion ON security_results WHEN $event =
 -- TABLE: stress_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS stress_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.user = $auth.id;
+DEFINE TABLE IF NOT EXISTS stress_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON stress_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS errors ON stress_results TYPE int DEFAULT 0;
@@ -300,7 +307,7 @@ DEFINE EVENT IF NOT EXISTS stress_completion ON stress_results WHEN $event = 'CR
 -- TABLE: wcag_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS wcag_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.user = $auth.id;
+DEFINE TABLE IF NOT EXISTS wcag_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON wcag_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS device ON wcag_results TYPE string;
@@ -322,7 +329,7 @@ DEFINE EVENT IF NOT EXISTS wcag_completion ON wcag_results WHEN $event = 'CREATE
 -- TABLE: whois_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS whois_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.user = $auth.id;
+DEFINE TABLE IF NOT EXISTS whois_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS as ON whois_results TYPE int;
 DEFINE FIELD IF NOT EXISTS country ON whois_results TYPE string;

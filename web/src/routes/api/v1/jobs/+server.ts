@@ -22,11 +22,17 @@ export const GET: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
 
-	const rows = await withAdminDb((db) =>
-		queryMany(db, 'SELECT * FROM jobs WHERE website.user = $user ORDER BY created_at DESC;', {
-			user: auth.user.id
-		})
-	);
+	const rows = await withAdminDb((db) => {
+		if (auth.user.role === 'admin') {
+			return queryMany(db, 'SELECT * FROM jobs ORDER BY created_at DESC;');
+		}
+
+		return queryMany(
+			db,
+			'SELECT * FROM jobs WHERE website.owner = type::record($user) OR type::record($user) IN website.users ORDER BY created_at DESC;',
+			{ user: auth.user.id }
+		);
+	});
 
 	return jsonOk(event, { jobs: rows ?? [] });
 };
@@ -64,6 +70,9 @@ export const GET: RequestHandler = async (event) => {
 export const POST: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
+	if (auth.user.role === 'viewer') {
+		return jsonError(event, 403, 'forbidden', 'Viewer users cannot create jobs.');
+	}
 
 	let payload: Record<string, unknown>;
 	try {
@@ -80,10 +89,16 @@ export const POST: RequestHandler = async (event) => {
 	if (!types.length) return jsonError(event, 400, 'bad_request', 'types must include at least one valid tool.');
 
 	const websiteRow = await withAdminDb((db) =>
-		queryOne(db, 'SELECT id FROM websites WHERE id = type::record($id) AND user = $user LIMIT 1;', {
-			id: website,
-			user: auth.user.id
-		})
+		queryOne(
+			db,
+			auth.user.role === 'admin'
+				? 'SELECT id FROM websites WHERE id = type::record($id) LIMIT 1;'
+				: 'SELECT id FROM websites WHERE id = type::record($id) AND (owner = type::record($user) OR type::record($user) IN users) LIMIT 1;',
+			{
+				id: website,
+				user: auth.user.id
+			}
+		)
 	);
 	if (!websiteRow) return jsonError(event, 404, 'not_found', 'Website not found.');
 

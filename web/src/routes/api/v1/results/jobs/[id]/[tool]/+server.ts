@@ -49,10 +49,16 @@ export const GET: RequestHandler = async (event) => {
 
 	const jobId = toRecordId('jobs', event.params.id);
 	const job = await withAdminDb((db) =>
-		queryOne<Record<string, unknown>>(db, 'SELECT * FROM jobs WHERE id = type::record($id) AND website.user = $user LIMIT 1;', {
-			id: jobId,
-			user: auth.user.id
-		})
+		queryOne<Record<string, unknown>>(
+			db,
+			auth.user.role === 'admin'
+				? 'SELECT * FROM jobs WHERE id = type::record($id) LIMIT 1;'
+				: 'SELECT * FROM jobs WHERE id = type::record($id) AND (website.owner = type::record($user) OR type::record($user) IN website.users) LIMIT 1;',
+			{
+				id: jobId,
+				user: auth.user.id
+			}
+		)
 	);
 	if (!job) return jsonError(event, 404, 'not_found', 'Job not found.');
 

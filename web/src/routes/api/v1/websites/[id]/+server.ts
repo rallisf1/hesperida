@@ -3,13 +3,23 @@ import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryOne, toRecordId, withAdminDb } from '$lib/server/db';
 
-const getWebsite = async (websiteId: string, userId: string) => {
-	return withAdminDb((db) =>
-		queryOne(db, 'SELECT * FROM websites WHERE id = type::record($id) AND user = $user LIMIT 1;', {
-			id: websiteId,
-			user: userId
-		})
-	);
+const getWebsite = async (websiteId: string, userId: string, role?: string) => {
+	return withAdminDb((db) => {
+		if (role === 'admin') {
+			return queryOne(db, 'SELECT * FROM websites WHERE id = type::record($id) LIMIT 1;', {
+				id: websiteId
+			});
+		}
+
+		return queryOne(
+			db,
+			'SELECT * FROM websites WHERE id = type::record($id) AND (owner = type::record($user) OR type::record($user) IN users) LIMIT 1;',
+			{
+				id: websiteId,
+				user: userId
+			}
+		);
+	});
 };
 
 /**
@@ -37,7 +47,7 @@ export const GET: RequestHandler = async (event) => {
 	if ('error' in auth) return auth.error;
 
 	const websiteId = toRecordId('websites', event.params.id);
-	const website = await getWebsite(websiteId, auth.user.id);
+	const website = await getWebsite(websiteId, auth.user.id, auth.user.role);
 	if (!website) return jsonError(event, 404, 'not_found', 'Website not found.');
 
 	return jsonOk(event, { website });
@@ -80,7 +90,7 @@ export const PATCH: RequestHandler = async (event) => {
 	if ('error' in auth) return auth.error;
 
 	const websiteId = toRecordId('websites', event.params.id);
-	const existing = await getWebsite(websiteId, auth.user.id);
+	const existing = await getWebsite(websiteId, auth.user.id, auth.user.role);
 	if (!existing) return jsonError(event, 404, 'not_found', 'Website not found.');
 
 	let payload: Record<string, unknown>;
@@ -134,7 +144,7 @@ export const DELETE: RequestHandler = async (event) => {
 	if ('error' in auth) return auth.error;
 
 	const websiteId = toRecordId('websites', event.params.id);
-	const existing = await getWebsite(websiteId, auth.user.id);
+	const existing = await getWebsite(websiteId, auth.user.id, auth.user.role);
 	if (!existing) return jsonError(event, 404, 'not_found', 'Website not found.');
 
 	await withAdminDb((db) => db.query('DELETE $id;', { id: websiteId }).collect());

@@ -33,7 +33,7 @@ export const config = {
 	surrealWsUrl: `${wsProtocol}://${read('SURREAL_ADDRESS') || '127.0.0.1:8000'}`,
 	sessionCookieName: read('SESSION_COOKIE_NAME') || 'hesperida_session',
 	sessionCookieSecure: (read('SESSION_COOKIE_SECURE') || 'false').toLowerCase() === 'true',
-	sessionCookieMaxAge: Number.parseInt(read('SESSION_COOKIE_MAX_AGE') || `${60 * 60 * 24 * 7}`, 10),
+	sessionCookieMaxAge: Number.parseInt(read('SESSION_COOKIE_MAX_AGE') || `${60 * 60}`, 10),
 	debug: (read('DEBUG') || 'false').toLowerCase() === 'true'
 } as const;
 

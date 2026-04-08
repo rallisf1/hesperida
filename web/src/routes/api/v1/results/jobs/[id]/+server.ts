@@ -32,7 +32,9 @@ export const GET: RequestHandler = async (event) => {
 	const job = await withAdminDb((db) =>
 		queryOne(
 			db,
-			'SELECT * FROM jobs WHERE id = type::record($id) AND website.user = $user LIMIT 1 FETCH probe, seo, ssl, whois, wcag, domain, security, stress;',
+			auth.user.role === 'admin'
+				? 'SELECT * FROM jobs WHERE id = type::record($id) LIMIT 1 FETCH probe, seo, ssl, whois, wcag, domain, security, stress;'
+				: 'SELECT * FROM jobs WHERE id = type::record($id) AND (website.owner = type::record($user) OR type::record($user) IN website.users) LIMIT 1 FETCH probe, seo, ssl, whois, wcag, domain, security, stress;',
 			{ id: jobId, user: auth.user.id }
 		)
 	);

@@ -3,13 +3,23 @@ import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
 import { queryOne, toRecordId, withAdminDb } from '$lib/server/db';
 
-const getJob = async (jobId: string, userId: string) => {
-	return withAdminDb((db) =>
-		queryOne(db, 'SELECT * FROM jobs WHERE id = type::record($id) AND website.user = $user LIMIT 1;', {
-			id: jobId,
-			user: userId
-		})
-	);
+const getJob = async (jobId: string, userId: string, role?: string) => {
+	return withAdminDb((db) => {
+		if (role === 'admin') {
+			return queryOne(db, 'SELECT * FROM jobs WHERE id = type::record($id) LIMIT 1;', {
+				id: jobId
+			});
+		}
+
+		return queryOne(
+			db,
+			'SELECT * FROM jobs WHERE id = type::record($id) AND (website.owner = type::record($user) OR type::record($user) IN website.users) LIMIT 1;',
+			{
+				id: jobId,
+				user: userId
+			}
+		);
+	});
 };
 
 /**
@@ -37,7 +47,7 @@ export const GET: RequestHandler = async (event) => {
 	if ('error' in auth) return auth.error;
 
 	const jobId = toRecordId('jobs', event.params.id);
-	const job = await getJob(jobId, auth.user.id);
+	const job = await getJob(jobId, auth.user.id, auth.user.role);
 	if (!job) return jsonError(event, 404, 'not_found', 'Job not found.');
 
 	return jsonOk(event, { job });

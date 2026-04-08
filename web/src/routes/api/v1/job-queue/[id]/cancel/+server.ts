@@ -28,12 +28,17 @@ import { queryOne, toRecordId, withAdminDb } from '$lib/server/db';
 export const POST: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
+	if (auth.user.role === 'viewer') {
+		return jsonError(event, 403, 'forbidden', 'Viewer users cannot cancel tasks.');
+	}
 
 	const taskId = toRecordId('job_queue', event.params.id);
 	const task = await withAdminDb((db) =>
 		queryOne<{ status?: string }>(
 			db,
-			'SELECT * FROM job_queue WHERE id = type::record($id) AND job.website.user = $user LIMIT 1;',
+			auth.user.role === 'admin'
+				? 'SELECT * FROM job_queue WHERE id = type::record($id) LIMIT 1;'
+				: 'SELECT * FROM job_queue WHERE id = type::record($id) AND (job.website.owner = type::record($user) OR type::record($user) IN job.website.users) LIMIT 1;',
 			{ id: taskId, user: auth.user.id }
 		)
 	);

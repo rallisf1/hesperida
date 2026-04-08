@@ -20,9 +20,16 @@ export const GET: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
 
-	const rows = await withAdminDb((db) =>
-		queryMany(db, 'SELECT * FROM websites WHERE user = $user ORDER BY created_at DESC;', { user: auth.user.id })
-	);
+	const rows = await withAdminDb((db) => {
+		if (auth.user.role === 'admin') {
+			return queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC;');
+		}
+		return queryMany(
+			db,
+			'SELECT * FROM websites WHERE owner = type::record($user) OR type::record($user) IN users ORDER BY created_at DESC;',
+			{ user: auth.user.id }
+		);
+	});
 
 	return jsonOk(event, { websites: rows ?? [] });
 };
@@ -56,6 +63,9 @@ export const GET: RequestHandler = async (event) => {
 export const POST: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
+	if (auth.user.role === 'viewer') {
+		return jsonError(event, 403, 'forbidden', 'Viewer users cannot create websites.');
+	}
 
 	let payload: Record<string, unknown>;
 	try {
@@ -76,7 +86,7 @@ export const POST: RequestHandler = async (event) => {
 		const website = await withAdminDb((db) =>
 			queryOne(
 				db,
-				'CREATE websites CONTENT { user: $user, url: $url, description: $description, verified: $verified } RETURN AFTER;',
+				'CREATE websites CONTENT { owner: type::record($user), users: [type::record($user)], url: $url, description: $description, verified: $verified } RETURN AFTER;',
 				{ user: auth.user.id, url, description, verified }
 			)
 		);

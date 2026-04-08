@@ -94,21 +94,23 @@ export const adminMany = async <T>(sql: string, vars?: Record<string, unknown>):
 	return withTimeout(withAdminDb((db) => queryMany<T>(db, sql, vars)), 'query');
 };
 
-export const createUser = async (input: { name: string; email: string; password: string }) => {
-	return adminOne<{ id: string; name: string; email: string }>(
+export const createUser = async (input: { name: string; email: string; password: string; role?: 'admin' | 'editor' | 'viewer' }) => {
+	return adminOne<{ id: string; name: string; email: string; role?: 'admin' | 'editor' | 'viewer' }>(
 		`CREATE users CONTENT {
 			name: $name,
 			email: $email,
-			password: crypto::argon2::generate($password)
+			password: crypto::argon2::generate($password),
+			role: $role
 		} RETURN AFTER;`,
-		input
+		{ ...input, role: input.role ?? 'editor' }
 	);
 };
 
 export const createWebsite = async (input: { user: unknown; url: string; description: string; verified?: boolean }) => {
-	return adminOne<{ id: string; user: string; url: string }>(
+	return adminOne<{ id: string; owner: string; users: string[]; url: string }>(
 		`CREATE websites CONTENT {
-			user: type::record('users', $user),
+			owner: type::record('users', $user),
+			users: [type::record('users', $user)],
 			url: $url,
 			description: $description,
 			verified: $verified

@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { config } from '$lib/server/config';
-import { withAnonDb } from '$lib/server/db';
+import { queryOne, withAdminDb, withAnonDb } from '$lib/server/db';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { getCurrentUser } from '$lib/server/auth';
 
@@ -46,12 +46,28 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	try {
+		const existingUser = await withAdminDb((db) => queryOne<{ id: string }>(db, 'SELECT id FROM users LIMIT 1;'));
+		const role = existingUser ? 'editor' : 'admin';
+
+		await withAdminDb((db) =>
+			queryOne(
+				db,
+				`CREATE users CONTENT {
+					name: $name,
+					email: $email,
+					password: crypto::argon2::generate($password),
+					role: $role
+				} RETURN AFTER;`,
+				{ name, email, password, role }
+			)
+		);
+
 		const tokens = await withAnonDb((db) =>
-			db.signup({
+			db.signin({
 				namespace: config.surrealNamespace,
 				database: config.surrealDatabase,
 				access: 'users',
-				variables: { name, email, password }
+				variables: { email, password }
 			})
 		);
 

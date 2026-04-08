@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from 'bun:test';
-import { adminOne, ensureSchema, resetData } from '../helpers/db';
+import { adminOne, createUser, ensureSchema, resetData } from '../helpers/db';
 import { ApiTestClient, randomEmail } from '../helpers/request';
 setDefaultTimeout(30_000);
 
@@ -36,20 +36,22 @@ const toRouteId = (value: unknown): string => {
 };
 
 const registerUser = async (namePrefix: string) => {
-	const client = new ApiTestClient({ apiKey: null });
 	const email = randomEmail(namePrefix);
 	const password = 'pass12345';
+	const created = await createUser({ name: `${namePrefix} User`, email, password });
+	if (!created) throw new Error('createUser failed in test setup');
 
-	const signup = await client.call({
+	const client = new ApiTestClient({ apiKey: null });
+	const signin = await client.call({
 		method: 'POST',
-		path: '/api/v1/auth/signup',
-		body: { name: `${namePrefix} User`, email, password }
+		path: '/api/v1/auth/signin',
+		body: { email, password }
 	});
-	if (signup.response.status !== 201) throw new Error('Signup failed in test setup');
+	if (signin.response.status !== 200) throw new Error('Signin failed in test setup');
 
 	return {
 		email,
-		token: signup.json.data.token as string
+		token: signin.json.data.token as string
 	};
 };
 
