@@ -2,17 +2,38 @@
 import {type DateTime, RecordId} from 'surrealdb'; // it will be imported where this is loaded
 
 export type Tool = 'probe' | 'seo' | 'ssl' | 'wcag' | 'whois' | 'domain' | 'security' | 'stress';
+export type QueueTool = Exclude<Tool, 'probe'>;
+
+export interface NotificationTarget {
+    id: string;
+    target: string;
+    label?: string | null;
+    enabled: boolean;
+    created_at: DateTime | string;
+    updated_at: DateTime | string;
+}
+
+export interface User {
+    id?: RecordId<'users'>;
+    name: string;
+    email: string;
+    password: string;
+    role: 'admin' | 'editor' | 'viewer';
+    forgot_token?: string | null;
+    notification_targets?: NotificationTarget[];
+    created_at?: DateTime;
+}
 
 export interface Job {
     id?: RecordId<'jobs'>;
-    options?: object;
+    options?: Record<string, unknown>;
     status: 'pending' | 'processing' | 'completed' | 'failed';
     types: Tool[];
     website: RecordId<'websites'>;
     probe?: RecordId<'probe_results'>;
     seo?: RecordId<'seo_results'>;
     ssl?: RecordId<'ssl_results'>;
-    whois?: RecordId<'whois_results'>;
+    whois?: RecordId<'whois_results'>[];
     wcag?: RecordId<'wcag_results'>[];
     domain?: RecordId<'domain_results'>;
     security?: RecordId<'security_results'>;
@@ -22,7 +43,8 @@ export interface Job {
 
 export interface Website {
     id?: RecordId<'websites'>;
-    user: RecordId<'users'>;
+    owner: RecordId<'users'>;
+    users: RecordId<'users'>[];
     description: string;
     url: string;
     verified: boolean;
@@ -32,10 +54,10 @@ export interface Website {
 export interface Queue {
     id?: RecordId<'job_queue'>;
     job: RecordId<'jobs'>;
-    type: Tool;
+    type: QueueTool;
     options?: Record<string, unknown>;
-    attempts?: number;
-    next_run_at?: DateTime;
+    attempts: number;
+    next_run_at: DateTime;
     target: string;
     status: 'pending' | 'waiting' | 'processing' | 'completed' | 'failed' | 'canceled';
     created_at?: DateTime;

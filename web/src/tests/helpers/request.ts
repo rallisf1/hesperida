@@ -9,9 +9,11 @@ import * as authForgot from '../../routes/api/v1/auth/forgot/+server';
 import * as websites from '../../routes/api/v1/websites/+server';
 import * as websiteById from '../../routes/api/v1/websites/[id]/+server';
 import * as websiteInvite from '../../routes/api/v1/websites/[id]/invite/+server';
+import * as websiteUninvite from '../../routes/api/v1/websites/[id]/uninvite/+server';
 
 import * as jobs from '../../routes/api/v1/jobs/+server';
 import * as jobById from '../../routes/api/v1/jobs/[id]/+server';
+import * as jobQueueByJob from '../../routes/api/v1/jobs/[id]/queue/+server';
 
 import * as queue from '../../routes/api/v1/job-queue/+server';
 import * as queueById from '../../routes/api/v1/job-queue/[id]/+server';
@@ -19,6 +21,9 @@ import * as queueById from '../../routes/api/v1/job-queue/[id]/+server';
 import * as resultsByJob from '../../routes/api/v1/results/jobs/[id]/+server';
 import * as resultsByTool from '../../routes/api/v1/results/jobs/[id]/[tool]/+server';
 import * as userMe from '../../routes/api/v1/users/me/+server';
+import * as notificationTargets from '../../routes/api/v1/users/me/notification-targets/+server';
+import * as notificationTargetById from '../../routes/api/v1/users/me/notification-targets/[id]/+server';
+import * as notificationTargetTest from '../../routes/api/v1/users/me/notification-targets/[id]/test/+server';
 
 type HandlerModule = {
 	GET?: (event: any) => Response | Promise<Response>;
@@ -39,10 +44,15 @@ const routes: RouteEntry[] = [
 	{ regex: /^\/api\/v1\/auth\/me$/, module: authMe },
 	{ regex: /^\/api\/v1\/auth\/forgot$/, module: authForgot },
 	{ regex: /^\/api\/v1\/users\/me$/, module: userMe },
+	{ regex: /^\/api\/v1\/users\/me\/notification-targets$/, module: notificationTargets },
+	{ regex: /^\/api\/v1\/users\/me\/notification-targets\/(?<id>[^/]+)\/test$/, module: notificationTargetTest },
+	{ regex: /^\/api\/v1\/users\/me\/notification-targets\/(?<id>[^/]+)$/, module: notificationTargetById },
 	{ regex: /^\/api\/v1\/websites$/, module: websites },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/invite$/, module: websiteInvite },
+	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/uninvite$/, module: websiteUninvite },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)$/, module: websiteById },
 	{ regex: /^\/api\/v1\/jobs$/, module: jobs },
+	{ regex: /^\/api\/v1\/jobs\/(?<id>[^/]+)\/queue$/, module: jobQueueByJob },
 	{ regex: /^\/api\/v1\/jobs\/(?<id>[^/]+)$/, module: jobById },
 	{ regex: /^\/api\/v1\/job-queue$/, module: queue },
 	{ regex: /^\/api\/v1\/job-queue\/(?<id>[^/]+)$/, module: queueById },

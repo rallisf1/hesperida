@@ -15,6 +15,10 @@ const appMode = appModeRaw as AppMode;
 const apiUrl = read('API_URL');
 const apiKey = read('API_KEY');
 const webApiKey = read('WEB_API_KEY');
+const appriseUrl = read('APPRISE_URL');
+const appriseApiKey = read('APPRISE_API_KEY');
+const notificationEmailTargetTemplate = read('NOTIFICATION_EMAIL_TARGET_TEMPLATE');
+const notificationBrandLogoUrl = read('NOTIFICATION_BRAND_LOGO_URL');
 
 const surrealProtocol = read('SURREAL_PROTOCOL') || 'http';
 const wsProtocol = surrealProtocol === 'https' ? 'wss' : 'ws';
@@ -24,6 +28,10 @@ export const config = {
 	apiUrl,
 	apiKey,
 	webApiKey,
+	appriseUrl,
+	appriseApiKey,
+	notificationEmailTargetTemplate,
+	notificationBrandLogoUrl,
 	surrealUser: read('SURREAL_USER'),
 	surrealPass: read('SURREAL_PASS'),
 	surrealNamespace: read('SURREAL_NAMESPACE') || 'main',
@@ -47,6 +55,15 @@ export const getMissingRequiredEnv = (): string[] => {
 
 	if (config.appMode === 'api' || config.appMode === 'both') {
 		if (!config.webApiKey) missing.push('WEB_API_KEY');
+		if (!config.appriseUrl) missing.push('APPRISE_URL');
+		if (!config.notificationEmailTargetTemplate) missing.push('NOTIFICATION_EMAIL_TARGET_TEMPLATE');
+		if (
+			config.notificationEmailTargetTemplate &&
+			!config.notificationEmailTargetTemplate.includes('{{email}}')
+		) {
+			missing.push('NOTIFICATION_EMAIL_TARGET_TEMPLATE(must include {{email}})');
+		}
+		if (!config.notificationBrandLogoUrl) missing.push('NOTIFICATION_BRAND_LOGO_URL');
 		for (const key of REQUIRED_IN_API_MODE) {
 			if (!read(key)) missing.push(key);
 		}

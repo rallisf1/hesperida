@@ -126,4 +126,56 @@ describe('API Auth Integration', () => {
 		expect(lastStatus).toBe(429);
 		expect(lastResponse?.headers.get('retry-after')).toBeTruthy();
 	});
+
+	test('users/me delete removes account and invalidates session', async () => {
+		const client = new ApiTestClient();
+		const email = randomEmail('delete_me');
+		const password = 'pass12345';
+
+		const signup = await client.call({
+			method: 'POST',
+			path: '/api/v1/auth/signup',
+			body: { name: 'Delete Me', email, password }
+		});
+		expect(signup.response.status).toBe(201);
+
+		const del = await client.call({
+			method: 'DELETE',
+			path: '/api/v1/users/me',
+			body: { password }
+		});
+		expect(del.response.status).toBe(200);
+		expect(del.json.ok).toBeTrue();
+
+		const me = await client.call({ method: 'GET', path: '/api/v1/auth/me' });
+		expect(me.response.status).toBe(401);
+	});
+
+	test('users/me delete validates password input', async () => {
+		const client = new ApiTestClient();
+		const email = randomEmail('delete_me_bad');
+		const password = 'pass12345';
+
+		await client.call({
+			method: 'POST',
+			path: '/api/v1/auth/signup',
+			body: { name: 'Delete Me Bad', email, password }
+		});
+
+		const missing = await client.call({
+			method: 'DELETE',
+			path: '/api/v1/users/me',
+			body: {}
+		});
+		expect(missing.response.status).toBe(400);
+		expect(missing.json.error.code).toBe('bad_request');
+
+		const invalid = await client.call({
+			method: 'DELETE',
+			path: '/api/v1/users/me',
+			body: { password: 'wrong-password' }
+		});
+		expect(invalid.response.status).toBe(401);
+		expect(invalid.json.error.code).toBe('auth_failed');
+	});
 });

@@ -2,6 +2,7 @@ import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryOne, withUserDb } from '$lib/server/db';
+import { config } from '$lib/server/config';
 
 /**
  * @swagger
@@ -48,6 +49,30 @@ export const GET: RequestHandler = async (event) => {
  *         description: User updated
  *       400:
  *         $ref: '#/components/responses/BadRequest'
+ *   delete:
+ *     tags: [Users]
+ *     summary: Delete current user account
+ *     security:
+ *       - apiKeyAuth: []
+ *         bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [password]
+ *             properties:
+ *               password: { type: string }
+ *     responses:
+ *       200:
+ *         description: User deleted
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
  */
 export const PATCH: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
@@ -117,5 +142,60 @@ export const PATCH: RequestHandler = async (event) => {
 		return jsonOk(event, { user });
 	} catch (error) {
 		return jsonError(event, 400, 'update_failed', (error as Error).message);
+	}
+};
+
+export const DELETE: RequestHandler = async (event) => {
+	const auth = await requireUser(event);
+	if ('error' in auth) return auth.error;
+
+	let payload: Record<string, unknown>;
+	try {
+		payload = await parseJson(event.request);
+	} catch (error) {
+		return jsonError(event, 400, 'bad_request', (error as Error).message);
+	}
+
+	const password = typeof payload.password === 'string' ? payload.password : '';
+	if (!password) {
+		return jsonError(event, 400, 'bad_request', 'password is required.');
+	}
+
+	try {
+		const state = await withUserDb(auth.token, async (db) => {
+			const verify = await queryOne<{ ok: boolean }>(
+				db,
+				'SELECT crypto::argon2::compare(password, $password) AS ok FROM users WHERE id = $auth.id LIMIT 1;',
+				{ password }
+			);
+			if (!verify?.ok) return { invalidPassword: true as const };
+
+			const existing = await queryOne<{ id?: string }>(
+				db,
+				'SELECT id FROM users WHERE id = $auth.id LIMIT 1;'
+			);
+			if (!existing?.id) return { notFound: true as const };
+
+			await db.query('DELETE $auth.id;').collect();
+			try {
+				await db.invalidate();
+			} catch {
+				// Best-effort; account is already deleted.
+			}
+			return { deleted: true as const };
+		});
+
+		if ('invalidPassword' in state) {
+			return jsonError(event, 401, 'auth_failed', 'password is invalid.');
+		}
+
+		if ('notFound' in state) {
+			return jsonError(event, 404, 'not_found', 'User not found.');
+		}
+
+		event.cookies.delete(config.sessionCookieName, { path: '/' });
+		return jsonOk(event, { deleted: true });
+	} catch (error) {
+		return jsonError(event, 400, 'delete_failed', (error as Error).message);
 	}
 };

@@ -3,11 +3,19 @@ import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryOne, toRecordId, withAdminDb } from '$lib/server/db';
 import { canInviteToWebsite, isAdmin } from '$lib/server/policy';
+import { sendInviteNotification } from '$lib/server/notifications';
 
 type WebsiteAccessRow = {
 	id: string;
 	owner: unknown;
 	users?: unknown[];
+	url: string;
+};
+
+type InviteUserRow = {
+	id: string;
+	email: string;
+	forgot_token?: string | null;
 };
 
 /**
@@ -31,6 +39,8 @@ type WebsiteAccessRow = {
  *     responses:
  *       200:
  *         description: User invited
+ *       502:
+ *         description: Notification delivery failed
  *       403:
  *         $ref: '#/components/responses/Unauthorized'
  *       404:
@@ -60,8 +70,8 @@ export const POST: RequestHandler = async (event) => {
 		queryOne<WebsiteAccessRow>(
 			db,
 			isAdmin(auth.user)
-				? 'SELECT id, owner, users FROM websites WHERE id = type::record($id) LIMIT 1;'
-				: 'SELECT id, owner, users FROM websites WHERE id = type::record($id) AND (owner = type::record($user) OR type::record($user) IN users) LIMIT 1;',
+				? 'SELECT id, owner, users, url FROM websites WHERE id = type::record($id) LIMIT 1;'
+				: 'SELECT id, owner, users, url FROM websites WHERE id = type::record($id) AND (owner = type::record($user) OR type::record($user) IN users) LIMIT 1;',
 			{
 				id: websiteId,
 				user: auth.user.id
@@ -73,15 +83,22 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	let user = await withAdminDb((db) =>
-		queryOne<{ id: string; email: string }>(db, 'SELECT id, email FROM users WHERE email = $email LIMIT 1;', { email })
+		queryOne<InviteUserRow>(
+			db,
+			'SELECT id, email, forgot_token FROM users WHERE email = $email LIMIT 1;',
+			{ email }
+		)
 	);
+	let createdUserId: string | null = null;
+	let createdForgotToken: string | null = null;
 
 	if (!user) {
 		const forgotToken = crypto.randomUUID();
 		const randomPassword = crypto.randomUUID();
 		const defaultName = email.split('@')[0] || 'invited-user';
+		createdForgotToken = forgotToken;
 		user = await withAdminDb((db) =>
-			queryOne<{ id: string; email: string }>(
+			queryOne<InviteUserRow>(
 				db,
 				`CREATE users CONTENT {
 					name: $name,
@@ -89,14 +106,34 @@ export const POST: RequestHandler = async (event) => {
 					role: 'viewer',
 					password: crypto::argon2::generate($password),
 					forgot_token: $forgotToken
-				} RETURN id, email;`,
-				{ name: defaultName, email, password: randomPassword, forgotToken }
+				} RETURN id, email, forgot_token;`,
+				{
+					name: defaultName,
+					email,
+					password: randomPassword,
+					forgotToken
+				}
 			)
 		);
-		// TODO: Send invite notification with onboarding/password setup instructions.
+		createdUserId = user?.id ?? null;
 	}
 
 	if (!user) return jsonError(event, 400, 'invite_failed', 'Unable to invite user.');
+
+	try {
+		await sendInviteNotification({
+			email: user.email,
+			websiteUrl: website.url,
+			inviterName: auth.user.name || auth.user.email,
+			isNewUser: !!createdUserId,
+			forgotToken: createdForgotToken ?? undefined
+		});
+	} catch (error) {
+		if (createdUserId) {
+			await withAdminDb((db) => db.query('DELETE $id;', { id: createdUserId }).collect());
+		}
+		return jsonError(event, 502, 'notification_failed', (error as Error).message);
+	}
 
 	const updated = await withAdminDb((db) =>
 		queryOne<WebsiteAccessRow>(
@@ -108,6 +145,12 @@ export const POST: RequestHandler = async (event) => {
 			}
 		)
 	);
+	if (!updated) {
+		if (createdUserId) {
+			await withAdminDb((db) => db.query('DELETE $id;', { id: createdUserId }).collect());
+		}
+		return jsonError(event, 400, 'invite_failed', 'Unable to update website members.');
+	}
 
 	return jsonOk(event, { website: updated, invited_user: user });
 };

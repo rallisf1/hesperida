@@ -94,15 +94,26 @@ export const adminMany = async <T>(sql: string, vars?: Record<string, unknown>):
 	return withTimeout(withAdminDb((db) => queryMany<T>(db, sql, vars)), 'query');
 };
 
-export const createUser = async (input: { name: string; email: string; password: string; role?: 'admin' | 'editor' | 'viewer' }) => {
+export const createUser = async (input: {
+	name: string;
+	email: string;
+	password: string;
+	role?: 'admin' | 'editor' | 'viewer';
+	notificationTargets?: unknown[];
+}) => {
 	return adminOne<{ id: string; name: string; email: string; role?: 'admin' | 'editor' | 'viewer' }>(
 		`CREATE users CONTENT {
 			name: $name,
 			email: $email,
 			password: crypto::argon2::generate($password),
-			role: $role
+			role: $role,
+			notification_targets: $notificationTargets
 		} RETURN AFTER;`,
-		{ ...input, role: input.role ?? 'editor' }
+		{
+			...input,
+			role: input.role ?? 'editor',
+			notificationTargets: input.notificationTargets ?? []
+		}
 	);
 };
 

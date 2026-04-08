@@ -20,6 +20,14 @@ DEFINE FIELD IF NOT EXISTS created_at ON users TYPE datetime READONLY VALUE time
 DEFINE FIELD IF NOT EXISTS email ON users TYPE string ASSERT string::is_email($value);
 DEFINE FIELD IF NOT EXISTS forgot_token ON users TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS name ON users TYPE string;
+DEFINE FIELD IF NOT EXISTS notification_targets ON users TYPE option<array<object>> DEFAULT [];
+DEFINE FIELD IF NOT EXISTS notification_targets.* ON users TYPE object;
+DEFINE FIELD IF NOT EXISTS notification_targets.*.id ON users TYPE string;
+DEFINE FIELD IF NOT EXISTS notification_targets.*.target ON users TYPE string;
+DEFINE FIELD IF NOT EXISTS notification_targets.*.label ON users TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS notification_targets.*.enabled ON users TYPE bool DEFAULT true;
+DEFINE FIELD IF NOT EXISTS notification_targets.*.created_at ON users TYPE datetime;
+DEFINE FIELD IF NOT EXISTS notification_targets.*.updated_at ON users TYPE datetime;
 DEFINE FIELD IF NOT EXISTS password ON users TYPE string;
 DEFINE FIELD IF NOT EXISTS role ON users TYPE string DEFAULT 'editor' ASSERT ['admin', 'editor', 'viewer'].includes($value);
 
@@ -40,6 +48,7 @@ DEFINE INDEX IF NOT EXISTS forgot_token_idx ON users FIELDS forgot_token;
 
 DEFINE EVENT OVERWRITE user_delete ON users WHEN $event = 'DELETE' THEN {
 	DELETE websites WHERE owner = $before.id;
+	UPDATE websites SET users = array::filter(users ?? [], |$u| $u != $before.id) WHERE $before.id IN users;
 };
 
 -- ------------------------------

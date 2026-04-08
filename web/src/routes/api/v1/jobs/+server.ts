@@ -3,8 +3,9 @@ import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryMany, queryOne, toRecordId, withAdminDb, withUserDb } from '$lib/server/db';
 import { canCreateJob, isAdmin } from '$lib/server/policy';
 import { withRequiredUser } from '$lib/server/route';
-type Tool = 'probe' | 'seo' | 'ssl' | 'wcag' | 'whois' | 'domain' | 'security' | 'stress';
-const ALLOWED_TOOLS: Tool[] = ['probe', 'seo', 'ssl', 'wcag', 'whois', 'domain', 'security', 'stress'];
+import { tools as ALLOWED_TOOLS } from '$lib/constants';
+import type { Tool } from '$lib/types';
+import { parsePaginationParams } from '$lib/server/pagination';
 
 /**
  * @swagger
@@ -21,12 +22,53 @@ const ALLOWED_TOOLS: Tool[] = ['probe', 'seo', 'ssl', 'wcag', 'whois', 'domain',
  */
 export const GET: RequestHandler = async (event) => {
 	return withRequiredUser(event, async (auth) => {
-		if (isAdmin(auth.user)) {
-			const rows = await withAdminDb((db) => queryMany(db, 'SELECT * FROM jobs ORDER BY created_at DESC;'));
+		const pagination = parsePaginationParams(event.url.searchParams);
+		if (!pagination.ok) {
+			return jsonError(event, 400, 'bad_request', pagination.message);
+		}
+
+		if (pagination.value.mode === 'all') {
+			if (isAdmin(auth.user)) {
+				const rows = await withAdminDb((db) => queryMany(db, 'SELECT * FROM jobs ORDER BY created_at DESC;'));
+				return jsonOk(event, { jobs: rows ?? [] });
+			}
+			const rows = await withUserDb(auth.token, (db) => queryMany(db, 'SELECT * FROM jobs ORDER BY created_at DESC;'));
 			return jsonOk(event, { jobs: rows ?? [] });
 		}
-		const rows = await withUserDb(auth.token, (db) => queryMany(db, 'SELECT * FROM jobs ORDER BY created_at DESC;'));
-		return jsonOk(event, { jobs: rows ?? [] });
+
+		const { limit, offset, page, pageSize } = pagination.value;
+		if (isAdmin(auth.user)) {
+			const rows = await withAdminDb((db) =>
+				queryMany(db, 'SELECT * FROM jobs ORDER BY created_at DESC LIMIT $limit START $offset;', {
+					limit,
+					offset
+				})
+			);
+			const countRow = await withAdminDb((db) =>
+				queryOne<{ total_items: number }>(db, 'SELECT count() AS total_items FROM jobs GROUP ALL;')
+			);
+			return jsonOk(event, {
+				jobs: rows ?? [],
+				page,
+				page_size: pageSize,
+				total_items: Number(countRow?.total_items ?? 0)
+			});
+		}
+		const rows = await withUserDb(auth.token, (db) =>
+			queryMany(db, 'SELECT * FROM jobs ORDER BY created_at DESC LIMIT $limit START $offset;', {
+				limit,
+				offset
+			})
+		);
+		const countRow = await withUserDb(auth.token, (db) =>
+			queryOne<{ total_items: number }>(db, 'SELECT count() AS total_items FROM jobs GROUP ALL;')
+		);
+		return jsonOk(event, {
+			jobs: rows ?? [],
+			page,
+			page_size: pageSize,
+			total_items: Number(countRow?.total_items ?? 0)
+		});
 	});
 };
 

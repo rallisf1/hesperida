@@ -159,4 +159,49 @@ describe('API Core CRUD/Results Integration', () => {
 		expect(otherTool.response.status).toBe(404);
 		expect(otherTool.json.error.code).toBe('not_found');
 	});
+
+	test('websites and jobs list endpoints support pagination with total_items', async () => {
+		const user = await registerUser('core_pagination');
+		const client = new ApiTestClient({ bearerToken: user.token });
+
+		for (let i = 0; i < 3; i += 1) {
+			const website = await client.call({
+				method: 'POST',
+				path: '/api/v1/websites',
+				body: {
+					url: `https://${Math.random().toString(36).slice(2, 8)}-${i}.example.test`,
+					description: `Paginated website ${i}`
+				}
+			});
+			expect(website.response.status).toBe(201);
+
+			const job = await client.call({
+				method: 'POST',
+				path: '/api/v1/jobs',
+				body: {
+					website: normalizeRecordId(website.json.data.website.id),
+					types: ['seo']
+				}
+			});
+			expect(job.response.status).toBe(201);
+		}
+
+		const websitesPage = await client.call({ method: 'GET', path: '/api/v1/websites?page=1&page_size=2' });
+		expect(websitesPage.response.status).toBe(200);
+		expect(websitesPage.json.data.websites.length).toBe(2);
+		expect(websitesPage.json.data.total_items).toBe(3);
+		expect(websitesPage.json.data.page).toBe(1);
+		expect(websitesPage.json.data.page_size).toBe(2);
+
+		const jobsPage = await client.call({ method: 'GET', path: '/api/v1/jobs?page=2&page_size=2' });
+		expect(jobsPage.response.status).toBe(200);
+		expect(jobsPage.json.data.jobs.length).toBe(1);
+		expect(jobsPage.json.data.total_items).toBe(3);
+		expect(jobsPage.json.data.page).toBe(2);
+		expect(jobsPage.json.data.page_size).toBe(2);
+
+		const badPartial = await client.call({ method: 'GET', path: '/api/v1/jobs?page=1' });
+		expect(badPartial.response.status).toBe(400);
+		expect(badPartial.json.error.code).toBe('bad_request');
+	});
 });

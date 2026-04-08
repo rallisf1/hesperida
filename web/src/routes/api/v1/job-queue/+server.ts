@@ -1,8 +1,9 @@
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
-import { jsonOk } from '$lib/server/http';
-import { queryMany, withAdminDb, withUserDb } from '$lib/server/db';
+import { jsonError, jsonOk } from '$lib/server/http';
+import { queryMany, queryOne, withAdminDb, withUserDb } from '$lib/server/db';
 import { isAdmin } from '$lib/server/policy';
+import { parsePaginationParams } from '$lib/server/pagination';
 
 /**
  * @swagger
@@ -23,9 +24,45 @@ export const GET: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
 
-	const rows = isAdmin(auth.user)
-		? await withAdminDb((db) => queryMany(db, 'SELECT * FROM job_queue ORDER BY created_at DESC;'))
-		: await withUserDb(auth.token, (db) => queryMany(db, 'SELECT * FROM job_queue ORDER BY created_at DESC;'));
+	const pagination = parsePaginationParams(event.url.searchParams);
+	if (!pagination.ok) {
+		return jsonError(event, 400, 'bad_request', pagination.message);
+	}
 
-	return jsonOk(event, { tasks: rows ?? [] });
+	if (pagination.value.mode === 'all') {
+		const rows = isAdmin(auth.user)
+			? await withAdminDb((db) => queryMany(db, 'SELECT * FROM job_queue ORDER BY created_at DESC;'))
+			: await withUserDb(auth.token, (db) => queryMany(db, 'SELECT * FROM job_queue ORDER BY created_at DESC;'));
+
+		return jsonOk(event, { tasks: rows ?? [] });
+	}
+
+	const { limit, offset, page, pageSize } = pagination.value;
+	const rows = isAdmin(auth.user)
+		? await withAdminDb((db) =>
+				queryMany(db, 'SELECT * FROM job_queue ORDER BY created_at DESC LIMIT $limit START $offset;', {
+					limit,
+					offset
+				})
+			)
+		: await withUserDb(auth.token, (db) =>
+				queryMany(db, 'SELECT * FROM job_queue ORDER BY created_at DESC LIMIT $limit START $offset;', {
+					limit,
+					offset
+				})
+			);
+	const countRow = isAdmin(auth.user)
+		? await withAdminDb((db) =>
+				queryOne<{ total_items: number }>(db, 'SELECT count() AS total_items FROM job_queue GROUP ALL;')
+			)
+		: await withUserDb(auth.token, (db) =>
+				queryOne<{ total_items: number }>(db, 'SELECT count() AS total_items FROM job_queue GROUP ALL;')
+			);
+
+	return jsonOk(event, {
+		tasks: rows ?? [],
+		page,
+		page_size: pageSize,
+		total_items: Number(countRow?.total_items ?? 0)
+	});
 };

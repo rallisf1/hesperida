@@ -87,5 +87,31 @@ describe('API Forgot Password Integration', () => {
 		expect(newSignin.response.status).toBe(200);
 		expect(newSignin.json.ok).toBeTrue();
 	});
-});
 
+	test('forgot POST fails when notification delivery fails and rolls back token', async () => {
+		const email = randomEmail('forgot_fail');
+		const user = await createUser({
+			name: 'Forgot Fail',
+			email,
+			password: 'pass12345',
+			role: 'editor'
+		});
+		if (!user) throw new Error('Failed to create forgot fail user');
+
+		const client = new ApiTestClient({ apiKey: null });
+		const res = await client.call({
+			method: 'POST',
+			path: '/api/v1/auth/forgot',
+			body: { email }
+		});
+
+		expect(res.response.status).toBe(502);
+		expect(res.json.error.code).toBe('notification_failed');
+
+		const refreshed = await adminOne<{ forgot_token?: string | null }>(
+			'SELECT forgot_token FROM users WHERE id = type::record($id) LIMIT 1;',
+			{ id: String(user.id) }
+		);
+		expect(refreshed?.forgot_token ?? null).toBeNull();
+	});
+});

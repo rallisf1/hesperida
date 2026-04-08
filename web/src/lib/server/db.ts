@@ -78,3 +78,10 @@ export const queryOne = async <T>(
 	const rows = await queryMany<T>(db, sql, vars);
 	return rows[0] ?? null;
 };
+
+export const getJob = async (jobId: string, token: string, role?: string) => {
+	if (role === 'admin') {
+		return withAdminDb((db) => queryOne(db, 'SELECT * FROM jobs WHERE id = type::record($id) LIMIT 1;', { id: jobId }));
+	}
+	return withUserDb(token, (db) => queryOne(db, 'SELECT * FROM jobs WHERE id = type::record($id) LIMIT 1;', { id: jobId }));
+};

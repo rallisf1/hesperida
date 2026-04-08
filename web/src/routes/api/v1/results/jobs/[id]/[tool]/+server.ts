@@ -3,8 +3,10 @@ import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
 import { queryOne, toRecordId, withAdminDb, withUserDb } from '$lib/server/db';
 import { isAdmin } from '$lib/server/policy';
+import { tools } from '$lib/constants';
+import type { Tool } from '$lib/types';
 
-const TOOLS = new Set(['probe', 'seo', 'ssl', 'wcag', 'whois', 'domain', 'security', 'stress']);
+const TOOLS = new Set<Tool>(tools);
 
 const fetchResult = async (db: any, value: unknown): Promise<unknown> => {
 	if (!value) return null;
@@ -45,7 +47,7 @@ export const GET: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
 
-	const tool = event.params.tool;
+	const tool = event.params.tool as Tool;
 	if (!TOOLS.has(tool)) return jsonError(event, 404, 'not_found', 'Unknown tool.');
 
 	const jobId = toRecordId('jobs', event.params.id);

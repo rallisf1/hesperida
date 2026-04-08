@@ -31,7 +31,8 @@ All the dashboard functionality will be available through openapi (TBA).
 
 ### Alerts & Webhooks
 
-To keep things simple, [Apprise](https://github.com/caronc/apprise) shall be integrated via the dashboard and added to the compose file (TBA).
+[Apprise](https://github.com/caronc/apprise) is now integrated for API notifications (forgot password + website invites).  
+In this phase, notification targets are user-level settings stored in `users.notification_targets`.
 
 ## Tech Stack
 

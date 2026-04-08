@@ -130,4 +130,155 @@ describe('API Website Invite Integration', () => {
 		expect(res.response.status).toBe(403);
 		expect(res.json.error.code).toBe('forbidden');
 	});
+
+	test('invite fails when notification delivery fails and does not add member', async () => {
+		const ownerEmail = randomEmail('invite_owner_fail');
+		const ownerPassword = 'pass12345';
+		const inviteeEmail = randomEmail('invitee_fail');
+
+		const owner = await createUser({ name: 'Invite Owner Fail', email: ownerEmail, password: ownerPassword, role: 'editor' });
+		const invitee = await createUser({
+			name: 'Invitee Fail',
+			email: inviteeEmail,
+			password: 'pass12345',
+			role: 'viewer'
+		});
+		if (!owner || !invitee) throw new Error('Failed to create users');
+
+		const website = await createWebsite({
+			user: normalizeRecordId(owner.id),
+			url: `https://${Math.random().toString(36).slice(2, 8)}.example.test`,
+			description: 'invite fail website'
+		});
+		if (!website) throw new Error('Failed to create website');
+
+		const ownerToken = await signinExistingUser(ownerEmail, ownerPassword);
+		const client = new ApiTestClient({ bearerToken: ownerToken });
+		const invitePath = `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/invite`;
+
+		const res = await client.call({
+			method: 'POST',
+			path: invitePath,
+			body: { email: inviteeEmail }
+		});
+		expect(res.response.status).toBe(502);
+		expect(res.json.error.code).toBe('notification_failed');
+
+		const refreshed = await adminOne<{ users?: string[] }>('SELECT users FROM websites WHERE id = type::record($id) LIMIT 1;', {
+			id: normalizeRecordId(website.id)
+		});
+		const userIds = (refreshed?.users ?? []).map((id) => String(id));
+		expect(userIds.includes(normalizeRecordId(invitee.id))).toBeFalse();
+	});
+
+	test('editor member can uninvite existing member by email', async () => {
+		const ownerEmail = randomEmail('uninvite_owner');
+		const ownerPassword = 'pass12345';
+		const memberEmail = randomEmail('uninvite_member');
+		const memberPassword = 'pass12345';
+
+		const owner = await createUser({ name: 'Uninvite Owner', email: ownerEmail, password: ownerPassword, role: 'editor' });
+		const member = await createUser({ name: 'Uninvite Member', email: memberEmail, password: memberPassword, role: 'viewer' });
+		if (!owner || !member) throw new Error('Failed to create users');
+
+		const website = await createWebsite({
+			user: normalizeRecordId(owner.id),
+			url: `https://${Math.random().toString(36).slice(2, 8)}.example.test`,
+			description: 'uninvite website'
+		});
+		if (!website) throw new Error('Failed to create website');
+
+		await adminOne(
+			'UPDATE websites SET users = array::distinct(array::append(users, type::record($memberId))) WHERE id = type::record($id) RETURN AFTER;',
+			{
+				id: normalizeRecordId(website.id),
+				memberId: normalizeRecordId(member.id)
+			}
+		);
+
+		const ownerToken = await signinExistingUser(ownerEmail, ownerPassword);
+		const client = new ApiTestClient({ bearerToken: ownerToken });
+		const res = await client.call({
+			method: 'POST',
+			path: `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/uninvite`,
+			body: { email: memberEmail }
+		});
+
+		expect(res.response.status).toBe(200);
+		expect(res.json.data.removed).toBeTrue();
+
+		const refreshed = await adminOne<{ users?: string[] }>(
+			'SELECT users FROM websites WHERE id = type::record($id) LIMIT 1;',
+			{ id: normalizeRecordId(website.id) }
+		);
+		const users = (refreshed?.users ?? []).map((id) => String(id));
+		expect(users.includes(normalizeRecordId(member.id))).toBeFalse();
+	});
+
+	test('uninvite rejects owner email and unknown users', async () => {
+		const ownerEmail = randomEmail('uninvite_owner_reject');
+		const ownerPassword = 'pass12345';
+		const owner = await createUser({ name: 'Uninvite Owner Reject', email: ownerEmail, password: ownerPassword, role: 'editor' });
+		if (!owner) throw new Error('Failed to create owner');
+
+		const website = await createWebsite({
+			user: normalizeRecordId(owner.id),
+			url: `https://${Math.random().toString(36).slice(2, 8)}.example.test`,
+			description: 'uninvite reject website'
+		});
+		if (!website) throw new Error('Failed to create website');
+
+		const ownerToken = await signinExistingUser(ownerEmail, ownerPassword);
+		const client = new ApiTestClient({ bearerToken: ownerToken });
+
+		const ownerRes = await client.call({
+			method: 'POST',
+			path: `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/uninvite`,
+			body: { email: ownerEmail }
+		});
+		expect(ownerRes.response.status).toBe(400);
+		expect(ownerRes.json.error.code).toBe('owner_cannot_be_uninvited');
+
+		const unknownRes = await client.call({
+			method: 'POST',
+			path: `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/uninvite`,
+			body: { email: randomEmail('not_found_uninvite') }
+		});
+		expect(unknownRes.response.status).toBe(404);
+		expect(unknownRes.json.error.code).toBe('not_found');
+	});
+
+	test('viewer cannot uninvite users', async () => {
+		const ownerEmail = randomEmail('uninvite_owner_viewer');
+		const ownerPassword = 'pass12345';
+		const viewerEmail = randomEmail('uninvite_viewer');
+		const viewerPassword = 'pass12345';
+
+		const owner = await createUser({ name: 'Uninvite Owner Viewer', email: ownerEmail, password: ownerPassword, role: 'editor' });
+		const viewer = await createUser({ name: 'Uninvite Viewer', email: viewerEmail, password: viewerPassword, role: 'viewer' });
+		if (!owner || !viewer) throw new Error('Failed to create users');
+
+		const website = await createWebsite({
+			user: normalizeRecordId(owner.id),
+			url: `https://${Math.random().toString(36).slice(2, 8)}.example.test`,
+			description: 'uninvite viewer website'
+		});
+		if (!website) throw new Error('Failed to create website');
+
+		await adminOne(
+			'UPDATE websites SET users = array::distinct(array::append(users, type::record($viewerId))) WHERE id = type::record($id) RETURN AFTER;',
+			{ id: normalizeRecordId(website.id), viewerId: normalizeRecordId(viewer.id) }
+		);
+
+		const viewerToken = await signinExistingUser(viewerEmail, viewerPassword);
+		const client = new ApiTestClient({ bearerToken: viewerToken });
+		const res = await client.call({
+			method: 'POST',
+			path: `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/uninvite`,
+			body: { email: randomEmail('uninvite_fail_viewer') }
+		});
+
+		expect(res.response.status).toBe(403);
+		expect(res.json.error.code).toBe('forbidden');
+	});
 });

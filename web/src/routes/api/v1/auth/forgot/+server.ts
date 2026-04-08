@@ -1,6 +1,13 @@
 import type { RequestHandler } from './$types';
 import { queryOne, withAdminDb } from '$lib/server/db';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
+import { sendForgotNotification } from '$lib/server/notifications';
+
+type ForgotUserRow = {
+	id: string;
+	email: string;
+	forgot_token?: string | null;
+};
 
 /**
  * @swagger
@@ -20,6 +27,8 @@ import { jsonError, jsonOk, parseJson } from '$lib/server/http';
  *     responses:
  *       200:
  *         description: Reset token generated
+ *       502:
+ *         description: Notification delivery failed
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *   patch:
@@ -53,7 +62,11 @@ export const POST: RequestHandler = async (event) => {
 	if (!email) return jsonError(event, 400, 'bad_request', 'email is required.');
 
 	const user = await withAdminDb((db) =>
-		queryOne<{ id: string }>(db, 'SELECT id FROM users WHERE email = $email LIMIT 1;', { email })
+		queryOne<ForgotUserRow>(
+			db,
+			'SELECT id, email, forgot_token FROM users WHERE email = $email LIMIT 1;',
+			{ email }
+		)
 	);
 	if (!user) return jsonError(event, 404, 'not_found', 'User not found.');
 
@@ -65,7 +78,29 @@ export const POST: RequestHandler = async (event) => {
 		})
 	);
 
-	// TODO: Send forgot password notification (email/SMS/webhook) with reset token link.
+	try {
+		await sendForgotNotification({
+			email: user.email,
+			forgotToken
+		});
+	} catch (error) {
+		if (user.forgot_token) {
+			await withAdminDb((db) =>
+				queryOne(db, 'UPDATE $id SET forgot_token = $previousToken RETURN AFTER;', {
+					id: user.id,
+					previousToken: user.forgot_token
+				})
+			);
+		} else {
+			await withAdminDb((db) =>
+				queryOne(db, 'UPDATE $id SET forgot_token = NONE RETURN AFTER;', {
+					id: user.id
+				})
+			);
+		}
+		return jsonError(event, 502, 'notification_failed', (error as Error).message);
+	}
+
 	return jsonOk(event, { success: true });
 };
 
@@ -100,4 +135,3 @@ export const PATCH: RequestHandler = async (event) => {
 
 	return jsonOk(event, { success: true });
 };
-

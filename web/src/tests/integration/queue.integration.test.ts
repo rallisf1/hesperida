@@ -45,4 +45,52 @@ describe('API Job Queue Integration', () => {
 		expect(Array.isArray(res.json.data.tasks)).toBeTrue();
 		expect(res.json.data.tasks.length).toBe(1);
 	});
+
+	test('queue list endpoints support pagination and validation', async () => {
+		const owner = await createAndSigninUser('Queue Paged Owner');
+		const website = await createWebsite({
+			user: owner.userId,
+			url: `https://${Math.random().toString(36).slice(2, 8)}.example.test`,
+			description: 'Queue paged website'
+		});
+		if (!website) throw new Error('Failed to create website');
+
+		const job = await createJob({
+			website: normalizeRecordId(website.id),
+			types: ['security'],
+			status: 'processing'
+		});
+		if (!job) throw new Error('Failed to create job');
+
+		for (let i = 0; i < 3; i += 1) {
+			await createQueueTask({
+				job: normalizeRecordId(job.id),
+				type: 'security',
+				status: 'waiting',
+				target: `https://target-${i}.example.test`
+			});
+		}
+
+		const client = new ApiTestClient({ bearerToken: owner.token });
+
+		const queuePage = await client.call({ method: 'GET', path: '/api/v1/job-queue?page=1&page_size=2' });
+		expect(queuePage.response.status).toBe(200);
+		expect(queuePage.json.data.tasks.length).toBe(2);
+		expect(queuePage.json.data.total_items).toBe(3);
+
+		const byJobPage = await client.call({
+			method: 'GET',
+			path: `/api/v1/jobs/${encodeURIComponent(normalizeRecordId(job.id))}/queue?page=2&page_size=2`
+		});
+		expect(byJobPage.response.status).toBe(200);
+		expect(byJobPage.json.data.tasks.length).toBe(1);
+		expect(byJobPage.json.data.total_items).toBe(3);
+
+		const badPartial = await client.call({
+			method: 'GET',
+			path: `/api/v1/jobs/${encodeURIComponent(normalizeRecordId(job.id))}/queue?page_size=2`
+		});
+		expect(badPartial.response.status).toBe(400);
+		expect(badPartial.json.error.code).toBe('bad_request');
+	});
 });

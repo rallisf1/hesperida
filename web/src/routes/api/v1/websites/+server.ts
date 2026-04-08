@@ -3,6 +3,7 @@ import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryMany, queryOne, withAdminDb, withUserDb } from '$lib/server/db';
 import { canCreateWebsite, isAdmin } from '$lib/server/policy';
 import { withRequiredUser } from '$lib/server/route';
+import { parsePaginationParams } from '$lib/server/pagination';
 
 /**
  * @swagger
@@ -19,13 +20,57 @@ import { withRequiredUser } from '$lib/server/route';
  */
 export const GET: RequestHandler = async (event) => {
 	return withRequiredUser(event, async (auth) => {
-		if (isAdmin(auth.user)) {
-			const rows = await withAdminDb((db) => queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC;'));
+		const pagination = parsePaginationParams(event.url.searchParams);
+		if (!pagination.ok) {
+			return jsonError(event, 400, 'bad_request', pagination.message);
+		}
+
+		if (pagination.value.mode === 'all') {
+			if (isAdmin(auth.user)) {
+				const rows = await withAdminDb((db) => queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC;'));
+				return jsonOk(event, { websites: rows ?? [] });
+			}
+
+			const rows = await withUserDb(auth.token, (db) =>
+				queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC;')
+			);
 			return jsonOk(event, { websites: rows ?? [] });
 		}
 
-		const rows = await withUserDb(auth.token, (db) => queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC;'));
-		return jsonOk(event, { websites: rows ?? [] });
+		const { limit, offset, page, pageSize } = pagination.value;
+		if (isAdmin(auth.user)) {
+			const rows = await withAdminDb((db) =>
+				queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC LIMIT $limit START $offset;', {
+					limit,
+					offset
+				})
+			);
+			const countRow = await withAdminDb((db) =>
+				queryOne<{ total_items: number }>(db, 'SELECT count() AS total_items FROM websites GROUP ALL;')
+			);
+			return jsonOk(event, {
+				websites: rows ?? [],
+				page,
+				page_size: pageSize,
+				total_items: Number(countRow?.total_items ?? 0)
+			});
+		}
+
+		const rows = await withUserDb(auth.token, (db) =>
+			queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC LIMIT $limit START $offset;', {
+				limit,
+				offset
+			})
+		);
+		const countRow = await withUserDb(auth.token, (db) =>
+			queryOne<{ total_items: number }>(db, 'SELECT count() AS total_items FROM websites GROUP ALL;')
+		);
+		return jsonOk(event, {
+			websites: rows ?? [],
+			page,
+			page_size: pageSize,
+			total_items: Number(countRow?.total_items ?? 0)
+		});
 	});
 };
 

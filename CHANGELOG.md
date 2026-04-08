@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.4.0] - 2026-04-08
+
+### Added
+
+- SvelteKit project in /web
+  - API with OpenAPI swagger endpoint
+  - Auth backend
+  - Bun Tests
+- Apprise docker container + pre-work for notifications
+- ACL (admin | editor | viewer) with user invites per website
+
+### Changed
+
+- `jobs.user` -> `job.owner` and new `jobs.users` holds editors / viewers
+
+### Fixed
+
+- Symlinked `constants.ts` and `types.d.ts` to wherever needed so that devs can run things without docker as well
+
 ## [0.3.1] - 2026-04-02
 
 ### Added
