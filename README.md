@@ -180,6 +180,13 @@ That said; score calculations used by Hesperida can change between configuration
 
 A DNS / web root file verification process has been added in v0.4.1, thus you can only scan websites you have access to their DNS zones or web root.
 
+To verify your website either:
+
+- add a TXT DNS record for `hesperida.yourdomain.com` with `websites.verification_token` as its value, or
+- add a `hesperida-${websites.verification_token}.txt` (empty) file to your web root
+
+and use the `/api/v1/websites/[id]/verify` API endpoint.
+
 ### Can I use it in a CI/CD pipeline?
 
 Yes, as long as you use a proper (a.k.a. with a live domain) staging environment.
@@ -188,6 +195,10 @@ Yes, as long as you use a proper (a.k.a. with a live domain) staging environment
 
 In theory, as long as you respect the [AGPL license](./LICENSE), yes; multi-tenancy is baked in. In practice, it would take a lot of effort to scale this in its current form (self-managed docker containers), and be a nightmare to maintain.
 If I decide to spin up a SaaS, I will write a proprietary kubernetes orchestrator from scratch and use SurrealDB cloud as well.
+
+### Is this a vibe coded project?
+
+Hesperida is an AI assisted developed project. More specifically; all the architecture, schema, and design decisions are my own. All the code for the first couple minor versions (most tools, db, and orchestrator) was hand-written. Since v0.3.0 about 90% of the code is AI generated using OpenAI Codex.
 
 ### Can you add/change X feature?
 
