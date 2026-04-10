@@ -1,10 +1,15 @@
-import type { Handle } from '@sveltejs/kit';
+import { redirect, type Handle } from '@sveltejs/kit';
 import { config, getMissingRequiredEnv } from '$lib/server/config';
-import { getAuthToken } from '$lib/server/auth';
+import { getAuthToken, getCurrentUser } from '$lib/server/auth';
 import { checkAuthRateLimit } from '$lib/server/rate-limit';
 
 const isAuthRoute = (pathname: string): boolean => pathname.startsWith('/api/v1/auth/');
 const isApiRoute = (pathname: string): boolean => pathname.startsWith('/api/v1');
+const isAuthPageRoute = (pathname: string): boolean => pathname.startsWith('/auth');
+const isStaticAssetRoute = (pathname: string): boolean =>
+	pathname.startsWith('/_app/') || pathname === '/favicon.ico' || pathname === '/robots.txt';
+const isPublicDashboardRoute = (pathname: string): boolean =>
+	isAuthPageRoute(pathname) || pathname === '/health' || isStaticAssetRoute(pathname);
 let configValidated = false;
 
 const jsonError = (requestId: string, status: number, code: string, message: string): Response => {
@@ -56,6 +61,20 @@ export const handle: Handle = async ({ event, resolve }) => {
 			response.headers.set('retry-after', String(limit.retryAfterSec));
 			return response;
 		}
+	}
+
+	const isDashboardRequest = !isApiRoute(pathname);
+	if (isDashboardRequest && !isPublicDashboardRoute(pathname)) {
+		if (!event.locals.authToken) {
+			throw redirect(303, '/auth/signin');
+		}
+
+		const user = await getCurrentUser(event.locals.authToken);
+		if (!user) {
+			event.cookies.delete(config.sessionCookieName, { path: '/' });
+			throw redirect(303, '/auth/signin');
+		}
+		event.locals.user = user;
 	}
 
 	const response = await resolve(event);
