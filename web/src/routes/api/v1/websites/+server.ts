@@ -125,7 +125,7 @@ export const POST: RequestHandler = async (event) => {
 			const website = await withAdminDb((db) =>
 				queryOne(
 					db,
-					'CREATE websites CONTENT { owner: type::record($user), users: [type::record($user)], url: $url, description: $description, verification_code: $verificationCode, verified_at: NONE } RETURN AFTER;',
+					'CREATE websites CONTENT { owner: $user, users: [], url: $url, description: $description, verification_code: $verificationCode, verified_at: NONE } RETURN AFTER;',
 					{ user: auth.user.id, url, description, verificationCode }
 				)
 			);

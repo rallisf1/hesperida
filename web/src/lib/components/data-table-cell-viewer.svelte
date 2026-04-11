@@ -3,7 +3,7 @@
 	import { AreaChart } from "layerchart";
 	import { scaleUtc } from "d3-scale";
 	import { curveNatural } from "d3-shape";
-
+	import { localeStore } from "$lib/stores.js";
 	import * as Drawer from "$lib/components/ui/drawer/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import * as Chart from "$lib/components/ui/chart/index.js";
@@ -85,7 +85,7 @@
 								motion: "tween",
 							},
 							xAxis: {
-								format: (v) => v.toLocaleDateString("en-US", { month: "short" }),
+								format: (v) => v.toLocaleDateString($localeStore, { month: "short" }),
 							},
 							yAxis: { ticks: [0, 300, 600] },
 						}}
@@ -93,7 +93,7 @@
 						{#snippet tooltip()}
 							<Chart.Tooltip
 								labelFormatter={(v: Date) => {
-									return v.toLocaleDateString("en-US", {
+									return v.toLocaleDateString($localeStore, {
 										month: "long",
 									});
 								}}

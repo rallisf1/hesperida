@@ -36,6 +36,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.requestId = crypto.randomUUID();
 	event.locals.authToken = getAuthToken(event);
 
+	const acceptLanguage = event.request.headers.get('accept-language');
+	event.locals.locale = acceptLanguage ? acceptLanguage.split(/[,;]/)[0].trim() : 'en-US';
+
 	const { pathname } = event.url;
 
 	if (config.appMode === 'api' && !isApiRoute(pathname)) {

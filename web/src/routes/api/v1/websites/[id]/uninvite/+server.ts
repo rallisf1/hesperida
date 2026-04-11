@@ -1,21 +1,11 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
-import { queryOne, toRecordId, withAdminDb } from '$lib/server/db';
+import { queryOne, withAdminDb } from '$lib/server/db';
 import { canInviteToWebsite, isAdmin } from '$lib/server/policy';
 import { normalizeRecordId } from '$lib/server/record-id';
-
-type WebsiteAccessRow = {
-	id: string;
-	owner: unknown;
-	users?: unknown[];
-	url: string;
-};
-
-type UserRow = {
-	id: string;
-	email: string;
-};
+import { RecordId } from 'surrealdb';
+import type { User, Website } from '$lib/types';
 
 /**
  * @swagger
@@ -55,7 +45,7 @@ export const POST: RequestHandler = async (event) => {
 
 	const routeId = event.params.id;
 	if (!routeId) return jsonError(event, 400, 'bad_request', 'Website id is required.');
-	const websiteId = toRecordId('websites', routeId);
+	const websiteId = new RecordId('websites', routeId);
 
 	let payload: Record<string, unknown>;
 	try {
@@ -68,11 +58,11 @@ export const POST: RequestHandler = async (event) => {
 	if (!email) return jsonError(event, 400, 'bad_request', 'email is required.');
 
 	const website = await withAdminDb((db) =>
-		queryOne<WebsiteAccessRow>(
+		queryOne<Partial<Website>>(
 			db,
 			isAdmin(auth.user)
-				? 'SELECT id, owner, users, url FROM websites WHERE id = type::record($id) LIMIT 1;'
-				: 'SELECT id, owner, users, url FROM websites WHERE id = type::record($id) AND (owner = type::record($user) OR type::record($user) IN users) LIMIT 1;',
+				? 'SELECT id, owner, users, url FROM websites WHERE id = $id LIMIT 1;'
+				: 'SELECT id, owner, users, url FROM websites WHERE id = $id AND (owner = $user OR $user IN users) LIMIT 1;',
 			{
 				id: websiteId,
 				user: auth.user.id
@@ -91,13 +81,9 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const user = await withAdminDb((db) =>
-		queryOne<UserRow>(db, 'SELECT id, email FROM users WHERE email = $email LIMIT 1;', { email })
+		queryOne<Partial<User>>(db, 'SELECT id, email FROM users WHERE email = $email LIMIT 1;', { email })
 	);
 	if (!user) return jsonError(event, 404, 'not_found', 'User not found.');
-
-	if (normalizeRecordId(website.owner) === normalizeRecordId(user.id)) {
-		return jsonError(event, 400, 'owner_cannot_be_uninvited', 'Website owner cannot be uninvited.');
-	}
 
 	const currentUsers = (website.users ?? []).map((entry) => normalizeRecordId(entry));
 	if (!currentUsers.includes(normalizeRecordId(user.id))) {
@@ -105,9 +91,9 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const updated = await withAdminDb((db) =>
-		queryOne<WebsiteAccessRow>(
+		queryOne<Partial<Website>>(
 			db,
-			'UPDATE websites SET users = array::filter(users ?? [], |$u| $u != type::record($userId)) WHERE id = type::record($id) RETURN AFTER;',
+			'UPDATE websites SET users = array::filter(users ?? [], |$u| $u != $userId) WHERE id = $id RETURN AFTER;',
 			{ id: websiteId, userId: user.id }
 		)
 	);

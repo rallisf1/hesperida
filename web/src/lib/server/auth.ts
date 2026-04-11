@@ -1,9 +1,10 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { config } from './config';
 import { withUserDb } from './db';
+import type { RecordId } from 'surrealdb';
 
 export interface AuthUser {
-	id: string;
+	id: RecordId;
 	email: string;
 	name: string;
 	role?: 'admin' | 'editor' | 'viewer';

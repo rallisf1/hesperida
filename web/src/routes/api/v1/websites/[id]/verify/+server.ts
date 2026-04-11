@@ -1,23 +1,24 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
-import { queryOne, toRecordId, withAdminDb } from '$lib/server/db';
+import { queryOne, withAdminDb } from '$lib/server/db';
 import { isAdmin } from '$lib/server/policy';
 import { verifyWebsiteOwnership } from '$lib/server/website-verification';
 import { config } from '$lib/server/config';
 import type { Website } from '$lib/types';
+import { RecordId } from 'surrealdb';
 
 const getAccessibleWebsite = async (
-	websiteId: string,
-	userId: string,
+	websiteId: RecordId,
+	userId: RecordId,
 	isUserAdmin: boolean
 ): Promise<Website | null> =>
 	withAdminDb((db) =>
 		queryOne<Website>(
 			db,
 			isUserAdmin
-				? 'SELECT id, url, verification_code, verified_at FROM websites WHERE id = type::record($id) LIMIT 1;'
-				: 'SELECT id, url, verification_code, verified_at FROM websites WHERE id = type::record($id) AND (owner = type::record($user) OR type::record($user) IN users) LIMIT 1;',
+				? 'SELECT id, url, verification_code, verified_at FROM websites WHERE id = $id LIMIT 1;'
+				: 'SELECT id, url, verification_code, verified_at FROM websites WHERE id = $id AND (owner = $user OR $user IN users) LIMIT 1;',
 			{ id: websiteId, user: userId }
 		)
 	);
@@ -50,7 +51,7 @@ export const GET: RequestHandler = async (event) => {
 
 	const routeId = event.params.id;
 	if (!routeId) return jsonError(event, 400, 'bad_request', 'Website id is required.');
-	const websiteId = toRecordId('websites', routeId);
+	const websiteId = new RecordId('websites', routeId);
 
 	const accessible = await getAccessibleWebsite(websiteId, auth.user.id, isAdmin(auth.user));
 	if (!accessible) {

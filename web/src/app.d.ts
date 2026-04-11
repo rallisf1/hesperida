@@ -6,6 +6,7 @@ declare global {
 			requestId: string;
 			authToken: string | null;
 			user?: import('$lib/server/auth').AuthUser | null;
+			locale: string;
 		}
 	}
 }

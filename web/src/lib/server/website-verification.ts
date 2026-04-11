@@ -68,8 +68,8 @@ const updateWebsiteVerificationDate = async (id: RecordId, isValid: boolean = tr
 		queryOne<Website>(
 			db,
 			isValid
-				? 'UPDATE websites SET verified_at = time::now() WHERE id = type::record($id) RETURN id, url, verification_code, verified_at;'
-				: 'UPDATE websites SET verified_at = NONE WHERE id = type::record($id) RETURN id, url, verification_code, verified_at;',
+				? 'UPDATE websites SET verified_at = time::now() WHERE id = $id RETURN id, url, verification_code, verified_at;'
+				: 'UPDATE websites SET verified_at = NONE WHERE id = $id RETURN id, url, verification_code, verified_at;',
 			{ id }
 		)
 	);
@@ -95,7 +95,7 @@ export const verifyWebsiteOwnership = async (website: Website, skipCache: boolea
 		const updated = await withAdminDb((db) =>
 			queryOne<Website>(
 				db,
-				'UPDATE websites SET verification_code = $code WHERE id = type::record($id) RETURN id, url, verification_code, verified_at;',
+				'UPDATE websites SET verification_code = $code WHERE id = $id RETURN id, url, verification_code, verified_at;',
 				{ id: website.id, code: verifyResult.txtValue }
 			)
 		);

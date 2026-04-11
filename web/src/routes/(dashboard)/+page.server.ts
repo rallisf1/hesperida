@@ -2,7 +2,8 @@ import type { PageServerLoad } from './$types';
 import { queryMany, queryOne, withUserDb } from '$lib/server/db';
 import { mapQueueTaskRow } from '$lib/server/queue-tasks';
 import { toRouteId } from '$lib/server/record-id';
-import type { DateTime, RecordId } from 'surrealdb';
+import type { DateTime } from 'surrealdb';
+import type { Queue, Website } from '$lib/types';
 
 const DEFAULT_TASK_LIMIT = 100;
 const THROUGHPUT_DAYS = 14;
@@ -79,13 +80,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	return withUserDb(locals.authToken, async (db) => {
-		const taskRows = await queryMany<Record<string, unknown> & { status?: string }>(
+		const taskRows = await queryMany<Queue>(
 			db,
 			'SELECT * FROM job_queue ORDER BY created_at DESC LIMIT $limit FETCH job.website;',
 			{ limit: DEFAULT_TASK_LIMIT }
 		);
 
-		const websites = await queryMany<{ id?: RecordId; url?: string; created_at?: DateTime }>(
+		const websites = await queryMany<Website>(
 			db,
 			'SELECT id, url, created_at FROM websites ORDER BY created_at DESC LIMIT 8;'
 		);
@@ -113,7 +114,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				job_id: toRouteId(row.job_id),
 				website_url: row.website_url ?? '',
 				response_time: row.response_time ?? '',
-				latency_ms: parseLatencyMs(row.response_time) ?? Number.NaN,
+				latency_ms: parseLatencyMs(row.response_time ?? '') ?? Number.NaN,
 				created_at: toIso(row.created_at)
 			}))
 			.filter((row) => Number.isFinite(row.latency_ms));

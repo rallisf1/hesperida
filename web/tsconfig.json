@@ -9,6 +9,7 @@
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"sourceMap": true,
+    	"types": ["bun-types"],
 		"strict": true,
 		"moduleResolution": "bundler"
 	}

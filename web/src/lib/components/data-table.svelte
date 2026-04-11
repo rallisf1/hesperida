@@ -30,6 +30,7 @@
 	import DataTableCheckbox from "./data-table-checkbox.svelte";
 	import DataTableStatus from "./data-table-status.svelte";
 	import { queueTaskStatuses, type QueueTaskRow } from "$lib/queue-tasks";
+  	import { formatDate } from "$lib/utils";
 
 	let {
 		rows,
@@ -77,18 +78,6 @@
 		return counts;
 	});
 
-	const formatDate = (value: string): string => {
-		const date = new Date(value);
-		if (Number.isNaN(date.getTime())) return value;
-		return new Intl.DateTimeFormat("en-US", {
-			year: "numeric",
-			month: "short",
-			day: "2-digit",
-			hour: "2-digit",
-			minute: "2-digit",
-		}).format(date);
-	};
-
 	const columns = $derived.by<ColumnDef<QueueTaskRow>[]>(() => {
 		const base: ColumnDef<QueueTaskRow>[] = [
 			{
@@ -111,7 +100,7 @@
 			{
 				accessorKey: "created_at",
 				header: "Created At",
-				cell: ({ row }) => formatDate(row.original.created_at),
+				cell: ({ row }) => formatDate(row.original.created_at, true),
 			},
 			{
 				id: "actions",

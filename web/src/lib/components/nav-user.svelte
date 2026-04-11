@@ -74,7 +74,7 @@
 					</DropdownMenu.Item>
 				</DropdownMenu.Group>
 				<DropdownMenu.Separator />
-				<DropdownMenu.Item class="cursor-pointer">
+				<DropdownMenu.Item>
 				{#snippet child({ props })}
       				<a href="/auth/signout" {...props}>
 						<LogOutIcon /> Sign out

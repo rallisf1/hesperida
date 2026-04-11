@@ -1,9 +1,6 @@
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import { config } from '$lib/server/config';
-
-type ApiEnvelope =
-	| { ok: true; data?: { token?: string } }
-	| { ok: false; error?: { message?: string } };
+import type { ApiEnvelope } from '$lib/types';
 
 export const actions: Actions = {
 	default: async (event) => {

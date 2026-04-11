@@ -6,6 +6,7 @@ import { mapQueueTaskRow } from '$lib/server/queue-tasks';
 import type { QueueTaskStreamEvent } from '$lib/queue-tasks';
 import { queryMany, queryOne } from '$lib/server/db';
 import { normalizeRecordId, toRouteId } from '$lib/server/record-id';
+import type { Queue } from '$lib/types';
 
 const DEFAULT_LIMIT = 100;
 
@@ -54,7 +55,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 				return true;
 			};
 
-			const initialRows = await queryMany<Record<string, unknown>>(
+			const initialRows = await queryMany<Queue>(
 				db,
 				'SELECT * FROM job_queue ORDER BY created_at DESC LIMIT $limit FETCH job.website;',
 				{ limit: DEFAULT_LIMIT }
@@ -77,16 +78,15 @@ export const POST: RequestHandler = async ({ locals }) => {
 					return;
 				}
 
-				const record = normalizeRecordId(recordId);
-				const row = await queryOne<Record<string, unknown>>(
+				const row = await queryOne<Queue>(
 					db,
-					'SELECT * FROM type::record($id) LIMIT 1 FETCH job.website;',
-					{ id: record }
+					'SELECT * FROM $id LIMIT 1 FETCH job.website;',
+					{ id: recordId }
 				);
 				if (!row) {
 					emitEvent({
 						type: 'remove',
-						id: toRouteId(record),
+						id: toRouteId(recordId),
 					});
 					return;
 				}

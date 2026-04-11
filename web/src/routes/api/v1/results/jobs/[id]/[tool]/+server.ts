@@ -1,10 +1,11 @@
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
-import { queryOne, toRecordId, withAdminDb, withUserDb } from '$lib/server/db';
+import { queryOne, withAdminDb, withUserDb } from '$lib/server/db';
 import { isAdmin } from '$lib/server/policy';
 import { tools } from '$lib/constants';
 import type { Tool } from '$lib/types';
+import { RecordId } from 'surrealdb';
 
 const TOOLS = new Set<Tool>(tools);
 
@@ -50,8 +51,8 @@ export const GET: RequestHandler = async (event) => {
 	const tool = event.params.tool as Tool;
 	if (!TOOLS.has(tool)) return jsonError(event, 404, 'not_found', 'Unknown tool.');
 
-	const jobId = toRecordId('jobs', event.params.id);
-	const jobSql = 'SELECT * FROM jobs WHERE id = type::record($id) LIMIT 1;';
+	const jobId = new RecordId('jobs', event.params.id);
+	const jobSql = 'SELECT * FROM jobs WHERE id = $id LIMIT 1;';
 	const job = isAdmin(auth.user)
 		? await withAdminDb((db) => queryOne<Record<string, unknown>>(db, jobSql, { id: jobId }))
 		: await withUserDb(auth.token, (db) => queryOne<Record<string, unknown>>(db, jobSql, { id: jobId }));

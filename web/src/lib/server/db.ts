@@ -1,4 +1,4 @@
-import { Surreal } from 'surrealdb';
+import { RecordId, Surreal } from 'surrealdb';
 import { config } from './config';
 
 const connectBase = async (): Promise<Surreal> => {
@@ -56,11 +56,6 @@ export const withUserDb = async <T>(token: string, work: (db: Surreal) => Promis
 	}
 };
 
-export const toRecordId = (table: string, id: string): string => {
-	const normalized = decodeURIComponent(id).trim();
-	return normalized.includes(':') ? normalized : `${table}:${normalized}`;
-};
-
 export const queryMany = async <T>(
 	db: Surreal,
 	sql: string,
@@ -79,9 +74,9 @@ export const queryOne = async <T>(
 	return rows[0] ?? null;
 };
 
-export const getJob = async (jobId: string, token: string, role?: string) => {
+export const getJob = async (jobId: RecordId, token: string, role?: string) => {
 	if (role === 'admin') {
-		return withAdminDb((db) => queryOne(db, 'SELECT * FROM jobs WHERE id = type::record($id) LIMIT 1;', { id: jobId }));
+		return withAdminDb((db) => queryOne(db, 'SELECT * FROM jobs WHERE id = $id LIMIT 1;', { id: jobId }));
 	}
-	return withUserDb(token, (db) => queryOne(db, 'SELECT * FROM jobs WHERE id = type::record($id) LIMIT 1;', { id: jobId }));
+	return withUserDb(token, (db) => queryOne(db, 'SELECT * FROM jobs WHERE id = $id LIMIT 1;', { id: jobId }));
 };

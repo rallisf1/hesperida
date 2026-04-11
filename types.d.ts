@@ -130,3 +130,7 @@ export interface Stress {
     raw: object;
     created_at?: DateTime;
 }
+
+export type ApiEnvelope =
+	| { ok: true; data?: { token?: string } }
+	| { ok: false; error?: { message?: string } };

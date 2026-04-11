@@ -1,8 +1,9 @@
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
-import { queryOne, toRecordId, withAdminDb } from '$lib/server/db';
+import { queryOne, withAdminDb } from '$lib/server/db';
 import { canCancelQueueTask, isAdmin } from '$lib/server/policy';
+import { RecordId } from 'surrealdb';
 
 /**
  * @swagger
@@ -33,13 +34,13 @@ export const POST: RequestHandler = async (event) => {
 		return jsonError(event, 403, 'forbidden', 'Viewer users cannot cancel tasks.');
 	}
 
-	const taskId = toRecordId('job_queue', event.params.id);
+	const taskId = new RecordId('job_queue', event.params.id);
 	const task = await withAdminDb((db) =>
 		queryOne<{ status?: string }>(
 			db,
 			isAdmin(auth.user)
-				? 'SELECT * FROM job_queue WHERE id = type::record($id) LIMIT 1;'
-				: 'SELECT * FROM job_queue WHERE id = type::record($id) AND (job.website.owner = type::record($user) OR type::record($user) IN job.website.users) LIMIT 1;',
+				? 'SELECT * FROM job_queue WHERE id = $id LIMIT 1;'
+				: 'SELECT * FROM job_queue WHERE id = $id AND (job.website.owner = $user OR $user IN job.website.users) LIMIT 1;',
 			{ id: taskId, user: auth.user.id }
 		)
 	);

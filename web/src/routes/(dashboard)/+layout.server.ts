@@ -5,6 +5,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		user: {
 			name: locals.user?.name,
 			email: locals.user?.email
-		}
+		},
+		locale: locals.locale
 	};
 };

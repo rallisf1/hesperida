@@ -1,8 +1,9 @@
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
-import { queryOne, toRecordId, withAdminDb, withUserDb } from '$lib/server/db';
+import { queryOne, withAdminDb, withUserDb } from '$lib/server/db';
 import { isAdmin } from '$lib/server/policy';
+import { RecordId } from 'surrealdb';
 
 /**
  * @swagger
@@ -28,10 +29,10 @@ export const GET: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
 
-	const taskId = toRecordId('job_queue', event.params.id);
+	const taskId = new RecordId('job_queue', event.params.id);
 	const task = isAdmin(auth.user)
-		? await withAdminDb((db) => queryOne(db, 'SELECT * FROM job_queue WHERE id = type::record($id) LIMIT 1;', { id: taskId }))
-		: await withUserDb(auth.token, (db) => queryOne(db, 'SELECT * FROM job_queue WHERE id = type::record($id) LIMIT 1;', { id: taskId }));
+		? await withAdminDb((db) => queryOne(db, 'SELECT * FROM job_queue WHERE id = $id LIMIT 1;', { id: taskId }))
+		: await withUserDb(auth.token, (db) => queryOne(db, 'SELECT * FROM job_queue WHERE id = $id LIMIT 1;', { id: taskId }));
 	if (!task) return jsonError(event, 404, 'not_found', 'Task not found.');
 	return jsonOk(event, { task });
 };

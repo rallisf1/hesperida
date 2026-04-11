@@ -135,4 +135,7 @@
 	html {
 		@apply font-sans;
 	}
+	a:not(:disabled), button:not(:disabled), input[type="button"]:not(:disabled), input[type="submit"]:not(:disabled), input[type="cancel"]:not(:disabled), label[for] {
+		@apply cursor-pointer!;
+	}
 }

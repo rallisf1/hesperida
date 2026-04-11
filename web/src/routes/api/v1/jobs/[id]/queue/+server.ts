@@ -1,9 +1,10 @@
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
-import { getJob, queryMany, queryOne, toRecordId, withAdminDb, withUserDb } from '$lib/server/db';
+import { getJob, queryMany, queryOne, withAdminDb, withUserDb } from '$lib/server/db';
 import { isAdmin } from '$lib/server/policy';
 import { parsePaginationParams } from '$lib/server/pagination';
+import { RecordId } from 'surrealdb';
 
 /**
  * @swagger
@@ -24,7 +25,7 @@ export const GET: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
 
-	const jobId = toRecordId('jobs', event.params.id);
+	const jobId = new RecordId('jobs', event.params.id);
 	const job = await getJob(jobId, auth.token, auth.user.role);
 	if (!job) return jsonError(event, 404, 'not_found', 'Job not found.');
 
@@ -38,14 +39,14 @@ export const GET: RequestHandler = async (event) => {
 			? await withAdminDb((db) =>
 					queryMany(
 						db,
-						'SELECT * FROM job_queue WHERE job = type::record($jobId) ORDER BY created_at DESC;',
+						'SELECT * FROM job_queue WHERE job = $jobId ORDER BY created_at DESC;',
 						{ jobId }
 					)
 				)
 			: await withUserDb(auth.token, (db) =>
 					queryMany(
 						db,
-						'SELECT * FROM job_queue WHERE job = type::record($jobId) ORDER BY created_at DESC;',
+						'SELECT * FROM job_queue WHERE job = $jobId ORDER BY created_at DESC;',
 						{ jobId }
 					)
 				);
@@ -57,14 +58,14 @@ export const GET: RequestHandler = async (event) => {
 		? await withAdminDb((db) =>
 				queryMany(
 					db,
-					'SELECT * FROM job_queue WHERE job = type::record($jobId) ORDER BY created_at DESC LIMIT $limit START $offset;',
+					'SELECT * FROM job_queue WHERE job = $jobId ORDER BY created_at DESC LIMIT $limit START $offset;',
 					{ jobId, limit, offset }
 				)
 			)
 		: await withUserDb(auth.token, (db) =>
 				queryMany(
 					db,
-					'SELECT * FROM job_queue WHERE job = type::record($jobId) ORDER BY created_at DESC LIMIT $limit START $offset;',
+					'SELECT * FROM job_queue WHERE job = $jobId ORDER BY created_at DESC LIMIT $limit START $offset;',
 					{ jobId, limit, offset }
 				)
 			);
@@ -72,14 +73,14 @@ export const GET: RequestHandler = async (event) => {
 		? await withAdminDb((db) =>
 				queryOne<{ total_items: number }>(
 					db,
-					'SELECT count() AS total_items FROM job_queue WHERE job = type::record($jobId) GROUP ALL;',
+					'SELECT count() AS total_items FROM job_queue WHERE job = $jobId GROUP ALL;',
 					{ jobId }
 				)
 			)
 		: await withUserDb(auth.token, (db) =>
 				queryOne<{ total_items: number }>(
 					db,
-					'SELECT count() AS total_items FROM job_queue WHERE job = type::record($jobId) GROUP ALL;',
+					'SELECT count() AS total_items FROM job_queue WHERE job = $jobId GROUP ALL;',
 					{ jobId }
 				)
 			);

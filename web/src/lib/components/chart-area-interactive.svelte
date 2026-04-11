@@ -6,6 +6,7 @@
 	import { scaleUtc } from "d3-scale";
 	import { Area, AreaChart } from "layerchart";
 	import { curveNatural } from "d3-shape";
+	import { localeStore } from "$lib/stores";
 
 	const chartData = [
 		{ date: new Date("2024-04-01"), desktop: 222, mobile: 150 },
@@ -198,7 +199,7 @@
 					xAxis: {
 						ticks: timeRange === "7d" ? 7 : undefined,
 						format: (v) => {
-							return v.toLocaleDateString("en-US", {
+							return v.toLocaleDateString($localeStore, {
 								month: "short",
 								day: "numeric",
 							});
@@ -244,7 +245,7 @@
 				{#snippet tooltip()}
 					<Chart.Tooltip
 						labelFormatter={(v: Date) => {
-							return v.toLocaleDateString("en-US", {
+							return v.toLocaleDateString($localeStore, {
 								month: "short",
 								day: "numeric",
 							});

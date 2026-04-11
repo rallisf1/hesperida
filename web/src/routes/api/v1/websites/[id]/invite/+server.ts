@@ -1,22 +1,11 @@
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
-import { queryOne, toRecordId, withAdminDb } from '$lib/server/db';
+import { queryOne, withAdminDb } from '$lib/server/db';
 import { canInviteToWebsite, isAdmin } from '$lib/server/policy';
 import { sendInviteNotification } from '$lib/server/notifications';
-
-type WebsiteAccessRow = {
-	id: string;
-	owner: unknown;
-	users?: unknown[];
-	url: string;
-};
-
-type InviteUserRow = {
-	id: string;
-	email: string;
-	forgot_token?: string | null;
-};
+import { RecordId } from 'surrealdb';
+import type { User, Website } from '$lib/types';
 
 /**
  * @swagger
@@ -50,7 +39,7 @@ export const POST: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
 
-	const websiteId = toRecordId('websites', event.params.id);
+	const websiteId = new RecordId('websites', event.params.id);
 
 	let payload: Record<string, unknown>;
 	try {
@@ -66,12 +55,16 @@ export const POST: RequestHandler = async (event) => {
 		return jsonError(event, 403, 'forbidden', 'You are not allowed to invite users to this website.');
 	}
 
+	if (auth.user.email === email) {
+		return jsonError(event, 400, 'bad_request', 'You cannot invite yourself to a website.');
+	}
+
 	const website = await withAdminDb((db) =>
-		queryOne<WebsiteAccessRow>(
+		queryOne<Website>(
 			db,
 			isAdmin(auth.user)
-				? 'SELECT id, owner, users, url FROM websites WHERE id = type::record($id) LIMIT 1;'
-				: 'SELECT id, owner, users, url FROM websites WHERE id = type::record($id) AND (owner = type::record($user) OR type::record($user) IN users) LIMIT 1;',
+				? 'SELECT id, owner, users, url FROM websites WHERE id = $id LIMIT 1;'
+				: 'SELECT id, owner, users, url FROM websites WHERE id = $id AND (owner = $user OR $user IN users) LIMIT 1;',
 			{
 				id: websiteId,
 				user: auth.user.id
@@ -83,22 +76,27 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	let user = await withAdminDb((db) =>
-		queryOne<InviteUserRow>(
+		queryOne<User>(
 			db,
 			'SELECT id, email, forgot_token FROM users WHERE email = $email LIMIT 1;',
 			{ email }
 		)
 	);
-	let createdUserId: string | null = null;
+
+	let createdUserId: RecordId | null = null;
 	let createdForgotToken: string | null = null;
 
-	if (!user) {
+	if (user) {
+		if(user.id === website.owner || website.users.includes(user.id!)) {
+			return jsonError(event, 400, 'bad_request', 'The user already has access to this website.');
+		}
+	} else {
 		const forgotToken = crypto.randomUUID();
 		const randomPassword = crypto.randomUUID();
 		const defaultName = email.split('@')[0] || 'invited-user';
 		createdForgotToken = forgotToken;
 		user = await withAdminDb((db) =>
-			queryOne<InviteUserRow>(
+			queryOne<User>(
 				db,
 				`CREATE users CONTENT {
 					name: $name,
@@ -136,9 +134,9 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const updated = await withAdminDb((db) =>
-		queryOne<WebsiteAccessRow>(
+		queryOne<Website>(
 			db,
-			'UPDATE websites SET users = array::distinct(array::append(users ?? [], type::record($userId))) WHERE id = type::record($id) RETURN AFTER;',
+			'UPDATE websites SET users = array::distinct(array::append(users ?? [], $userId)) WHERE id = $id RETURN AFTER;',
 			{
 				id: websiteId,
 				userId: user.id

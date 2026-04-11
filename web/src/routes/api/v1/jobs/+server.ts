@@ -1,12 +1,13 @@
 import type { RequestHandler } from './$types';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
-import { queryMany, queryOne, toRecordId, withAdminDb, withUserDb } from '$lib/server/db';
+import { queryMany, queryOne, withAdminDb, withUserDb } from '$lib/server/db';
 import { canCreateJob, isAdmin } from '$lib/server/policy';
 import { withRequiredUser } from '$lib/server/route';
 import { tools as ALLOWED_TOOLS } from '$lib/constants';
 import type { Tool, Website } from '$lib/types';
 import { parsePaginationParams } from '$lib/server/pagination';
 import { verifyWebsiteOwnership } from '$lib/server/website-verification';
+import { RecordId } from 'surrealdb';
 
 /**
  * @swagger
@@ -118,7 +119,7 @@ export const POST: RequestHandler = async (event) => {
 			return jsonError(event, 400, 'bad_request', (error as Error).message);
 		}
 
-		const website = typeof payload.website === 'string' ? toRecordId('websites', payload.website) : '';
+		const website = typeof payload.website === 'string' ? new RecordId('websites', payload.website) : null;
 		const types = Array.isArray(payload.types) ? payload.types.filter((item): item is Tool => typeof item === 'string' && ALLOWED_TOOLS.includes(item as Tool)) : [];
 		const options = payload.options && typeof payload.options === 'object' && !Array.isArray(payload.options) ? payload.options : null;
 
@@ -129,8 +130,8 @@ export const POST: RequestHandler = async (event) => {
 			queryOne<Website>(
 				db,
 				isAdmin(auth.user)
-					? 'SELECT id, url, verification_code, verified_at FROM websites WHERE id = type::record($id) LIMIT 1;'
-					: 'SELECT id, url, verification_code, verified_at FROM websites WHERE id = type::record($id) AND (owner = type::record($user) OR type::record($user) IN users) LIMIT 1;',
+					? 'SELECT id, url, verification_code, verified_at FROM websites WHERE id = $id LIMIT 1;'
+					: 'SELECT id, url, verification_code, verified_at FROM websites WHERE id = $id AND (owner = $user OR $user IN users) LIMIT 1;',
 				{
 					id: website,
 					user: auth.user.id
@@ -150,14 +151,14 @@ export const POST: RequestHandler = async (event) => {
 				if (options) {
 					return queryOne(
 						db,
-						'CREATE jobs CONTENT { website: type::record($website), types: $types, status: "pending", options: $options } RETURN AFTER;',
+						'CREATE jobs CONTENT { website: $website, types: $types, status: "pending", options: $options } RETURN AFTER;',
 						{ website, types, options }
 					);
 				}
 
 				return queryOne(
 					db,
-					'CREATE jobs CONTENT { website: type::record($website), types: $types, status: "pending" } RETURN AFTER;',
+					'CREATE jobs CONTENT { website: $website, types: $types, status: "pending" } RETURN AFTER;',
 					{ website, types }
 				);
 			});

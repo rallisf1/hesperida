@@ -24,9 +24,10 @@
 	import type { QueueTaskRow, QueueTaskStreamEvent } from "$lib/queue-tasks";
 	import { buttonVariants } from "$lib/components/ui/button/index.js";
 	import type { Tool } from "$lib/types.js";
+  	import { formatDate } from "$lib/utils.js";
+	import { localeStore } from "$lib/stores.js";
 
 	type ScorePoint = { job_id: string; website_url: string; score: number; created_at: string } | null;
-	type LatencyPoint = { job_id: string; website_url: string; response_time: string; latency_ms: number; created_at: string } | null;
 
 	let { data } = $props();
 	let tasks = $state<QueueTaskRow[]>([]);
@@ -110,27 +111,17 @@
 		toast.success("Task canceled.");
 	};
 
-	const formatDate = (value: string): string => {
-		const date = new Date(value);
-		if (Number.isNaN(date.getTime())) return value;
-		return new Intl.DateTimeFormat("en-US", {
-			month: "short",
-			day: "2-digit",
-			year: "numeric",
-		}).format(date);
-	};
-
 	const compactDate = (value: string): string => {
 		const date = new Date(value);
 		if (Number.isNaN(date.getTime())) return value;
-		return new Intl.DateTimeFormat("en-US", {
+		return new Intl.DateTimeFormat($localeStore, {
 			month: "short",
 			day: "2-digit",
 		}).format(date);
 	};
 
 	const formatTwoDigits = (value: number): string =>
-		new Intl.NumberFormat("en-US", {
+		new Intl.NumberFormat($localeStore, {
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2
 		}).format(value);
@@ -180,9 +171,11 @@
 						</Card.Title>
 						<Tooltip.Provider>
 							<Tooltip.Root>
-								<Tooltip.Trigger class={buttonVariants({ variant: "default", class: "cursor-pointer" })}>
-									<PlusIcon class="size-4" />
-								</Tooltip.Trigger>
+								<a href="/websites/new">
+									<Tooltip.Trigger class={buttonVariants({ variant: "default" })}>
+										<PlusIcon class="size-4" />
+									</Tooltip.Trigger>
+								</a>
 								<Tooltip.Content>
 									<p>Add a new Website</p>
 								</Tooltip.Content>
@@ -381,7 +374,7 @@
 					{#if data.toolUsage.length}
 						<Chart.Container config={toolUsageConfig} class="h-full w-full">
 							<BarChart
-								data={data.toolUsage}
+								data={data.toolUsage as { tool: string; count: number }[]}
 								x="tool"
 								y="count"
 								series={[{ key: "count", label: "Count", color: toolUsageConfig.count.color }]}

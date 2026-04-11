@@ -2,12 +2,7 @@ import type { RequestHandler } from './$types';
 import { queryOne, withAdminDb } from '$lib/server/db';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { sendForgotNotification } from '$lib/server/notifications';
-
-type ForgotUserRow = {
-	id: string;
-	email: string;
-	forgot_token?: string | null;
-};
+import type { User } from '$lib/types';
 
 /**
  * @swagger
@@ -62,7 +57,7 @@ export const POST: RequestHandler = async (event) => {
 	if (!email) return jsonError(event, 400, 'bad_request', 'email is required.');
 
 	const user = await withAdminDb((db) =>
-		queryOne<ForgotUserRow>(
+		queryOne<User>(
 			db,
 			'SELECT id, email, forgot_token FROM users WHERE email = $email LIMIT 1;',
 			{ email }
