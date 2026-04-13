@@ -22,12 +22,23 @@
 		}
 	}));
 
+	const optionValue = (option: Option | null | undefined): string => {
+		if (option == null) return '';
+		if (typeof option === 'string' || typeof option === 'number') return String(option);
+		return String(option.value ?? '');
+	};
+
 	let selectedWebsites: Option | null = $derived(
-		form?.values?.website ? websitesOptions.find(w => w.value === form?.values?.website) || null : null
+		form?.values?.website
+			? websitesOptions.find(w => optionValue(w) === form?.values?.website) || null
+			: data?.prefillWebsiteId
+				? websitesOptions.find(w => optionValue(w) === data.prefillWebsiteId) || null
+				: null
 	);
 	let selectedDevices: Option[] = $derived(
-		form?.values?.devices ? deviceOptions.filter(d => form?.values?.devices.includes(d.value)) :
-		deviceOptions.filter(d => d.value === "Desktop Chrome")
+		form?.values?.devices
+			? deviceOptions.filter(d => form?.values?.devices.includes(optionValue(d)))
+			: deviceOptions.filter(d => optionValue(d) === "Desktop Chrome")
 	);
 
 	let wcagSelected = $derived(form?.values?.types.includes('wcag') ?? true);
@@ -46,7 +57,7 @@
 			<Label for="website" class="text-lg">Website</Label>
 			<MultiSelect bind:value={selectedWebsites} options={websitesOptions} maxSelect={1} required />
 			{#if selectedWebsites}
-			<input type="hidden" name="website" value={selectedWebsites.value} />
+			<input type="hidden" name="website" value={optionValue(selectedWebsites)} />
 			{/if}
 		</div>
 		<Field.Set>
@@ -110,7 +121,7 @@
 					<MultiSelect bind:value={selectedDevices} options={deviceOptions} maxSelect={4} />
 				</div>
 				{#each selectedDevices as device}
-				<input type="hidden" name="devices" value={device.value} />
+				<input type="hidden" name="devices" value={optionValue(device)} />
 				{/each}
 				{/if}
 			</Field.Group>

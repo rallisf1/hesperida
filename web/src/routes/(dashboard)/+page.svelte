@@ -127,7 +127,7 @@
 		}).format(value);
 
 	const scoreText = (point: ScorePoint, tool: Tool): string =>
-		point ? `${formatTwoDigits(point.score)}% · <a href="/results/job/${point.job_id}/${tool}" class="ml-1 hover:underline">${point.website_url}</a>` : "No data";
+		point ? `${formatTwoDigits(point.score)}% · <a href="/jobs/${point.job_id}#${tool}" class="ml-1 hover:underline">${point.website_url}</a>` : "No data";
 
 	const throughputChart = $derived(
 		(data.throughput ?? []).map((item: { date: string; completed: number; non_completed: number }) => ({
@@ -287,7 +287,7 @@
 							<ThumbsUpIcon size="18" />
 							<strong class="px-2">Best</strong>
 							{#if data.probe?.best}
-							{formatTwoDigits(data.probe?.best.latency_ms)} ms · <a href="/results/job/${data.probe?.best.job_id}/probe" class="ml-1 hover:underline">{data.probe?.best.website_url}</a>
+							{formatTwoDigits(data.probe?.best.latency_ms)} ms · <a href="/jobs/${data.probe?.best.job_id}" class="ml-1 hover:underline">{data.probe?.best.website_url}</a>
 							{:else}
 							No data
 							{/if}
@@ -298,7 +298,7 @@
 							<ThumbsDownIcon size="18" />
 							<strong class="px-2">Worst!</strong>
 							{#if data.probe?.worst}
-							{formatTwoDigits(data.probe?.worst.latency_ms)} ms · <a href="/results/job/${data.probe?.worst.job_id}/probe" class="ml-1 hover:underline">{data.probe?.worst.website_url}</a>
+							{formatTwoDigits(data.probe?.worst.latency_ms)} ms · <a href="/jobs/${data.probe?.worst.job_id}" class="ml-1 hover:underline">{data.probe?.worst.website_url}</a>
 							{:else}
 							No data
 							{/if}

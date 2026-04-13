@@ -5,19 +5,31 @@
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Table from '$lib/components/ui/table';
+	import { Input } from '$lib/components/ui/input';
 	import { setFilterParam } from '$lib/filter';
   	import { formatDate } from '$lib/utils.js';
 
 	let { data, form } = $props();
 	let verificationFilter = $derived<'all' | 'verified' | 'unverified'>((data.initialFilter ?? 'all') as 'all' | 'verified' | 'unverified');
+	let urlSearch = $state('');
 
 	const filteredWebsites = $derived.by(() => {
 		const websites = data.websites ?? [];
-		if (verificationFilter === 'all') return websites;
-		if (verificationFilter === 'verified') {
-			return websites.filter(website => !!website.verified_at);
-		}
-		return websites.filter(website => !website.verified_at);
+		const byVerification =
+			verificationFilter === 'all'
+				? websites
+				: verificationFilter === 'verified'
+					? websites.filter((website) => !!website.verified_at)
+					: websites.filter((website) => !website.verified_at);
+
+		const query = urlSearch.trim().toLowerCase();
+		if (!query) return byVerification;
+		return byVerification.filter((website) =>
+			String(website.url ?? '')
+				.toLowerCase()
+				.includes(query)
+		);
 	});
 
 	const selectFilter = async (filter: 'all' | 'verified' | 'unverified') => {
@@ -45,35 +57,43 @@
 		<p class="text-destructive text-sm">{form.delete_error}</p>
 	{/if}
 
-	<Tabs.Root value={verificationFilter}>
-		<Tabs.List>
-			<Tabs.Trigger value="all" onclick={() => void selectFilter('all')}>All</Tabs.Trigger>
-			<Tabs.Trigger value="verified" onclick={() => void selectFilter('verified')}>Verified</Tabs.Trigger>
-			<Tabs.Trigger value="unverified" onclick={() => void selectFilter('unverified')}>Unverified</Tabs.Trigger>
-		</Tabs.List>
-	</Tabs.Root>
+	<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+		<Tabs.Root value={verificationFilter}>
+			<Tabs.List>
+				<Tabs.Trigger value="all" onclick={() => void selectFilter('all')}>All</Tabs.Trigger>
+				<Tabs.Trigger value="verified" onclick={() => void selectFilter('verified')}>Verified</Tabs.Trigger>
+				<Tabs.Trigger value="unverified" onclick={() => void selectFilter('unverified')}>Unverified</Tabs.Trigger>
+			</Tabs.List>
+		</Tabs.Root>
+		<Input
+			type="search"
+			class="w-full md:w-72"
+			placeholder="Search by URL"
+			bind:value={urlSearch}
+		/>
+	</div>
 
 	<div class="overflow-auto rounded-md border">
-		<table class="w-full text-sm">
-			<thead class="bg-muted/50">
-				<tr>
-					<th class="text-left p-3">URL</th>
-					<th class="text-left p-3">Verified</th>
-					<th class="text-left p-3">Created</th>
-					<th class="text-left p-3">Actions</th>
-				</tr>
-			</thead>
-			<tbody>
+		<Table.Root class="w-full text-sm">
+			<Table.Header class="bg-muted/50">
+				<Table.Row>
+					<Table.Head class="text-left p-3">URL</Table.Head>
+					<Table.Head class="text-left p-3">Verified</Table.Head>
+					<Table.Head class="text-left p-3">Created</Table.Head>
+					<Table.Head class="text-left p-3">Actions</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
 				{#if filteredWebsites.length === 0}
-					<tr><td colspan="4" class="p-3 text-muted-foreground">No websites found.</td></tr>
+					<Table.Row><Table.Cell colspan={4} class="p-3 text-muted-foreground">No websites found.</Table.Cell></Table.Row>
 				{:else}
 					{#each filteredWebsites as website (website.id)}
 						{@const website_id = website.id?.toString().split(':')[1]}
-						<tr class="border-t">
-							<td class="p-3">{website.url}</td>
-							<td class="p-3">{website.verified_at ? formatDate(website.verified_at) : 'No'}</td>
-							<td class="p-3">{formatDate(website.created_at)}</td>
-							<td class="p-3">
+						<Table.Row class="border-t">
+							<Table.Cell class="p-3">{website.url}</Table.Cell>
+							<Table.Cell class="p-3">{website.verified_at ? formatDate(website.verified_at) : 'No'}</Table.Cell>
+							<Table.Cell class="p-3">{formatDate(website.created_at)}</Table.Cell>
+							<Table.Cell class="p-3">
 								<DropdownMenu.Root>
 									<DropdownMenu.Trigger>
 										{#snippet child({ props })}
@@ -83,10 +103,15 @@
 											</Button>
 										{/snippet}
 									</DropdownMenu.Trigger>
-									<DropdownMenu.Content align="end" class="w-36">
+									<DropdownMenu.Content align="end" class="w-40">
 										<DropdownMenu.Item>
 											{#snippet child({ props })}
 												<a href={`/websites/${website_id}`} {...props}>View</a>
+											{/snippet}
+										</DropdownMenu.Item>
+										<DropdownMenu.Item>
+											{#snippet child({ props })}
+												<a href={`/jobs/new?website_id=${website_id}`} {...props}>Add Job</a>
 											{/snippet}
 										</DropdownMenu.Item>
 										<DropdownMenu.Separator />
@@ -98,11 +123,11 @@
 										</DropdownMenu.Item>
 									</DropdownMenu.Content>
 								</DropdownMenu.Root>
-							</td>
-						</tr>
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				{/if}
-			</tbody>
-		</table>
+			</Table.Body>
+		</Table.Root>
 	</div>
 </div>

@@ -3,7 +3,7 @@ import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
 import { queryOne, withAdminDb, withUserDb } from '$lib/server/db';
 import { isAdmin } from '$lib/server/policy';
-import type { User, Website } from '$lib/types';
+import type { Website } from '$lib/types';
 import { RecordId } from 'surrealdb';
 
 const getWebsite = async (websiteId: RecordId, token: string, role?: string) => {
@@ -41,14 +41,7 @@ export const GET: RequestHandler = async (event) => {
 	const website = await getWebsite(websiteId, auth.token, auth.user.role);
 	if (!website) return jsonError(event, 404, 'not_found', 'Website not found.');
 
-	const owner = await withAdminDb((db) =>
-		db.select<Partial<User>>(website.owner).fields('id', 'name', 'email', 'role')
-	);
-	const [users] = website.users.length ? await withAdminDb((db) =>
-		db.query<Partial<User>[][]>('SELECT id, name, email, role FROM users WHERE id in $ids', { ids: website.users }).collect()
-	) : [];
-
-	return jsonOk(event, { website, owner_user: owner, member_users: users });
+	return jsonOk(event, { website });
 };
 
 /**

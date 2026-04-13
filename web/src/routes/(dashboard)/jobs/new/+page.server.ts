@@ -10,6 +10,10 @@ interface Device {
 }
 
 export const load: PageServerLoad = async (event) => {
+	const rawPrefillWebsiteId = String(event.url.searchParams.get('website_id') ?? '').trim();
+	const prefillWebsiteId = rawPrefillWebsiteId.includes(':')
+		? rawPrefillWebsiteId.split(':').pop() ?? ''
+		: rawPrefillWebsiteId;
 	const devicesRes = await event.fetch('https://raw.githubusercontent.com/microsoft/playwright/refs/heads/main/packages/playwright-core/src/server/deviceDescriptorsSource.json');
 	const devicesRaw = await devicesRes.json();
 
@@ -27,7 +31,8 @@ export const load: PageServerLoad = async (event) => {
 	const websitesData = await callDashboardApi<{ websites: Website[] }>(event, '/api/v1/websites');
 	return {
 		websites: websitesData.websites ?? [],
-		devices
+		devices,
+		prefillWebsiteId
 	};
 };
 

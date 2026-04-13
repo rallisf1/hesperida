@@ -6,16 +6,37 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as Table from '$lib/components/ui/table';
+	import MultiSelect, { type Option } from 'svelte-multiselect';
 	import { setFilterParam } from '$lib/filter';
 	import { formatDate } from '$lib/utils.js';
 
 	let { data } = $props();
 	let statusFilter = $derived<'all' | 'pending' | 'processing' | 'completed' | 'failed'>((data.initialFilter ?? 'all') as 'all' | 'pending' | 'processing' | 'completed' | 'failed');
+	let selectedWebsite = $state<Option | null>(null);
+
+	const optionValue = (option: Option | null | undefined): string => {
+		if (option == null) return '';
+		if (typeof option === 'string' || typeof option === 'number') return String(option);
+		return String(option.value ?? '');
+	};
+
+	const websiteOptions = $derived.by(() => {
+		const uniqueUrls = [...new Set((data.jobs ?? []).map((job) => String(job.website_url ?? '').trim()).filter(Boolean))];
+		uniqueUrls.sort((a, b) => a.localeCompare(b));
+		return uniqueUrls.map((url) => ({ label: url, value: url })) as Option[];
+	});
 
 	const filteredJobs = $derived.by(() => {
 		const jobs = data.jobs ?? [];
-		if (statusFilter === 'all') return jobs;
-		return jobs.filter((job: { status?: string }) => job.status === statusFilter);
+		const byStatus =
+			statusFilter === 'all'
+				? jobs
+				: jobs.filter((job: { status?: string }) => job.status === statusFilter);
+
+		const selectedWebsiteUrl = optionValue(selectedWebsite).trim();
+		if (!selectedWebsiteUrl) return byStatus;
+		return byStatus.filter((job: { website_url?: string }) => String(job.website_url ?? '') === selectedWebsiteUrl);
 	});
 
 	const statusBadgeVariant = (status?: string) => {
@@ -42,47 +63,56 @@
 <div class="p-4 lg:p-6 space-y-4">
 	<div class="flex items-center justify-between">
 		<h2 class="text-xl font-semibold">Jobs</h2>
-		<a href="/jobs/new">
-			<Button>
-				<PlusIcon class="size-4" />
-				New Job
-			</Button>
-		</a>
+		<Button href="/jobs/new">
+			<PlusIcon class="size-4" />
+			New Job
+		</Button>
 	</div>
 
 	{#if data.error}
 		<p class="text-sm text-destructive">{data.error}</p>
 	{/if}
 
-	<Tabs.Root value={statusFilter}>
-		<Tabs.List>
-			<Tabs.Trigger value="all" onclick={() => void selectFilter('all')}>All</Tabs.Trigger>
-			<Tabs.Trigger value="pending" onclick={() => void selectFilter('pending')}>Pending</Tabs.Trigger>
-			<Tabs.Trigger value="processing" onclick={() => void selectFilter('processing')}>Processing</Tabs.Trigger>
-			<Tabs.Trigger value="completed" onclick={() => void selectFilter('completed')}>Completed</Tabs.Trigger>
-			<Tabs.Trigger value="failed" onclick={() => void selectFilter('failed')}>Failed</Tabs.Trigger>
-		</Tabs.List>
-	</Tabs.Root>
+	<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+		<Tabs.Root value={statusFilter}>
+			<Tabs.List>
+				<Tabs.Trigger value="all" onclick={() => void selectFilter('all')}>All</Tabs.Trigger>
+				<Tabs.Trigger value="pending" onclick={() => void selectFilter('pending')}>Pending</Tabs.Trigger>
+				<Tabs.Trigger value="processing" onclick={() => void selectFilter('processing')}>Processing</Tabs.Trigger>
+				<Tabs.Trigger value="completed" onclick={() => void selectFilter('completed')}>Completed</Tabs.Trigger>
+				<Tabs.Trigger value="failed" onclick={() => void selectFilter('failed')}>Failed</Tabs.Trigger>
+			</Tabs.List>
+		</Tabs.Root>
+		<div class="w-full md:w-72">
+			<MultiSelect
+				bind:value={selectedWebsite}
+				options={websiteOptions}
+				maxSelect={1}
+				allowEmpty
+				placeholder="Filter by website"
+			/>
+		</div>
+	</div>
 
 	<div class="overflow-auto rounded-md border">
-		<table class="w-full text-sm">
-			<thead class="bg-muted/50">
-				<tr>
-					<th class="text-left p-3">Website URL</th>
-					<th class="text-left p-3">Tools</th>
-					<th class="text-left p-3">Status</th>
-					<th class="text-left p-3">Created</th>
-					<th class="text-left p-3">Actions</th>
-				</tr>
-			</thead>
-			<tbody>
+		<Table.Root class="w-full text-sm">
+			<Table.Header class="bg-muted/50">
+				<Table.Row>
+					<Table.Head class="text-left p-3">Website URL</Table.Head>
+					<Table.Head class="text-left p-3">Tools</Table.Head>
+					<Table.Head class="text-left p-3">Status</Table.Head>
+					<Table.Head class="text-left p-3">Created</Table.Head>
+					<Table.Head class="text-left p-3">Actions</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
 				{#if filteredJobs.length === 0}
-					<tr><td colspan="5" class="p-3 text-muted-foreground">No jobs found.</td></tr>
+					<Table.Row><Table.Cell colspan={5} class="p-3 text-muted-foreground">No jobs found.</Table.Cell></Table.Row>
 				{:else}
 					{#each filteredJobs as job (job.id)}
-						<tr class="border-t">
-							<td class="p-3">{job.website_url || '-'}</td>
-							<td class="p-3">
+						<Table.Row class="border-t">
+							<Table.Cell class="p-3">{job.website_url || '-'}</Table.Cell>
+							<Table.Cell class="p-3">
 								<div class="flex flex-wrap gap-1">
 									{#if (job.types ?? []).length === 0}
 										<span>-</span>
@@ -92,12 +122,12 @@
 										{/each}
 									{/if}
 								</div>
-							</td>
-							<td class="p-3">
+							</Table.Cell>
+							<Table.Cell class="p-3">
 								<Badge variant={statusBadgeVariant(job.status)}>{job.status ?? 'pending'}</Badge>
-							</td>
-							<td class="p-3">{formatDate(job.created_at, true)}</td>
-							<td class="p-3">
+							</Table.Cell>
+							<Table.Cell class="p-3">{formatDate(job.created_at, true)}</Table.Cell>
+							<Table.Cell class="p-3">
 								<DropdownMenu.Root>
 									<DropdownMenu.Trigger>
 										{#snippet child({ props })}
@@ -115,11 +145,11 @@
 										</DropdownMenu.Item>
 									</DropdownMenu.Content>
 								</DropdownMenu.Root>
-							</td>
-						</tr>
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				{/if}
-			</tbody>
-		</table>
+			</Table.Body>
+		</Table.Root>
 	</div>
 </div>

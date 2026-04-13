@@ -25,11 +25,6 @@
 	<DropdownMenu.Content align="end" class="w-40">
 		<DropdownMenu.Item>
 			{#snippet child({ props })}
-				<a href={`/results/${task.job_id}`} {...props}>View Results</a>
-			{/snippet}
-		</DropdownMenu.Item>
-		<DropdownMenu.Item>
-			{#snippet child({ props })}
 				<a href={`/jobs/${task.job_id}`} {...props}>View Job</a>
 			{/snippet}
 		</DropdownMenu.Item>

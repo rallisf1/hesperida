@@ -154,15 +154,15 @@
 	{/if}
 
 	{#if taskType === 'domain' && data.toolResult}
-	{@const domain = data.toolResult}
+	{@const domain = data.toolResult as Domain & { expires_in?: number }}
 	<div class="grid lg:grid-cols-3 gap-4">
 		<Card.Root>
 			<Card.Header class="flex justify-between">
 				<Card.Title class="capitalize">Domain Results</Card.Title>
-				{#if domain.expires_in > 0}
-				<Badge>expires in {domain.expires_in} days</Badge>
-				{:else if domain.expires_in < 0}
-				<Badge variant="destructive">expired {Math.abs(domain.expires_in)} days ago!</Badge>
+				{#if (domain.expires_in ?? 0) > 0}
+				<Badge>expires in {domain.expires_in ?? 0} days</Badge>
+				{:else if (domain.expires_in ?? 0) < 0}
+				<Badge variant="destructive">expired {Math.abs(domain.expires_in ?? 0)} days ago!</Badge>
 				{:else}
 				<Badge variant="destructive">expires today!</Badge>
 				{/if}

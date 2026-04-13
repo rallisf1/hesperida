@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { NormalizedReportRow } from '$lib/server/report-normalization';
+	import * as Table from '$lib/components/ui/table';
 
 	type ScoreCard = {
 		tool: string;
@@ -301,24 +302,24 @@
 		{#if report.pain_points.length === 0}
 			<p class="muted">No high-priority pain points were detected.</p>
 		{:else}
-			<table>
-				<thead>
-					<tr>
-						<th>Severity</th>
-						<th>Issue</th>
-						<th>Details</th>
-					</tr>
-				</thead>
-				<tbody>
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Severity</Table.Head>
+						<Table.Head>Issue</Table.Head>
+						<Table.Head>Details</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
 					{#each report.pain_points as point (`${point.title}-${point.priority}`)}
-						<tr>
-							<td><span class={`badge ${severityClass(point.severity)}`}>{point.severity}</span></td>
-							<td>{point.title}</td>
-							<td>{point.detail}</td>
-						</tr>
+						<Table.Row>
+							<Table.Cell><span class={`badge ${severityClass(point.severity)}`}>{point.severity}</span></Table.Cell>
+							<Table.Cell>{point.title}</Table.Cell>
+							<Table.Cell>{point.detail}</Table.Cell>
+						</Table.Row>
 					{/each}
-				</tbody>
-			</table>
+				</Table.Body>
+			</Table.Root>
 		{/if}
 	</section>
 
@@ -411,28 +412,28 @@
 		{#if report.infrastructure.whois.length === 0}
 			<p class="muted">No whois records were collected.</p>
 		{:else}
-			<table>
-				<thead>
-					<tr>
-						<th>IP</th>
-						<th>Country</th>
-						<th>Network</th>
-						<th>AS</th>
-						<th>Registry</th>
-					</tr>
-				</thead>
-				<tbody>
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>IP</Table.Head>
+						<Table.Head>Country</Table.Head>
+						<Table.Head>Network</Table.Head>
+						<Table.Head>AS</Table.Head>
+						<Table.Head>Registry</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
 					{#each report.infrastructure.whois as row, index (`whois-${index}`)}
-						<tr>
-							<td>{formatScalar(row.ip)}</td>
-							<td>{formatScalar(row.country)}</td>
-							<td>{formatScalar(row.network)}</td>
-							<td>{formatScalar(row.as)}</td>
-							<td>{formatScalar(row.registry)}</td>
-						</tr>
+						<Table.Row>
+							<Table.Cell>{formatScalar(row.ip)}</Table.Cell>
+							<Table.Cell>{formatScalar(row.country)}</Table.Cell>
+							<Table.Cell>{formatScalar(row.network)}</Table.Cell>
+							<Table.Cell>{formatScalar(row.as)}</Table.Cell>
+							<Table.Cell>{formatScalar(row.registry)}</Table.Cell>
+						</Table.Row>
 					{/each}
-				</tbody>
-			</table>
+				</Table.Body>
+			</Table.Root>
 		{/if}
 	</section>
 
@@ -441,24 +442,24 @@
 		{#if dnsRows.length === 0}
 			<p class="muted">No DNS records were collected.</p>
 		{:else}
-			<table>
-				<thead>
-					<tr>
-						<th>Type</th>
-						<th>Name</th>
-						<th>Value</th>
-					</tr>
-				</thead>
-				<tbody>
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Type</Table.Head>
+						<Table.Head>Name</Table.Head>
+						<Table.Head>Value</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
 					{#each dnsRows as row (`dns-${row.type}-${row.name}-${row.value}`)}
-						<tr>
-							<td>{row.type}</td>
-							<td class="mono">{row.name}</td>
-							<td class="mono break">{row.value}</td>
-						</tr>
+						<Table.Row>
+							<Table.Cell>{row.type}</Table.Cell>
+							<Table.Cell class="mono">{row.name}</Table.Cell>
+							<Table.Cell class="mono break">{row.value}</Table.Cell>
+						</Table.Row>
 					{/each}
-				</tbody>
-			</table>
+				</Table.Body>
+			</Table.Root>
 		{/if}
 	</section>
 
@@ -476,24 +477,24 @@
 					{#if wcag.screenshot_data_url}
 						<img class="wcag-shot" src={wcag.screenshot_data_url} alt={`WCAG screenshot (${wcag.device})`} />
 					{/if}
-					<table>
-						<thead>
-							<tr>
-								<th>Status</th>
-								<th>Group</th>
-								<th>Check</th>
-								<th>Value</th>
-								<th>Summary</th>
-							</tr>
-						</thead>
-						<tbody>
+					<Table.Root>
+						<Table.Header>
+							<Table.Row>
+								<Table.Head>Status</Table.Head>
+								<Table.Head>Group</Table.Head>
+								<Table.Head>Check</Table.Head>
+								<Table.Head>Value</Table.Head>
+								<Table.Head>Summary</Table.Head>
+							</Table.Row>
+						</Table.Header>
+						<Table.Body>
 							{#each wcag.rows as row (row.id)}
-								<tr>
-									<td><span class={`badge ${statusClass(row.status)}`}>{row.status}</span></td>
-									<td>{row.group}</td>
-									<td>{row.check}</td>
-									<td class="mono">{row.value || 'N/A'}</td>
-									<td>
+								<Table.Row>
+									<Table.Cell><span class={`badge ${statusClass(row.status)}`}>{row.status}</span></Table.Cell>
+									<Table.Cell>{row.group}</Table.Cell>
+									<Table.Cell>{row.check}</Table.Cell>
+									<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
+									<Table.Cell>
 										<div>{row.summary}</div>
 										{#if toDetailLines(row.details).length}
 											<ul class="details">
@@ -502,11 +503,11 @@
 												{/each}
 											</ul>
 										{/if}
-									</td>
-								</tr>
+									</Table.Cell>
+								</Table.Row>
 							{/each}
-						</tbody>
-					</table>
+						</Table.Body>
+					</Table.Root>
 				</article>
 			{/each}
 		</section>
@@ -515,24 +516,24 @@
 	{#if report.tables.security.length > 0}
 		<section class="section page-break">
 			<h2>Security Findings</h2>
-			<table>
-				<thead>
-					<tr>
-						<th>Status</th>
-						<th>Group</th>
-						<th>Check</th>
-						<th>Value</th>
-						<th>Summary</th>
-					</tr>
-				</thead>
-				<tbody>
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Status</Table.Head>
+						<Table.Head>Group</Table.Head>
+						<Table.Head>Check</Table.Head>
+						<Table.Head>Value</Table.Head>
+						<Table.Head>Summary</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
 					{#each report.tables.security as row (row.id)}
-						<tr>
-							<td><span class={`badge ${statusClass(row.status)}`}>{row.status}</span></td>
-							<td>{row.group}</td>
-							<td>{row.check}</td>
-							<td class="mono">{row.value || 'N/A'}</td>
-							<td>
+						<Table.Row>
+							<Table.Cell><span class={`badge ${statusClass(row.status)}`}>{row.status}</span></Table.Cell>
+							<Table.Cell>{row.group}</Table.Cell>
+							<Table.Cell>{row.check}</Table.Cell>
+							<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
+							<Table.Cell>
 								<div>{row.summary}</div>
 								{#if toDetailLines(row.details).length}
 									<ul class="details">
@@ -541,35 +542,35 @@
 										{/each}
 									</ul>
 								{/if}
-							</td>
-						</tr>
+							</Table.Cell>
+						</Table.Row>
 					{/each}
-				</tbody>
-			</table>
+				</Table.Body>
+			</Table.Root>
 		</section>
 	{/if}
 
 	{#if report.tables.seo.length > 0}
 		<section class="section page-break">
 			<h2>SEO Findings</h2>
-			<table>
-				<thead>
-					<tr>
-						<th>Status</th>
-						<th>Group</th>
-						<th>Check</th>
-						<th>Value</th>
-						<th>Summary</th>
-					</tr>
-				</thead>
-				<tbody>
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Status</Table.Head>
+						<Table.Head>Group</Table.Head>
+						<Table.Head>Check</Table.Head>
+						<Table.Head>Value</Table.Head>
+						<Table.Head>Summary</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
 					{#each report.tables.seo as row (row.id)}
-						<tr>
-							<td><span class={`badge ${statusClass(row.status)}`}>{row.status}</span></td>
-							<td>{row.group}</td>
-							<td>{row.check}</td>
-							<td class="mono">{row.value || 'N/A'}</td>
-							<td>
+						<Table.Row>
+							<Table.Cell><span class={`badge ${statusClass(row.status)}`}>{row.status}</span></Table.Cell>
+							<Table.Cell>{row.group}</Table.Cell>
+							<Table.Cell>{row.check}</Table.Cell>
+							<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
+							<Table.Cell>
 								<div>{row.summary}</div>
 								{#if toDetailLines(row.details).length}
 									<ul class="details">
@@ -578,35 +579,35 @@
 										{/each}
 									</ul>
 								{/if}
-							</td>
-						</tr>
+							</Table.Cell>
+						</Table.Row>
 					{/each}
-				</tbody>
-			</table>
+				</Table.Body>
+			</Table.Root>
 		</section>
 	{/if}
 
 	{#if report.tables.stress.length > 0}
 		<section class="section page-break">
 			<h2>Performance (Stress) Findings</h2>
-			<table>
-				<thead>
-					<tr>
-						<th>Status</th>
-						<th>Group</th>
-						<th>Check</th>
-						<th>Value</th>
-						<th>Summary</th>
-					</tr>
-				</thead>
-				<tbody>
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Status</Table.Head>
+						<Table.Head>Group</Table.Head>
+						<Table.Head>Check</Table.Head>
+						<Table.Head>Value</Table.Head>
+						<Table.Head>Summary</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
 					{#each report.tables.stress as row (row.id)}
-						<tr>
-							<td><span class={`badge ${statusClass(row.status)}`}>{row.status}</span></td>
-							<td>{row.group}</td>
-							<td>{row.check}</td>
-							<td class="mono">{row.value || 'N/A'}</td>
-							<td>
+						<Table.Row>
+							<Table.Cell><span class={`badge ${statusClass(row.status)}`}>{row.status}</span></Table.Cell>
+							<Table.Cell>{row.group}</Table.Cell>
+							<Table.Cell>{row.check}</Table.Cell>
+							<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
+							<Table.Cell>
 								<div>{row.summary}</div>
 								{#if toDetailLines(row.details).length}
 									<ul class="details">
@@ -615,11 +616,11 @@
 										{/each}
 									</ul>
 								{/if}
-							</td>
-						</tr>
+							</Table.Cell>
+						</Table.Row>
 					{/each}
-				</tbody>
-			</table>
+				</Table.Body>
+			</Table.Root>
 		</section>
 	{/if}
 
@@ -874,21 +875,21 @@
 		margin: 0;
 	}
 
-	table {
+	:global(.report table) {
 		width: 100%;
 		border-collapse: collapse;
 		font-size: 0.84rem;
 	}
 
-	th,
-	td {
+	:global(.report th),
+	:global(.report td) {
 		border: 1px solid #e5e7eb;
 		padding: 6px 8px;
 		text-align: left;
 		vertical-align: top;
 	}
 
-	thead th {
+	:global(.report thead th) {
 		background: #f9fafb;
 	}
 

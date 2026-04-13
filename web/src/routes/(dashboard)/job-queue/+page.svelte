@@ -7,6 +7,8 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as Table from '$lib/components/ui/table';
+	import MultiSelect, { type Option } from 'svelte-multiselect';
 	import type { QueueTaskRow, QueueTaskStreamEvent } from '$lib/queue-tasks';
 	import { setFilterParam } from '$lib/filter';
   import { formatDate } from '$lib/utils.js';
@@ -15,7 +17,15 @@
 	type QueueStatus = 'all' | 'pending' | 'waiting' | 'processing' | 'completed' | 'failed' | 'canceled';
 	let statusFilter = $derived<QueueStatus>((data.initialFilter ?? 'all') as QueueStatus);
 	let tasks = $state<QueueTaskRow[]>([]);
+	let selectedWebsite = $state<Option | null>(null);
+	let selectedType = $state<Option | null>(null);
 	let seededFromLoad = $state(false);
+
+	const optionValue = (option: Option | null | undefined): string => {
+		if (option == null) return '';
+		if (typeof option === 'string' || typeof option === 'number') return String(option);
+		return String(option.value ?? '');
+	};
 
 	$effect(() => {
 		if (seededFromLoad) return;
@@ -72,9 +82,33 @@
 		connection?.close();
 	});
 
+	const websiteOptions = $derived.by(() => {
+		const urls = [...new Set(tasks.map((task) => String(task.website_url ?? '').trim()).filter(Boolean))];
+		urls.sort((a, b) => a.localeCompare(b));
+		return urls.map((url) => ({ label: url, value: url })) as Option[];
+	});
+
+	const typeOptions = $derived.by(() => {
+		const types = [...new Set(tasks.map((task) => String(task.type ?? '').trim()).filter(Boolean))];
+		types.sort((a, b) => a.localeCompare(b));
+		return types.map((type) => ({ label: type, value: type })) as Option[];
+	});
+
 	const filteredTasks = $derived.by(() => {
-		if (statusFilter === 'all') return tasks;
-		return tasks.filter((task: { status?: string }) => task.status === statusFilter);
+		const byStatus =
+			statusFilter === 'all'
+				? tasks
+				: tasks.filter((task: { status?: string }) => task.status === statusFilter);
+
+		const selectedWebsiteUrl = optionValue(selectedWebsite).trim();
+		const byWebsite = selectedWebsiteUrl
+			? byStatus.filter((task) => String(task.website_url ?? '') === selectedWebsiteUrl)
+			: byStatus;
+
+		const selectedTaskType = optionValue(selectedType).trim();
+		return selectedTaskType
+			? byWebsite.filter((task) => String(task.type ?? '') === selectedTaskType)
+			: byWebsite;
 	});
 
 	const statusBadgeVariant = (status?: string) => {
@@ -112,46 +146,64 @@
 		<p class="text-destructive text-sm">{form.cancel_error}</p>
 	{/if}
 
-	<Tabs.Root value={statusFilter}>
-		<Tabs.List>
-			<Tabs.Trigger value="all" onclick={() => void selectFilter('all')}>All</Tabs.Trigger>
-			<Tabs.Trigger value="pending" onclick={() => void selectFilter('pending')}>Pending</Tabs.Trigger>
-			<Tabs.Trigger value="waiting" onclick={() => void selectFilter('waiting')}>Waiting</Tabs.Trigger>
-			<Tabs.Trigger value="processing" onclick={() => void selectFilter('processing')}>Processing</Tabs.Trigger>
-			<Tabs.Trigger value="completed" onclick={() => void selectFilter('completed')}>Completed</Tabs.Trigger>
-			<Tabs.Trigger value="failed" onclick={() => void selectFilter('failed')}>Failed</Tabs.Trigger>
-			<Tabs.Trigger value="canceled" onclick={() => void selectFilter('canceled')}>Canceled</Tabs.Trigger>
-		</Tabs.List>
-	</Tabs.Root>
+	<div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+		<Tabs.Root value={statusFilter}>
+			<Tabs.List>
+				<Tabs.Trigger value="all" onclick={() => void selectFilter('all')}>All</Tabs.Trigger>
+				<Tabs.Trigger value="pending" onclick={() => void selectFilter('pending')}>Pending</Tabs.Trigger>
+				<Tabs.Trigger value="waiting" onclick={() => void selectFilter('waiting')}>Waiting</Tabs.Trigger>
+				<Tabs.Trigger value="processing" onclick={() => void selectFilter('processing')}>Processing</Tabs.Trigger>
+				<Tabs.Trigger value="completed" onclick={() => void selectFilter('completed')}>Completed</Tabs.Trigger>
+				<Tabs.Trigger value="failed" onclick={() => void selectFilter('failed')}>Failed</Tabs.Trigger>
+				<Tabs.Trigger value="canceled" onclick={() => void selectFilter('canceled')}>Canceled</Tabs.Trigger>
+			</Tabs.List>
+		</Tabs.Root>
+		<div class="grid grid-cols-1 gap-2 md:grid-cols-2 lg:w-[36rem]">
+			<MultiSelect
+				bind:value={selectedWebsite}
+				options={websiteOptions}
+				maxSelect={1}
+				allowEmpty
+				placeholder="Filter by website"
+			/>
+			<MultiSelect
+				bind:value={selectedType}
+				options={typeOptions}
+				maxSelect={1}
+				allowEmpty
+				placeholder="Filter by type"
+			/>
+		</div>
+	</div>
 
 	<div class="overflow-auto rounded-md border">
-		<table class="w-full text-sm">
-			<thead class="bg-muted/50">
-				<tr>
-					<th class="text-left p-3">Website URL</th>
-					<th class="text-left p-3">Type</th>
-					<th class="text-left p-3">Target</th>
-					<th class="text-left p-3">Status</th>
-					<th class="text-left p-3">Created</th>
-					<th class="text-left p-3">Actions</th>
-				</tr>
-			</thead>
-			<tbody>
+		<Table.Root class="w-full text-sm">
+			<Table.Header class="bg-muted/50">
+				<Table.Row>
+					<Table.Head class="text-left p-3">Website URL</Table.Head>
+					<Table.Head class="text-left p-3">Type</Table.Head>
+					<Table.Head class="text-left p-3">Target</Table.Head>
+					<Table.Head class="text-left p-3">Status</Table.Head>
+					<Table.Head class="text-left p-3">Created</Table.Head>
+					<Table.Head class="text-left p-3">Actions</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
 				{#if filteredTasks.length === 0}
-					<tr><td colspan="6" class="p-3 text-muted-foreground">No queue tasks found.</td></tr>
+					<Table.Row><Table.Cell colspan={6} class="p-3 text-muted-foreground">No queue tasks found.</Table.Cell></Table.Row>
 				{:else}
 					{#each filteredTasks as task (task.id)}
-						<tr class="border-t">
-							<td class="p-3">{task.website_url ?? '-'}</td>
-							<td class="p-3">
+						<Table.Row class="border-t">
+							<Table.Cell class="p-3">{task.website_url ?? '-'}</Table.Cell>
+							<Table.Cell class="p-3">
 								<Badge variant="outline">{task.type ?? '-'}</Badge>
-							</td>
-							<td class="p-3">{task.target ?? '-'}</td>
-							<td class="p-3">
+							</Table.Cell>
+							<Table.Cell class="p-3">{task.target ?? '-'}</Table.Cell>
+							<Table.Cell class="p-3">
 								<Badge variant={statusBadgeVariant(task.status)}>{task.status ?? '-'}</Badge>
-							</td>
-							<td class="p-3">{formatDate(task.created_at, true)}</td>
-							<td class="p-3">
+							</Table.Cell>
+							<Table.Cell class="p-3">{formatDate(task.created_at, true)}</Table.Cell>
+							<Table.Cell class="p-3">
 								<DropdownMenu.Root>
 									<DropdownMenu.Trigger>
 										{#snippet child({ props })}
@@ -185,11 +237,11 @@
 										{/if}
 									</DropdownMenu.Content>
 								</DropdownMenu.Root>
-							</td>
-						</tr>
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				{/if}
-			</tbody>
-		</table>
+			</Table.Body>
+		</Table.Root>
 	</div>
 </div>

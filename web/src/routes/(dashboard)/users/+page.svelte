@@ -5,6 +5,7 @@
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Table from '$lib/components/ui/table';
 	import { setFilterParam } from '$lib/filter';
   import { formatDate } from '$lib/utils.js';
 
@@ -60,27 +61,27 @@
 	</Tabs.Root>
 
 	<div class="overflow-auto rounded-md border">
-		<table class="w-full text-sm">
-			<thead class="bg-muted/50">
-				<tr>
-					<th class="text-left p-3">Name</th>
-					<th class="text-left p-3">Email</th>
-					<th class="text-left p-3">Role</th>
-					<th class="text-left p-3">Created</th>
-					<th class="text-left p-3">Actions</th>
-				</tr>
-			</thead>
-			<tbody>
+		<Table.Root class="w-full text-sm">
+			<Table.Header class="bg-muted/50">
+				<Table.Row>
+					<Table.Head class="text-left p-3">Name</Table.Head>
+					<Table.Head class="text-left p-3">Email</Table.Head>
+					<Table.Head class="text-left p-3">Role</Table.Head>
+					<Table.Head class="text-left p-3">Created</Table.Head>
+					<Table.Head class="text-left p-3">Actions</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
 				{#if filteredUsers.length === 0}
-					<tr><td colspan="5" class="p-3 text-muted-foreground">No users found.</td></tr>
+					<Table.Row><Table.Cell colspan={5} class="p-3 text-muted-foreground">No users found.</Table.Cell></Table.Row>
 				{:else}
 					{#each filteredUsers as user (user.id)}
-						<tr class="border-t">
-							<td class="p-3">{user.name}</td>
-							<td class="p-3">{user.email}</td>
-							<td class="p-3 capitalize">{user.role ?? '-'}</td>
-							<td class="p-3">{formatDate(user.created_at)}</td>
-							<td class="p-3">
+						<Table.Row class="border-t">
+							<Table.Cell class="p-3">{user.name}</Table.Cell>
+							<Table.Cell class="p-3">{user.email}</Table.Cell>
+							<Table.Cell class="p-3 capitalize">{user.role ?? '-'}</Table.Cell>
+							<Table.Cell class="p-3">{formatDate(user.created_at)}</Table.Cell>
+							<Table.Cell class="p-3">
 								<DropdownMenu.Root>
 									<DropdownMenu.Trigger>
 										{#snippet child({ props })}
@@ -116,11 +117,11 @@
 										</DropdownMenu.Item>
 									</DropdownMenu.Content>
 								</DropdownMenu.Root>
-							</td>
-						</tr>
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				{/if}
-			</tbody>
-		</table>
+			</Table.Body>
+		</Table.Root>
 	</div>
 </div>

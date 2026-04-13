@@ -6,6 +6,7 @@ import { isAdmin } from '$lib/server/policy';
 import { tools } from '$lib/constants';
 import type { Tool } from '$lib/types';
 import { RecordId } from 'surrealdb';
+import { computeExpiresInDays } from '$lib/server/result-fields';
 
 const TOOLS = new Set<Tool>(tools);
 
@@ -62,5 +63,19 @@ export const GET: RequestHandler = async (event) => {
 	const result = isAdmin(auth.user)
 		? await withAdminDb((db) => fetchResult(db, value))
 		: await withUserDb(auth.token, (db) => fetchResult(db, value));
-	return jsonOk(event, { tool, result });
+
+	let normalizedResult = result;
+	if (normalizedResult && !Array.isArray(normalizedResult) && typeof normalizedResult === 'object') {
+		const mutable = normalizedResult as Record<string, unknown>;
+		if (tool === 'ssl') {
+			const expiresIn = computeExpiresInDays(mutable.valid_to);
+			if (expiresIn !== null) mutable.expires_in = expiresIn;
+		}
+		if (tool === 'domain') {
+			const expiresIn = computeExpiresInDays(mutable.expirationDate);
+			if (expiresIn !== null) mutable.expires_in = expiresIn;
+		}
+	}
+
+	return jsonOk(event, { tool, result: normalizedResult });
 };

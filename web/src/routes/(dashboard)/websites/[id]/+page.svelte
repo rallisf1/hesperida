@@ -1,13 +1,30 @@
 <script lang="ts">
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import UserMinusIcon from '@lucide/svelte/icons/user-minus';
+	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as Table from '$lib/components/ui/table';
 	import * as Item from '$lib/components/ui/item/index.js';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { formatDate } from '$lib/utils';
 
 	let { data, form } = $props();
+
+	const statusBadgeVariant = (status?: string) => {
+		switch (status) {
+			case 'completed':
+				return 'secondary';
+			case 'failed':
+				return 'destructive';
+			case 'processing':
+				return 'default';
+			case 'pending':
+			default:
+				return 'outline';
+		}
+	};
 </script>
 
 <div class="p-4 lg:p-6 space-y-4">
@@ -93,6 +110,60 @@
 			{#if form?.invite_error}
 				<p class="text-sm text-destructive">{form.invite_error}</p>
 			{/if}
+		</div>
+	</div>
+
+	<div class="rounded-md border">
+		<div class="border-b p-4 flex items-center justify-between gap-3">
+			<h3 class="font-semibold">Latest Jobs</h3>
+			<Button href={`/jobs/new?website_id=${data.website.id}`} size="sm">
+				Add Job
+			</Button>
+		</div>
+		<div class="overflow-auto">
+			<Table.Root class="w-full text-sm">
+				<Table.Header class="bg-muted/50">
+					<Table.Row>
+						<Table.Head class="text-left p-3">Created</Table.Head>
+						<Table.Head class="text-left p-3">Status</Table.Head>
+						<Table.Head class="text-left p-3">Tools</Table.Head>
+						<Table.Head class="text-left p-3">Actions</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#if (data.latestJobs ?? []).length === 0}
+						<Table.Row>
+							<Table.Cell colspan={5} class="p-3 text-muted-foreground">No jobs found for this website.</Table.Cell>
+						</Table.Row>
+					{:else}
+						{#each data.latestJobs as job (job.id)}
+							<Table.Row class="border-t">
+								<Table.Cell class="p-3">{formatDate(job.created_at, true)}</Table.Cell>
+								<Table.Cell class="p-3">
+									<Badge variant={statusBadgeVariant(job.status)}>{job.status ?? 'pending'}</Badge>
+								</Table.Cell>
+								<Table.Cell class="p-3">
+									<div class="flex flex-wrap gap-1">
+										{#if (job.types ?? []).length === 0}
+											<span>-</span>
+										{:else}
+											{#each job.types ?? [] as tool (tool)}
+												<Badge variant="outline">{tool}</Badge>
+											{/each}
+										{/if}
+									</div>
+								</Table.Cell>
+								<Table.Cell class="p-3">
+									<Button href={`/jobs/${job.id}`} variant="outline" size="sm">
+										<ExternalLinkIcon class="size-4" />
+										View Job
+									</Button>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					{/if}
+				</Table.Body>
+			</Table.Root>
 		</div>
 	</div>
 

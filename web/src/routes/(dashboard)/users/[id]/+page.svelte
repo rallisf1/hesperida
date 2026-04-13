@@ -3,6 +3,7 @@
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Table from '$lib/components/ui/table';
   	import { formatDate } from '$lib/utils.js';
 
 	let { data } = $props();
@@ -50,32 +51,32 @@
 		</Tabs.Root>
 
 		<div class="overflow-auto rounded-md border">
-			<table class="w-full text-sm">
-				<thead class="bg-muted/50">
-					<tr>
-						<th class="text-left p-3">URL</th>
-						<th class="text-left p-3">Verified</th>
-						<th class="text-left p-3">Created</th>
-						<th class="text-left p-3">Actions</th>
-					</tr>
-				</thead>
-				<tbody>
+			<Table.Root class="w-full text-sm">
+				<Table.Header class="bg-muted/50">
+					<Table.Row>
+						<Table.Head class="text-left p-3">URL</Table.Head>
+						<Table.Head class="text-left p-3">Verified</Table.Head>
+						<Table.Head class="text-left p-3">Created</Table.Head>
+						<Table.Head class="text-left p-3">Actions</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
 					{#if filteredWebsites.length === 0}
-						<tr><td colspan="4" class="p-3 text-muted-foreground">No websites found for this filter.</td></tr>
+						<Table.Row><Table.Cell colspan={4} class="p-3 text-muted-foreground">No websites found for this filter.</Table.Cell></Table.Row>
 					{:else}
 						{#each filteredWebsites as website (website.id)}
-							<tr class="border-t">
-								<td class="p-3">{website.url}</td>
-								<td class="p-3">{website.verified_at ? formatDate(website.verified_at) : 'No'}</td>
-								<td class="p-3">{formatDate(website.created_at)}</td>
-								<td class="p-3">
+							<Table.Row class="border-t">
+								<Table.Cell class="p-3">{website.url}</Table.Cell>
+								<Table.Cell class="p-3">{website.verified_at ? formatDate(website.verified_at) : 'No'}</Table.Cell>
+								<Table.Cell class="p-3">{formatDate(website.created_at)}</Table.Cell>
+								<Table.Cell class="p-3">
 									<a href={`/websites/${website.id}`} class="underline">View</a>
-								</td>
-							</tr>
+								</Table.Cell>
+							</Table.Row>
 						{/each}
 					{/if}
-				</tbody>
-			</table>
+				</Table.Body>
+			</Table.Root>
 		</div>
 	</div>
 </div>

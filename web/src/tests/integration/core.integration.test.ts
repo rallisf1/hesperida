@@ -64,6 +64,24 @@ describe('API Core CRUD/Results Integration', () => {
 		const notOwnedGet = await clientB.call({ method: 'GET', path: `/api/v1/websites/${websiteId}` });
 		expect(notOwnedGet.response.status).toBe(404);
 		expect(notOwnedGet.json.error.code).toBe('not_found');
+
+		const ownedGet = await clientA.call({ method: 'GET', path: `/api/v1/websites/${websiteId}` });
+		expect(ownedGet.response.status).toBe(200);
+		expect(ownedGet.json.data.website).toBeTruthy();
+		expect(ownedGet.json.data.owner_user).toBeUndefined();
+		expect(ownedGet.json.data.member_users).toBeUndefined();
+
+		const members = await clientA.call({ method: 'GET', path: `/api/v1/websites/${websiteId}/members` });
+		expect(members.response.status).toBe(200);
+		expect(members.json.data.owner_user).toBeTruthy();
+		expect(Array.isArray(members.json.data.member_users)).toBeTrue();
+		expect(members.json.data.member_users.length).toBe(1);
+
+		const notOwnedMembers = await clientB.call({
+			method: 'GET',
+			path: `/api/v1/websites/${websiteId}/members`
+		});
+		expect(notOwnedMembers.response.status).toBe(404);
 	});
 
 	test('jobs create persists tools/options and rejects invalid payload', async () => {
@@ -176,6 +194,101 @@ describe('API Core CRUD/Results Integration', () => {
 		const otherTool = await clientB.call({ method: 'GET', path: `/api/v1/results/jobs/${jobId}/seo` });
 		expect(otherTool.response.status).toBe(404);
 		expect(otherTool.json.error.code).toBe('not_found');
+	});
+
+	test('results endpoints include expires_in for ssl/domain', async () => {
+		const user = await registerUser('core_results_exp');
+		const client = new ApiTestClient({ bearerToken: user.token });
+
+		const website = await client.call({
+			method: 'POST',
+			path: '/api/v1/websites',
+			body: {
+				url: `https://${Math.random().toString(36).slice(2, 8)}.example.test`,
+				description: 'Expiry website'
+			}
+		});
+		expect(website.response.status).toBe(201);
+
+		const websiteRecordId = normalizeRecordId(website.json.data.website.id);
+		const code = generateWebsiteVerificationCode();
+		const markVerified = await adminOne<{ verified_at: unknown }>(
+			'UPDATE websites SET verification_code = $code, verified_at = time::now() WHERE id = type::record($id) RETURN verified_at;',
+			{ id: websiteRecordId, code }
+		);
+		expect(markVerified?.verified_at).toBeTruthy();
+
+		const job = await client.call({
+			method: 'POST',
+			path: '/api/v1/jobs',
+			body: { website: websiteRecordId, types: ['ssl', 'domain'] }
+		});
+		expect(job.response.status).toBe(201);
+		const jobId = normalizeRecordId(job.json.data.job.id);
+
+		const validTo = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+		const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+		const sslResult = await adminOne<{ id: string }>(
+			`CREATE ssl_results CONTENT {
+				job: type::record($jobId),
+				protocol: 'TLSv1.3',
+				valid_from: time::now(),
+				valid_to: <datetime>$validTo,
+				owner: { domain: 'example.test', name: 'Example', country: 'US', address: 'N/A' },
+				issuer: { domain: 'ca.example', name: 'CA', country: 'US' }
+			} RETURN AFTER;`,
+			{ jobId, validTo }
+		);
+		expect(sslResult?.id).toBeTruthy();
+
+		const domainResult = await adminOne<{ id: string }>(
+			`CREATE domain_results CONTENT {
+				job: type::record($jobId),
+				domain: 'example.test',
+				tld: 'test',
+				punycodeName: NONE,
+				unicodeName: NONE,
+				isIDN: false,
+				registrar: { name: 'Registrar', ianaId: '1', url: NONE, email: NONE, phone: NONE },
+				statuses: [],
+				transferLock: false,
+				creationDate: time::now(),
+				updatedDate: time::now(),
+				expirationDate: <datetime>$expirationDate,
+				dnssecEnabled: false,
+				privacyEnabled: false,
+				nameservers: [],
+				records: {}
+			} RETURN AFTER;`,
+			{ jobId, expirationDate }
+		);
+		expect(domainResult?.id).toBeTruthy();
+		if (!sslResult?.id || !domainResult?.id) {
+			throw new Error('Failed to create ssl/domain test results');
+		}
+
+		await adminOne(
+			'UPDATE jobs SET ssl = type::record($sslId), domain = type::record($domainId) WHERE id = type::record($jobId);',
+			{
+				jobId,
+				sslId: normalizeRecordId(sslResult.id),
+				domainId: normalizeRecordId(domainResult.id)
+			}
+		);
+
+		const aggregate = await client.call({ method: 'GET', path: `/api/v1/results/jobs/${jobId}` });
+		expect(aggregate.response.status).toBe(200);
+		expect(typeof aggregate.json.data.job.ssl.expires_in).toBe('number');
+		expect(typeof aggregate.json.data.job.domain.expires_in).toBe('number');
+
+		const sslTool = await client.call({ method: 'GET', path: `/api/v1/results/jobs/${jobId}/ssl` });
+		expect(sslTool.response.status).toBe(200);
+		expect(typeof sslTool.json.data.result.expires_in).toBe('number');
+
+		const domainTool = await client.call({ method: 'GET', path: `/api/v1/results/jobs/${jobId}/domain` });
+		expect(domainTool.response.status).toBe(200);
+		expect(typeof domainTool.json.data.result.expires_in).toBe('number');
 	});
 
 	test('websites and jobs list endpoints support pagination with total_items', async () => {

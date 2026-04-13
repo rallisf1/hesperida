@@ -2,25 +2,40 @@ import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
 import { toRouteId } from '$lib/server/record-id';
-import type { User, Website } from '$lib/types';
+import type { Job, User, Website } from '$lib/types';
+
+type WebsiteJobRow = Omit<Job, 'id'> & {
+	id: string;
+};
 
 export const load: PageServerLoad = async (event) => {
-	const data = await callDashboardApi<{ website: Website; owner_user?: User | null; member_users?: User[] }>(
+	const websiteData = await callDashboardApi<{ website: Website }>(
 		event,
 		`/api/v1/websites/${event.params.id}`
 	);
-	const websiteRouteId = toRouteId(data.website.id);
+	const memberData = await callDashboardApi<{ owner_user?: User | null; member_users?: User[] }>(
+		event,
+		`/api/v1/websites/${event.params.id}/members`
+	);
+	const jobsData = await callDashboardApi<{ jobs: Job[] }>(event, '/api/v1/jobs');
+	const websiteRouteId = toRouteId(websiteData.website.id);
+	const latestJobs: WebsiteJobRow[] = (jobsData.jobs ?? [])
+		.filter((job) => toRouteId(job.website) === websiteRouteId)
+		.slice(0, 10)
+		.map((job) => ({ ...job, id: toRouteId(job.id) }));
+
 	return {
-		website: { ...data.website, id: websiteRouteId },
-		ownerUser: data.owner_user
-			? { ...data.owner_user, id: toRouteId(data.owner_user.id) }
+		website: { ...websiteData.website, id: websiteRouteId },
+		ownerUser: memberData.owner_user
+			? { ...memberData.owner_user, id: toRouteId(memberData.owner_user.id) }
 			: null,
-		memberUsers: (data.member_users ?? []).map((member) => ({
+		memberUsers: (memberData.member_users ?? []).map((member) => ({
 			...member,
 			id: toRouteId(member.id)
 		})),
+		latestJobs,
 		currentUserRole: event.locals.user?.role ?? null,
-		breadcrumbEntityLabel: data.website.url?.trim() || `Website ${websiteRouteId}`,
+		breadcrumbEntityLabel: websiteData.website.url?.trim() || `Website ${websiteRouteId}`,
 		breadcrumbEntityHref: `/websites/${websiteRouteId}`
 	};
 };

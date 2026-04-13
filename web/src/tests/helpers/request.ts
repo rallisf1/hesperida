@@ -8,6 +8,7 @@ import * as authForgot from '../../routes/api/v1/auth/forgot/+server';
 
 import * as websites from '../../routes/api/v1/websites/+server';
 import * as websiteById from '../../routes/api/v1/websites/[id]/+server';
+import * as websiteMembers from '../../routes/api/v1/websites/[id]/members/+server';
 import * as websiteInvite from '../../routes/api/v1/websites/[id]/invite/+server';
 import * as websiteUninvite from '../../routes/api/v1/websites/[id]/uninvite/+server';
 import * as websiteVerify from '../../routes/api/v1/websites/[id]/verify/+server';
@@ -49,6 +50,7 @@ const routes: RouteEntry[] = [
 	{ regex: /^\/api\/v1\/users\/me\/notification-targets\/(?<id>[^/]+)\/test$/, module: notificationTargetTest },
 	{ regex: /^\/api\/v1\/users\/me\/notification-targets\/(?<id>[^/]+)$/, module: notificationTargetById },
 	{ regex: /^\/api\/v1\/websites$/, module: websites },
+	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/members$/, module: websiteMembers },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/invite$/, module: websiteInvite },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/uninvite$/, module: websiteUninvite },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/verify$/, module: websiteVerify },
