@@ -1,7 +1,7 @@
-import { lookup, toRegistrableDomain, type BootstrapData } from "rdapper";
+import { getDomainTld, lookup, toRegistrableDomain, type BootstrapData, type DomainRecord } from "rdapper";
 import { readFile, writeFile, stat } from 'node:fs/promises';
 import { restrictedTLDs } from './constants';
-import { type Domain } from './types';
+import { type Domain, type DomainRecords } from './types';
 import {DateTime, RecordId, Surreal, Table, type Values} from 'surrealdb';
 import { resolve4, resolve6, resolveTxt, resolveCname, resolveMx, resolveNs } from 'node:dns/promises';
 
@@ -16,12 +16,6 @@ const host = inputTarget.startsWith('http://') || inputTarget.startsWith('https:
     : inputTarget;
 
 const domain = toRegistrableDomain(host);
-const tld = domain?.split('.').pop();
-
-if(restrictedTLDs.includes(tld!)) {
-    throw new Error(`.${tld} does not offer a public whois service!`);
-}
-
 const CACHE_FILE = '/rdap-cache.json';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const PASSIVE_SUBDOMAIN_LIMIT = 200;
@@ -159,40 +153,47 @@ async function getBootstrapData(): Promise<BootstrapData> {
     return data;
 }
 
-// Use the cached bootstrap data in lookups
-const bootstrapData = await getBootstrapData();
-const { ok, record, error } = await lookup(domain!, {
-    customBootstrapData: bootstrapData
-});
+const tld = getDomainTld(domain!);
+let results: DomainRecord | undefined;
+if(tld && !restrictedTLDs.includes(tld)) {
+    // Use the cached bootstrap data in lookups
+    const bootstrapData = await getBootstrapData();
+    const { ok, record, error } = await lookup(domain!, {
+        customBootstrapData: bootstrapData
+    });
+    if (!ok) throw new Error(error);
+    results = record;
+} else {
+    if(Bun.env.DEBUG == "true") console.debug(`Domain lookup failed for ${domain}. ${tld && restrictedTLDs.includes(tld) ? `The ${tld} domain authority doesn't provide a whois/rdap server` : ''}`);
+}
 
-if (!ok) throw new Error(error);
 const discoveredHosts = await getPassiveHosts(domain!);
-const dns = await getDnsRecords(domain!, host, discoveredHosts);
+const dns = await getDnsRecords(domain!, host, discoveredHosts) as unknown as DomainRecords;
 
 const result: Values<Domain> = {
-    job: new RecordId('jobs', job_id.split(':')[1]),
-    domain: record?.domain ?? null,
-    tld: record?.tld ?? null,
-    punycodeName: record?.punycodeName ?? null,
-    unicodeName: record?.unicodeName ?? null,
-    //isRegistered: record?.isRegistered ?? false,
-    isIDN: record?.isIDN ?? false,
+    job: new RecordId('jobs', job_id.split(':')[1]!),
+    domain: results?.domain ?? domain?.toUpperCase(),
+    tld: results?.tld ?? tld,
+    punycodeName: results?.punycodeName ?? null,
+    unicodeName: results?.unicodeName ?? null,
+    //isRegistered: results?.isRegistered ?? false,
+    isIDN: results?.isIDN ?? false,
     registrar: {
-        name: record?.registrar?.name ?? null,
-        ianaId: record?.registrar?.ianaId ?? null,
-        url: record?.registrar?.url ?? null,
-        email: record?.registrar?.email ?? null,
-        phone: record?.registrar?.phone ?? null
+        name: results?.registrar?.name ?? null,
+        ianaId: results?.registrar?.ianaId ?? null,
+        url: results?.registrar?.url ?? null,
+        email: results?.registrar?.email ?? null,
+        phone: results?.registrar?.phone ?? null
     },
-    statuses: Array.isArray(record?.statuses) ? record?.statuses.map((s: {status:string}) => s.status.toLowerCase()) : [],
-    transferLock: record?.transferLock ?? false,
-    creationDate: record?.creationDate ? new DateTime(record?.creationDate): null,
-    updatedDate: record?.updatedDate ? new DateTime(record?.updatedDate): null,
-    expirationDate: record?.expirationDate ? new DateTime(record?.expirationDate): null,
-    //deletionDate: record?.deletionDate ? new DateTime(record?.deletionDate): null,
-    dnssecEnabled: record?.dnssec?.enabled ?? false,
-    privacyEnabled: record?.privacyEnabled ?? false,
-    nameservers: Array.isArray(record?.nameservers) ? [...new Set(record?.nameservers.map((ns: {host?:string}) => ns.host?.toLowerCase()).filter(Boolean))]: [],
+    statuses: Array.isArray(results?.statuses) ? results?.statuses.map((s: {status:string}) => s.status.toLowerCase()) : [],
+    transferLock: results?.transferLock ?? false,
+    creationDate: results?.creationDate ? new DateTime(results?.creationDate): null,
+    updatedDate: results?.updatedDate ? new DateTime(results?.updatedDate): null,
+    expirationDate: results?.expirationDate ? new DateTime(results?.expirationDate): null,
+    //deletionDate: results?.deletionDate ? new DateTime(results?.deletionDate): null,
+    dnssecEnabled: results?.dnssec?.enabled ?? false,
+    privacyEnabled: results?.privacyEnabled ?? false,
+    nameservers: Array.isArray(results?.nameservers) ? [...new Set(results?.nameservers.map((ns: {host?:string}) => ns.host!.toLowerCase()).filter(Boolean))]: [],
     records: dns
 };
 
@@ -212,7 +213,7 @@ try {
 
     const domain_results = new Table('domain_results');
 
-    await db.create(domain_results).content<Domain>(result);
+    await db.create<Domain>(domain_results).content(result);
     await db.close();
 } catch (e) {
     throw `DB Error: ${(e as Error).message}`;

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.5.2] - 2026-04-14
+
+### Added
+
+- Website verification instructions in the Dashboard
+
+### Fixed
+
+- Domain verification worked on unverified domain
+- Websites without a CDN would fail the probe test
+
 ## [0.5.1] - 2026-04-14
 
 ### Added

@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
 import { mapJobToView, mapUserToView, mapWebsiteToView, toRouteIdString } from '$lib/server/dashboard-mappers';
 import type { ApiJob, ApiUser, ApiWebsite } from '$lib/types/api';
+import { toRegistrableDomain } from 'rdapper';
 
 type WebsiteJobRow = ReturnType<typeof mapJobToView> & {
 	id: string;
@@ -19,6 +20,14 @@ export const load: PageServerLoad = async (event) => {
 	);
 	const jobsData = await callDashboardApi<{ jobs: ApiJob[] }>(event, '/api/v1/jobs');
 	const website = mapWebsiteToView(websiteData.website);
+	let registrableDomain = '';
+	try {
+		const parsed = new URL(website.url ?? '');
+		registrableDomain = toRegistrableDomain(parsed.hostname) ?? '';
+	} catch {
+		registrableDomain = '';
+	}
+	const txtHost = registrableDomain ? `hesperida.${registrableDomain}` : 'hesperida.<domain>';
 	const websiteRouteId = website.id;
 	const currentUserId = toRouteIdString(event.locals.user?.id ?? '');
 	const isOwner = currentUserId.length > 0 && currentUserId === website.owner_id;
@@ -29,6 +38,7 @@ export const load: PageServerLoad = async (event) => {
 
 	return {
 		website,
+		txtHost,
 		ownerUser: memberData.owner_user
 			? mapUserToView(memberData.owner_user)
 			: null,

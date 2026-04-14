@@ -4,6 +4,7 @@ import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
 import { parseAllowedFilter } from '$lib/server/filter';
 import type { ApiJob, ApiWebsite } from '$lib/types/api';
 import { mapWebsiteToView, toRouteIdString } from '$lib/server/dashboard-mappers';
+import { toRegistrableDomain } from 'rdapper';
 
 export const load: PageServerLoad = async (event) => {
 	const allowedFilters = ['all', 'verified', 'unverified'] as const;
@@ -21,8 +22,20 @@ export const load: PageServerLoad = async (event) => {
 			return acc;
 		}, {});
 
+		const websites = (websiteData.websites ?? []).map(mapWebsiteToView).map((website) => {
+			let registrableDomain = '';
+			try {
+				const parsed = new URL(website.url ?? '');
+				registrableDomain = toRegistrableDomain(parsed.hostname) ?? '';
+			} catch {
+				registrableDomain = '';
+			}
+			const txtHost = registrableDomain ? `hesperida.${registrableDomain}` : 'hesperida.<domain>';
+			return { ...website, txt_host: txtHost };
+		});
+
 		return {
-			websites: (websiteData.websites ?? []).map(mapWebsiteToView),
+			websites,
 			websiteJobCounts,
 			initialFilter,
 			error: null

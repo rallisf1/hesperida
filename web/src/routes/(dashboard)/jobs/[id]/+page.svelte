@@ -273,9 +273,11 @@
 							{parseFloat(probe.response_time).toFixed(2)} ms
 						</Item.Description>
 					</Item.Content>
+					{#if probe.server !== 'null'}
 					<Item.Action>
 						<Badge class="capitalize">{probe.server}</Badge>
 					</Item.Action>
+					{/if}
 				</Item.Root>
 				{#if probe.tech && probe.tech.length}
 				<Item.Root>

@@ -70,11 +70,8 @@ else
         response_time: '$response_time',
         secure: $secure,
         server: '$server',
-        title: '$title',"
-    if [ "$cdn" != "null" ]; then
-        query="$query
+        title: '$title',
         cdn: $cdn,"
-    fi
     if [ "$tech" != "null" ]; then
         query="$query
         tech: $tech,"

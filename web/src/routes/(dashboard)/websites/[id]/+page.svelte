@@ -10,6 +10,8 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import * as InputGroup from '$lib/components/ui/input-group/index.js';
+	import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
 	import { formatDate } from '$lib/utils';
 	import { createToastEnhance } from '$lib/form-toast';
     import * as Field from '$lib/components/ui/field/index.js';
@@ -17,6 +19,34 @@
 
 	let { data, form } = $props();
 	let inviteRole = $state<'admin' | 'editor' | 'viewer'>('viewer');
+	let verifyDialog = $state(false);
+
+	const txtHost = $derived(() => data.txtHost ?? 'hesperida.<domain>');
+
+	const verificationFileName = (): string =>
+		`hesperida-${data.website.verification_code ?? ''}.txt`;
+
+	const copyToClipboard = async (value: string): Promise<void> => {
+		if (!value) return;
+		try {
+			await navigator.clipboard.writeText(value);
+		} catch {
+			// ignore clipboard errors
+		}
+	};
+
+	const downloadEmptyFile = (fileName: string): void => {
+		if (!fileName) return;
+		const blob = new Blob([''], { type: 'text/plain' });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = fileName;
+		document.body.appendChild(link);
+		link.click();
+		link.remove();
+		URL.revokeObjectURL(url);
+	};
 
 	const statusBadgeVariant = (status?: string) => {
 		switch (status) {
@@ -46,21 +76,9 @@
 			<p><strong>Verification code:</strong> {data.website.verification_code ?? '-'}</p>
 			<p><strong>Verified at:</strong> {data.website.verified_at ? formatDate(data.website.verified_at, true) : 'Not verified'}</p>
 			{#if !data.website.verified_at}
-				<form
-					method="POST"
-					action="?/verify"
-					class="pt-2"
-					use:enhance={createToastEnhance({
-						success: ({ formData }) => {
-							const url = String(formData.get('url') ?? '').trim();
-							return `Website ${url || 'record'} verified successfully.`;
-						},
-						error: 'Website verification failed.'
-					})}
-				>
-					<input type="hidden" name="url" value={data.website.url} />
-					<Button type="submit" variant="outline">Verify</Button>
-				</form>
+				<Button type="button" variant="outline" onclick={() => (verifyDialog = true)}>
+					Verify
+				</Button>
 			{/if}
 			{#if form?.verify_error}
 				<p class="text-sm text-destructive">{form.verify_error}</p>
@@ -262,3 +280,63 @@
 		Back to list
 	</Button>
 </div>
+
+<AlertDialog.Root bind:open={verifyDialog}>
+	<AlertDialog.Content class="sm:max-w-lg">
+		<AlertDialog.Header>
+			<AlertDialog.Title>Verify Website Ownership</AlertDialog.Title>
+			<AlertDialog.Description>
+				Add either the DNS TXT record or the web root file, then click “Check it”.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+
+		<div class="space-y-4">
+			<div class="space-y-2">
+				<p class="text-sm font-medium">DNS TXT record</p>
+				<InputGroup.Root>
+					<InputGroup.Input
+						readonly
+						value={`${txtHost} TXT ${data.website.verification_code ?? ''}`.trim()}
+					/>
+					<InputGroup.Button type="button" onclick={() => copyToClipboard(`${txtHost} TXT ${data.website.verification_code ?? ''}`.trim())}>
+						Copy
+					</InputGroup.Button>
+				</InputGroup.Root>
+			</div>
+
+			<div class="space-y-2">
+				<p class="text-sm font-medium">Web root file</p>
+				<InputGroup.Root>
+					<InputGroup.Input
+						readonly
+						value={verificationFileName()}
+					/>
+					<InputGroup.Button type="button" onclick={() => downloadEmptyFile(verificationFileName())}>
+						Download
+					</InputGroup.Button>
+				</InputGroup.Root>
+			</div>
+		</div>
+
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<form
+				method="POST"
+				action="?/verify"
+				use:enhance={createToastEnhance({
+					success: () => {
+						const url = String(data.website.url ?? '').trim();
+						return `Website ${url || 'record'} verified successfully.`;
+					},
+					error: 'Website verification failed.'
+				})}
+				onsubmit={() => {
+					verifyDialog = false;
+				}}
+			>
+				<input type="hidden" name="url" value={data.website.url} />
+				<AlertDialog.Action type="submit">Check it</AlertDialog.Action>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
