@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { queryOne, withAdminDb, withUserDb } from '$lib/server/db';
-import { isAdmin } from '$lib/server/policy';
+import { isSuperuser } from '$lib/server/policy';
 import { RecordId } from 'surrealdb';
 import { jsonError } from '$lib/server/http';
 import type { WCAG } from '$lib/types';
@@ -47,7 +47,7 @@ export const GET: RequestHandler = async (event) => {
 
 	const wcagId = new RecordId('wcag_results', event.params.id);
 
-	const wcag = isAdmin(auth.user)
+	const wcag = isSuperuser(auth.user)
 		? await withAdminDb((db) => queryOne<Partial<WCAG>>(db, 'SELECT screenshot FROM wcag_results WHERE id = $id LIMIT 1;', { id: wcagId }))
 		: await withUserDb(auth.token, (db) =>
 				queryOne<Partial<WCAG>>(db, 'SELECT screenshot FROM wcag_results WHERE id = $id LIMIT 1;', { id: wcagId })
@@ -57,7 +57,7 @@ export const GET: RequestHandler = async (event) => {
 		return jsonError(event, 404, 'not_found', 'Screenshot not found.');
 	}
 
-	const [ss] = isAdmin(auth.user)
+	const [ss] = isSuperuser(auth.user)
 		? await withAdminDb(async (db) => {
 				const result = await db
 					.query(`f"screenshots:/${wcag.screenshot}".get()`)

@@ -14,11 +14,17 @@ DEFINE BUCKET IF NOT EXISTS screenshots BACKEND 'file:/mydata/screenshots';
 -- TABLE: users
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS users TYPE NORMAL SCHEMAFULL PERMISSIONS FOR select, update, delete WHERE id = $auth.id;
+DEFINE TABLE IF NOT EXISTS users TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR select WHERE $auth.is_superuser = true OR ($auth.role = 'admin' AND `group` = $auth.group) OR id = $auth.id,
+	FOR update WHERE $auth.is_superuser = true OR ($auth.role = 'admin' AND `group` = $auth.group) OR id = $auth.id,
+	FOR delete WHERE $auth.is_superuser = true OR ($auth.role = 'admin' AND `group` = $auth.group) OR id = $auth.id,
+	FOR create NONE;
 
 DEFINE FIELD IF NOT EXISTS created_at ON users TYPE datetime READONLY VALUE time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS email ON users TYPE string ASSERT string::is_email($value);
 DEFINE FIELD IF NOT EXISTS forgot_token ON users TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS `group` ON users TYPE string ASSERT string::len($value) > 0;
+DEFINE FIELD IF NOT EXISTS is_superuser ON users TYPE bool DEFAULT false;
 DEFINE FIELD IF NOT EXISTS name ON users TYPE string;
 DEFINE FIELD IF NOT EXISTS notification_targets ON users TYPE option<array<object>> DEFAULT [];
 DEFINE FIELD IF NOT EXISTS notification_targets.* ON users TYPE object;
@@ -34,13 +40,6 @@ DEFINE FIELD IF NOT EXISTS role ON users TYPE string DEFAULT 'editor' ASSERT ['a
 DEFINE ACCESS OVERWRITE users ON DATABASE DURATION FOR SESSION 1h TYPE RECORD
 	SIGNIN (
 		SELECT * FROM users WHERE email = $email AND crypto::argon2::compare(password, $password)
-	)
-	SIGNUP (
-		CREATE users CONTENT {
-			name: $name,
-			email: $email,
-			password: crypto::argon2::generate($password)
-		}
 	);
 
 DEFINE INDEX IF NOT EXISTS email_unq ON users FIELDS email UNIQUE;
@@ -60,11 +59,19 @@ DEFINE EVENT OVERWRITE user_delete ON users WHEN $event = 'DELETE' THEN {
 -- TABLE: websites
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS websites TYPE NORMAL SCHEMAFULL PERMISSIONS FOR select, update, delete, create WHERE owner = $auth.id OR $auth.id IN users;
+DEFINE TABLE IF NOT EXISTS websites TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR select, update, delete WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND owner.group = $auth.group) OR
+		owner = $auth.id OR
+		$auth.id IN users,
+	FOR create WHERE
+		$auth.is_superuser = true OR
+		(($auth.role = 'admin' OR $auth.role = 'editor') AND owner = $auth.id AND owner.role != 'viewer');
 
 DEFINE FIELD IF NOT EXISTS created_at ON websites TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS description ON websites TYPE string;
-DEFINE FIELD IF NOT EXISTS owner ON websites TYPE record<users> ASSERT record::exists($value);
+DEFINE FIELD IF NOT EXISTS owner ON websites TYPE record<users> ASSERT record::exists($value) AND $value.role != 'viewer';
 DEFINE FIELD IF NOT EXISTS url ON websites TYPE string ASSERT string::is_url($value);
 DEFINE FIELD IF NOT EXISTS users ON websites TYPE array<record<users>>;
 DEFINE FIELD IF NOT EXISTS verification_code ON websites TYPE string;
@@ -82,7 +89,13 @@ DEFINE EVENT IF NOT EXISTS website_delete ON websites WHEN $event = 'DELETE' THE
 -- TABLE: jobs
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS jobs TYPE NORMAL SCHEMAFULL PERMISSIONS FOR delete NONE, FOR select, update, create WHERE website.owner = $auth.id OR $auth.id IN website.users;
+DEFINE TABLE IF NOT EXISTS jobs TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR delete NONE,
+	FOR select, update, create WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND website.owner.group = $auth.group) OR
+		website.owner = $auth.id OR
+		$auth.id IN website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON jobs TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD OVERWRITE options ON jobs TYPE option<object> FLEXIBLE;
@@ -146,7 +159,13 @@ DEFINE EVENT IF NOT EXISTS job_completion_check ON jobs WHEN $event = 'UPDATE' A
 -- TABLE: job_queue
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS job_queue TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
+DEFINE TABLE IF NOT EXISTS job_queue TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR create, update, delete NONE,
+	FOR select WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
+		job.website.owner = $auth.id OR
+		$auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON job_queue TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS attempts ON job_queue TYPE int DEFAULT 0;
@@ -166,7 +185,13 @@ DEFINE EVENT IF NOT EXISTS job_queue_cancel ON job_queue WHEN $event = 'UPDATE' 
 -- TABLE: probe_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS probe_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
+DEFINE TABLE IF NOT EXISTS probe_results TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR create, update, delete NONE,
+	FOR select WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
+		job.website.owner = $auth.id OR
+		$auth.id IN job.website.users;
 
 DEFINE FIELD OVERWRITE cdn ON probe_results TYPE object | NULL FLEXIBLE;
 DEFINE FIELD IF NOT EXISTS created_at ON probe_results TYPE datetime DEFAULT time::now() READONLY;
@@ -203,7 +228,13 @@ DEFINE EVENT IF NOT EXISTS probe_completion ON probe_results WHEN $event = 'CREA
 -- TABLE: seo_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS seo_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
+DEFINE TABLE IF NOT EXISTS seo_results TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR create, update, delete NONE,
+	FOR select WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
+		job.website.owner = $auth.id OR
+		$auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON seo_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS errors ON seo_results TYPE int DEFAULT 0;
@@ -223,7 +254,13 @@ DEFINE EVENT OVERWRITE seo_completion ON seo_results WHEN $event = 'CREATE' THEN
 -- TABLE: ssl_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS ssl_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
+DEFINE TABLE IF NOT EXISTS ssl_results TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR create, update, delete NONE,
+	FOR select WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
+		job.website.owner = $auth.id OR
+		$auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON ssl_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS issuer ON ssl_results TYPE object;
@@ -250,7 +287,13 @@ DEFINE EVENT OVERWRITE ssl_completion ON ssl_results WHEN $event = 'CREATE' THEN
 -- TABLE: domain_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS domain_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
+DEFINE TABLE IF NOT EXISTS domain_results TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR create, update, delete NONE,
+	FOR select WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
+		job.website.owner = $auth.id OR
+		$auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON domain_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS job ON domain_results TYPE record<jobs> ASSERT record::exists($value);
@@ -285,7 +328,13 @@ DEFINE EVENT IF NOT EXISTS domain_completion ON domain_results WHEN $event = 'CR
 -- TABLE: security_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS security_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
+DEFINE TABLE IF NOT EXISTS security_results TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR create, update, delete NONE,
+	FOR select WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
+		job.website.owner = $auth.id OR
+		$auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON security_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS errors ON security_results TYPE int DEFAULT 0;
@@ -305,7 +354,13 @@ DEFINE EVENT IF NOT EXISTS security_completion ON security_results WHEN $event =
 -- TABLE: stress_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS stress_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
+DEFINE TABLE IF NOT EXISTS stress_results TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR create, update, delete NONE,
+	FOR select WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
+		job.website.owner = $auth.id OR
+		$auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON stress_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS errors ON stress_results TYPE int DEFAULT 0;
@@ -325,7 +380,13 @@ DEFINE EVENT IF NOT EXISTS stress_completion ON stress_results WHEN $event = 'CR
 -- TABLE: wcag_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS wcag_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
+DEFINE TABLE IF NOT EXISTS wcag_results TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR create, update, delete NONE,
+	FOR select WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
+		job.website.owner = $auth.id OR
+		$auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS created_at ON wcag_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS device ON wcag_results TYPE string;
@@ -347,7 +408,13 @@ DEFINE EVENT IF NOT EXISTS wcag_completion ON wcag_results WHEN $event = 'CREATE
 -- TABLE: whois_results
 -- ------------------------------
 
-DEFINE TABLE IF NOT EXISTS whois_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
+DEFINE TABLE IF NOT EXISTS whois_results TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR create, update, delete NONE,
+	FOR select WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
+		job.website.owner = $auth.id OR
+		$auth.id IN job.website.users;
 
 DEFINE FIELD IF NOT EXISTS as ON whois_results TYPE int;
 DEFINE FIELD IF NOT EXISTS country ON whois_results TYPE string;

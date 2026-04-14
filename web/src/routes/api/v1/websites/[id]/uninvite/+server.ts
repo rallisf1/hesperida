@@ -2,7 +2,12 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryOne, withAdminDb } from '$lib/server/db';
-import { canInviteToWebsite, isAdmin } from '$lib/server/policy';
+import {
+	canInviteToWebsite,
+	canUninviteRole,
+	isAdmin,
+	isSuperuser
+} from '$lib/server/policy';
 import { normalizeRecordId } from '$lib/server/record-id';
 import { RecordId } from 'surrealdb';
 import type { User, Website } from '$lib/types';
@@ -60,30 +65,52 @@ export const POST: RequestHandler = async (event) => {
 	const website = await withAdminDb((db) =>
 		queryOne<Partial<Website>>(
 			db,
-			isAdmin(auth.user)
+			isSuperuser(auth.user)
 				? 'SELECT id, owner, users, url FROM websites WHERE id = $id LIMIT 1;'
-				: 'SELECT id, owner, users, url FROM websites WHERE id = $id AND (owner = $user OR $user IN users) LIMIT 1;',
+				: isAdmin(auth.user)
+					? 'SELECT id, owner, users, url FROM websites WHERE id = $id AND (owner = $user OR $user IN users OR owner.group = $group) LIMIT 1;'
+					: 'SELECT id, owner, users, url FROM websites WHERE id = $id AND (owner = $user OR $user IN users) LIMIT 1;',
 			{
 				id: websiteId,
-				user: auth.user.id
+				user: auth.user.id,
+				group: auth.user.group
 			}
 		)
 	);
 	if (!website) {
-		return jsonError(
-			event,
-			isAdmin(auth.user) ? 404 : 403,
-			isAdmin(auth.user) ? 'not_found' : 'forbidden',
-			isAdmin(auth.user)
-				? 'Website not found.'
-				: 'You are not allowed to uninvite users from this website.'
-		);
+		return jsonError(event, 404, 'not_found', 'Website not found.');
 	}
 
 	const user = await withAdminDb((db) =>
-		queryOne<Partial<User>>(db, 'SELECT id, email FROM users WHERE email = $email LIMIT 1;', { email })
+		queryOne<Partial<User>>(
+			db,
+			'SELECT id, email, role, `group`, is_superuser FROM users WHERE email = $email LIMIT 1;',
+			{ email }
+		)
 	);
 	if (!user) return jsonError(event, 404, 'not_found', 'User not found.');
+
+	if (!isSuperuser(auth.user) && user.group !== auth.user.group) {
+		return jsonError(
+			event,
+			409,
+			'cross_group_uninvite_forbidden',
+			'Cannot uninvite users from a different group.'
+		);
+	}
+
+	if (user.role && !canUninviteRole(auth.user, user.role)) {
+		return jsonError(
+			event,
+			403,
+			'forbidden',
+			`You are not allowed to uninvite users with role '${user.role}'.`
+		);
+	}
+
+	if (normalizeRecordId(website.owner) === normalizeRecordId(user.id)) {
+		return jsonError(event, 400, 'owner_cannot_be_uninvited', 'Cannot uninvite the website owner.');
+	}
 
 	const currentUsers = (website.users ?? []).map((entry) => normalizeRecordId(entry));
 	if (!currentUsers.includes(normalizeRecordId(user.id))) {
@@ -104,3 +131,4 @@ export const POST: RequestHandler = async (event) => {
 
 	return jsonOk(event, { website: updated, removed: true });
 };
+

@@ -30,6 +30,10 @@ import { getCurrentUser, setSessionCookies } from '$lib/server/auth';
  *         description: Signup failed
  */
 export const POST: RequestHandler = async (event) => {
+	if (!config.authSignupEnabled) {
+		return jsonError(event, 403, 'signup_disabled', 'Signups are disabled.');
+	}
+
 	let payload: Record<string, unknown>;
 	try {
 		payload = await parseJson(event.request);
@@ -46,9 +50,6 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	try {
-		const existingUser = await withAdminDb((db) => queryOne<{ id: string }>(db, 'SELECT id FROM users LIMIT 1;'));
-		const role = existingUser ? 'editor' : 'admin';
-
 		await withAdminDb((db) =>
 			queryOne(
 				db,
@@ -56,9 +57,16 @@ export const POST: RequestHandler = async (event) => {
 					name: $name,
 					email: $email,
 					password: crypto::argon2::generate($password),
-					role: $role
+					role: 'admin',
+					\`group\`: $group,
+					is_superuser: false
 				};`,
-				{ name, email, password, role }
+				{
+					name,
+					email,
+					password,
+					group: crypto.randomUUID()
+				}
 			)
 		);
 

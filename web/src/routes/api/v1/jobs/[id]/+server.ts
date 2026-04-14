@@ -2,6 +2,7 @@ import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
 import { getJob } from '$lib/server/db';
+import { isSuperuser } from '$lib/server/policy';
 import { RecordId } from 'surrealdb';
 
 /**
@@ -29,7 +30,7 @@ export const GET: RequestHandler = async (event) => {
 	if ('error' in auth) return auth.error;
 
 	const jobId = new RecordId('jobs', event.params.id);
-	const job = await getJob(jobId, auth.token, auth.user.role);
+	const job = await getJob(jobId, auth.token, isSuperuser(auth.user));
 	if (!job) return jsonError(event, 404, 'not_found', 'Job not found.');
 
 	return jsonOk(event, { job });

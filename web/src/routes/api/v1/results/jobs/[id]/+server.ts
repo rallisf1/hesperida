@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
 import { queryOne, withAdminDb, withUserDb } from '$lib/server/db';
-import { isAdmin } from '$lib/server/policy';
+import { isSuperuser } from '$lib/server/policy';
 import { RecordId } from 'surrealdb';
 import type { Domain, Job, SSL } from '$lib/types';
 import { computeExpiresInDays } from '$lib/server/result-fields';
@@ -34,7 +34,7 @@ export const GET: RequestHandler = async (event) => {
 	const jobId = new RecordId('jobs', event.params.id);
 
 	const sql = 'SELECT * FROM jobs WHERE id = $id LIMIT 1 FETCH website, probe, seo, ssl, whois, wcag, domain, security, stress;';
-	const job: Job | null = isAdmin(auth.user)
+	const job: Job | null = isSuperuser(auth.user)
 		? await withAdminDb((db) => queryOne(db, sql, { id: jobId }))
 		: await withUserDb(auth.token, (db) => queryOne(db, sql, { id: jobId }));
 	if (!job) return jsonError(event, 404, 'not_found', 'Job not found.');

@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
 import { getJob, queryMany, queryOne, withAdminDb, withUserDb } from '$lib/server/db';
-import { isAdmin } from '$lib/server/policy';
+import { isSuperuser } from '$lib/server/policy';
 import { parsePaginationParams } from '$lib/server/pagination';
 import { RecordId } from 'surrealdb';
 
@@ -26,7 +26,7 @@ export const GET: RequestHandler = async (event) => {
 	if ('error' in auth) return auth.error;
 
 	const jobId = new RecordId('jobs', event.params.id);
-	const job = await getJob(jobId, auth.token, auth.user.role);
+	const job = await getJob(jobId, auth.token, isSuperuser(auth.user));
 	if (!job) return jsonError(event, 404, 'not_found', 'Job not found.');
 
 	const pagination = parsePaginationParams(event.url.searchParams);
@@ -35,7 +35,7 @@ export const GET: RequestHandler = async (event) => {
 	}
 
 	if (pagination.value.mode === 'all') {
-		const rows = isAdmin(auth.user)
+		const rows = isSuperuser(auth.user)
 			? await withAdminDb((db) =>
 					queryMany(
 						db,
@@ -54,7 +54,7 @@ export const GET: RequestHandler = async (event) => {
 	}
 
 	const { limit, offset, page, pageSize } = pagination.value;
-	const rows = isAdmin(auth.user)
+	const rows = isSuperuser(auth.user)
 		? await withAdminDb((db) =>
 				queryMany(
 					db,
@@ -69,7 +69,7 @@ export const GET: RequestHandler = async (event) => {
 					{ jobId, limit, offset }
 				)
 			);
-	const countRow = isAdmin(auth.user)
+	const countRow = isSuperuser(auth.user)
 		? await withAdminDb((db) =>
 				queryOne<{ total_items: number }>(
 					db,

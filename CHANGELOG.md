@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.5.0] - 2026-04-13
+## [0.5.0] - 2026-04-14
 
 ### Added
 
@@ -14,10 +14,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Gotenberg container for PDF generation (only works on production)
 - Ability to change website ownership
 - The Probe tool now also fetches GeoIP data via freeipapi.com (Free Tier)
+- Superuser account
 
 ### Changed
 
 - Removed website editing functionality to avoid abuse
+- Improved ACL
 
 ### Fixed
 

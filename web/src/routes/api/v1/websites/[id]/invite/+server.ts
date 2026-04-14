@@ -2,17 +2,42 @@ import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryOne, withAdminDb } from '$lib/server/db';
-import { canInviteToWebsite, isAdmin } from '$lib/server/policy';
+import {
+	canInviteToWebsite,
+	canManageInvitedRole,
+	isAdmin,
+	isSuperuser
+} from '$lib/server/policy';
 import { sendInviteNotification } from '$lib/server/notifications';
+import { normalizeRecordId } from '$lib/server/record-id';
 import { RecordId } from 'surrealdb';
 import type { User, Website } from '$lib/types';
+import { userRoles } from '$lib/constants';
+
+type AppRole = User['role'];
+
+const isUserRole = (value: string): value is AppRole => userRoles.includes(value);
+const createUniqueGroup = async (): Promise<string> => {
+	for (let attempt = 0; attempt < 20; attempt += 1) {
+		const candidate = crypto.randomUUID();
+		const existing = await withAdminDb((db) =>
+			queryOne<{ id: string }>(
+				db,
+				'SELECT id FROM users WHERE `group` = $group LIMIT 1;',
+				{ group: candidate }
+			)
+		);
+		if (!existing?.id) return candidate;
+	}
+	throw new Error('Unable to allocate unique group id.');
+};
 
 /**
  * @swagger
  * /api/v1/websites/{id}/invite:
  *   post:
  *     tags: [Websites]
- *     summary: Invite a user to a website by email
+ *     summary: Invite a user to a website by email and role
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -22,9 +47,12 @@ import type { User, Website } from '$lib/types';
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email]
+ *             required: [email, role]
  *             properties:
  *               email: { type: string }
+ *               role:
+ *                 type: string
+ *                 enum: [admin, editor, viewer]
  *     responses:
  *       200:
  *         description: User invited
@@ -49,36 +77,48 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
-	if (!email) return jsonError(event, 400, 'bad_request', 'email is required.');
+	const roleRaw = typeof payload.role === 'string' ? payload.role.trim().toLowerCase() : '';
+	if (!email || !roleRaw) {
+		return jsonError(event, 400, 'bad_request', 'email and role are required.');
+	}
+	if (!isUserRole(roleRaw)) {
+		return jsonError(event, 400, 'bad_request', 'role must be one of admin, editor, viewer.');
+	}
 
 	if (!canInviteToWebsite(auth.user)) {
 		return jsonError(event, 403, 'forbidden', 'You are not allowed to invite users to this website.');
 	}
+	if (!canManageInvitedRole(auth.user, roleRaw)) {
+		return jsonError(event, 403, 'forbidden', `You are not allowed to invite users with role '${roleRaw}'.`);
+	}
 
-	if (auth.user.email === email) {
+	if (auth.user.email.trim().toLowerCase() === email) {
 		return jsonError(event, 400, 'bad_request', 'You cannot invite yourself to a website.');
 	}
 
 	const website = await withAdminDb((db) =>
-		queryOne<Website>(
+		queryOne<Website & { owner_group?: string }>(
 			db,
-			isAdmin(auth.user)
-				? 'SELECT id, owner, users, url FROM websites WHERE id = $id LIMIT 1;'
-				: 'SELECT id, owner, users, url FROM websites WHERE id = $id AND (owner = $user OR $user IN users) LIMIT 1;',
+			isSuperuser(auth.user)
+				? 'SELECT id, owner, users, url, owner.group AS owner_group FROM websites WHERE id = $id LIMIT 1;'
+				: isAdmin(auth.user)
+					? 'SELECT id, owner, users, url, owner.group AS owner_group FROM websites WHERE id = $id AND (owner = $user OR $user IN users OR owner.group = $group) LIMIT 1;'
+					: 'SELECT id, owner, users, url, owner.group AS owner_group FROM websites WHERE id = $id AND (owner = $user OR $user IN users) LIMIT 1;',
 			{
 				id: websiteId,
-				user: auth.user.id
+				user: auth.user.id,
+				group: auth.user.group
 			}
 		)
 	);
 	if (!website) {
-		return jsonError(event, isAdmin(auth.user) ? 404 : 403, isAdmin(auth.user) ? 'not_found' : 'forbidden', isAdmin(auth.user) ? 'Website not found.' : 'You are not allowed to invite users to this website.');
+		return jsonError(event, 404, 'not_found', 'Website not found.');
 	}
 
 	let user = await withAdminDb((db) =>
 		queryOne<User>(
 			db,
-			'SELECT id, email, forgot_token FROM users WHERE email = $email LIMIT 1;',
+			'SELECT id, email, forgot_token, role, `group`, is_superuser FROM users WHERE email = $email LIMIT 1;',
 			{ email }
 		)
 	);
@@ -87,13 +127,63 @@ export const POST: RequestHandler = async (event) => {
 	let createdForgotToken: string | null = null;
 
 	if (user) {
-		if(user.id === website.owner || website.users.includes(user.id!)) {
+		if (!isSuperuser(auth.user) && user.group !== auth.user.group) {
+			return jsonError(
+				event,
+				409,
+				'cross_group_invite_forbidden',
+				'Cannot invite users from a different group.'
+			);
+		}
+
+		const websiteOwnerId = normalizeRecordId(website.owner);
+		const websiteMemberIds = (website.users ?? []).map((member) => normalizeRecordId(member));
+		const inviteeId = normalizeRecordId(user.id);
+		if (inviteeId === websiteOwnerId || websiteMemberIds.includes(inviteeId)) {
 			return jsonError(event, 400, 'bad_request', 'The user already has access to this website.');
+		}
+
+		if (user.is_superuser && roleRaw !== 'admin') {
+			return jsonError(event, 400, 'bad_request', 'Superuser role cannot be downgraded.');
+		}
+
+		if (!user.is_superuser && user.role !== roleRaw) {
+			if (roleRaw === 'viewer') {
+					const ownedWebsites = await withAdminDb((db) =>
+						queryOne<{ total_items: number }>(
+							db,
+							'SELECT count() AS total_items FROM websites WHERE owner = $id GROUP ALL;',
+							{ id: user!.id }
+						)
+					);
+				if (Number(ownedWebsites?.total_items ?? 0) > 0) {
+					return jsonError(
+						event,
+						409,
+						'owner_role_conflict',
+						'Cannot set role to viewer for a user that owns websites.'
+					);
+				}
+			}
+
+			user = await withAdminDb((db) =>
+				queryOne<User>(
+						db,
+						'UPDATE $id SET role = $role RETURN id, email, forgot_token, role, `group`, is_superuser;',
+						{
+							id: user!.id,
+							role: roleRaw
+						}
+					)
+				);
 		}
 	} else {
 		const forgotToken = crypto.randomUUID();
 		const randomPassword = crypto.randomUUID();
 		const defaultName = email.split('@')[0] || 'invited-user';
+		const invitedGroup = isSuperuser(auth.user)
+			? await createUniqueGroup()
+			: auth.user.group;
 		createdForgotToken = forgotToken;
 		user = await withAdminDb((db) =>
 			queryOne<User>(
@@ -101,15 +191,19 @@ export const POST: RequestHandler = async (event) => {
 				`CREATE users CONTENT {
 					name: $name,
 					email: $email,
-					role: 'viewer',
+					role: $role,
 					password: crypto::argon2::generate($password),
-					forgot_token: $forgotToken
-				} RETURN id, email, forgot_token;`,
+					forgot_token: $forgotToken,
+					\`group\`: $group,
+					is_superuser: false
+				} RETURN id, email, forgot_token, role, \`group\`, is_superuser;`,
 				{
 					name: defaultName,
 					email,
 					password: randomPassword,
-					forgotToken
+					forgotToken,
+					role: roleRaw,
+					group: invitedGroup
 				}
 			)
 		);

@@ -7,6 +7,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Table from '$lib/components/ui/table';
+	import MultiSelect, { type Option } from 'svelte-multiselect';
 	import { setFilterParam } from '$lib/filter';
 	import { createToastEnhance } from '$lib/form-toast';
 	import { formatDate } from '$lib/utils.js';
@@ -15,11 +16,32 @@
 	let roleFilter = $derived<'all' | 'admin' | 'editor' | 'viewer'>(
 		(data.initialFilter ?? 'all') as 'all' | 'admin' | 'editor' | 'viewer'
 	);
+	let selectedGroup = $state<Option | null>(null);
+
+	const optionValue = (option: Option | null | undefined): string => {
+		if (option == null) return '';
+		if (typeof option === 'string' || typeof option === 'number') return String(option);
+		return String(option.value ?? '');
+	};
+
+	const groupOptions = $derived.by(() => {
+		if (!data.isSuperuser) return [] as Option[];
+		const groups = [...new Set((data.users ?? []).map((user) => String(user.group ?? '').trim()).filter(Boolean))];
+		groups.sort((a, b) => a.localeCompare(b));
+		return groups.map((group) => ({ label: group, value: group })) as Option[];
+	});
 
 	const filteredUsers = $derived.by(() => {
 		const users = data.users ?? [];
-		if (roleFilter === 'all') return users;
-		return users.filter((user: { role?: string }) => user.role === roleFilter);
+		const byRole =
+			roleFilter === 'all'
+				? users
+				: users.filter((user: { role?: string }) => user.role === roleFilter);
+
+		if (!data.isSuperuser) return byRole;
+		const selectedGroupValue = optionValue(selectedGroup).trim();
+		if (!selectedGroupValue) return byRole;
+		return byRole.filter((user: { group?: string }) => String(user.group ?? '') === selectedGroupValue);
 	});
 
 	const selectFilter = async (filter: 'all' | 'admin' | 'editor' | 'viewer') => {
@@ -53,14 +75,27 @@
 		<p class="text-sm text-emerald-700">Password reset email sent.</p>
 	{/if}
 
-	<Tabs.Root value={roleFilter}>
-		<Tabs.List>
-			<Tabs.Trigger value="all" onclick={() => void selectFilter('all')}>All</Tabs.Trigger>
-			<Tabs.Trigger value="admin" onclick={() => void selectFilter('admin')}>Admin</Tabs.Trigger>
-			<Tabs.Trigger value="editor" onclick={() => void selectFilter('editor')}>Editor</Tabs.Trigger>
-			<Tabs.Trigger value="viewer" onclick={() => void selectFilter('viewer')}>Viewer</Tabs.Trigger>
-		</Tabs.List>
-	</Tabs.Root>
+	<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+		<Tabs.Root value={roleFilter}>
+			<Tabs.List>
+				<Tabs.Trigger value="all" onclick={() => void selectFilter('all')}>All</Tabs.Trigger>
+				<Tabs.Trigger value="admin" onclick={() => void selectFilter('admin')}>Admin</Tabs.Trigger>
+				<Tabs.Trigger value="editor" onclick={() => void selectFilter('editor')}>Editor</Tabs.Trigger>
+				<Tabs.Trigger value="viewer" onclick={() => void selectFilter('viewer')}>Viewer</Tabs.Trigger>
+			</Tabs.List>
+		</Tabs.Root>
+		{#if data.isSuperuser}
+			<div class="w-full md:w-72">
+				<MultiSelect
+					bind:value={selectedGroup}
+					options={groupOptions}
+					maxSelect={1}
+					allowEmpty
+					placeholder="Filter by group"
+				/>
+			</div>
+		{/if}
+	</div>
 
 	<div class="overflow-auto rounded-md border">
 		<Table.Root class="w-full text-sm">
@@ -69,19 +104,25 @@
 					<Table.Head class="text-left p-3">Name</Table.Head>
 					<Table.Head class="text-left p-3">Email</Table.Head>
 					<Table.Head class="text-left p-3">Role</Table.Head>
+					{#if data.isSuperuser}
+						<Table.Head class="text-left p-3">Group</Table.Head>
+					{/if}
 					<Table.Head class="text-left p-3">Created</Table.Head>
 					<Table.Head class="text-left p-3">Actions</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
 				{#if filteredUsers.length === 0}
-					<Table.Row><Table.Cell colspan={5} class="p-3 text-muted-foreground">No users found.</Table.Cell></Table.Row>
+					<Table.Row><Table.Cell colspan={data.isSuperuser ? 6 : 5} class="p-3 text-muted-foreground">No users found.</Table.Cell></Table.Row>
 				{:else}
 					{#each filteredUsers as user}
 						<Table.Row class="border-t">
 							<Table.Cell class="p-3">{user.name}</Table.Cell>
 							<Table.Cell class="p-3">{user.email}</Table.Cell>
 							<Table.Cell class="p-3 capitalize">{user.role ?? '-'}</Table.Cell>
+							{#if data.isSuperuser}
+								<Table.Cell class="p-3">{user.group || '-'}</Table.Cell>
+							{/if}
 							<Table.Cell class="p-3">{formatDate(user.created_at)}</Table.Cell>
 							<Table.Cell class="p-3">
 								<DropdownMenu.Root>
@@ -123,7 +164,8 @@
 												<button type="submit" class="w-full text-left">Reset password</button>
 											</form>
 										</DropdownMenu.Item>
-										<DropdownMenu.Separator />
+									<DropdownMenu.Separator />
+									{#if !user.is_superuser && user.id !== data.currentUserId}
 										<DropdownMenu.Item variant="destructive">
 											<form
 												method="POST"
@@ -142,9 +184,10 @@
 												<button type="submit" class="w-full text-left">Delete</button>
 											</form>
 										</DropdownMenu.Item>
-									</DropdownMenu.Content>
-								</DropdownMenu.Root>
-							</Table.Cell>
+									{/if}
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
+						</Table.Cell>
 						</Table.Row>
 					{/each}
 				{/if}

@@ -9,12 +9,14 @@
 	import * as Item from '$lib/components/ui/item/index.js';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import { formatDate } from '$lib/utils';
 	import { createToastEnhance } from '$lib/form-toast';
     import * as Field from '$lib/components/ui/field/index.js';
   import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 
 	let { data, form } = $props();
+	let inviteRole = $state<'admin' | 'editor' | 'viewer'>('viewer');
 
 	const statusBadgeVariant = (status?: string) => {
 		switch (status) {
@@ -120,16 +122,27 @@
 			<form
 				method="POST"
 				action="?/invite"
-				class="flex w-full max-w-sm items-center gap-2"
+				class="flex w-full max-w-sm flex-col items-start gap-2"
 				use:enhance={createToastEnhance({
 					success: ({ formData }) => {
 						const email = String(formData.get('email') ?? '').trim();
-						return `Invite sent to ${email || 'user'}.`;
+						const role = String(formData.get('role') ?? 'viewer').trim();
+						return `Invite sent to ${email || 'user'} as ${role}.`;
 					},
 					error: 'Failed to invite user.'
 				})}
 			>
 				<Input type="email" id="email-invite" name="email" placeholder="user@example.com" />
+				<Select.Root type="single" name="role" bind:value={inviteRole}>
+					<Select.Trigger class="w-full max-w-sm capitalize">{inviteRole}</Select.Trigger>
+					<Select.Content align="start">
+						{#if data.currentUserRole === 'admin'}
+							<Select.Item value="admin">Admin</Select.Item>
+						{/if}
+						<Select.Item value="editor">Editor</Select.Item>
+						<Select.Item value="viewer">Viewer</Select.Item>
+					</Select.Content>
+				</Select.Root>
 				<Button type="submit" variant="outline">Invite</Button>
 			</form>
 			{#if form?.invite_error}

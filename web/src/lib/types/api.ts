@@ -34,6 +34,8 @@ export interface ApiUser {
 	id: ApiRecordId;
 	name: string;
 	email: string;
+	group: string;
+	is_superuser: boolean;
 	role: 'admin' | 'editor' | 'viewer';
 	forgot_token?: string | null;
 	notification_targets?: ApiNotificationTarget[];

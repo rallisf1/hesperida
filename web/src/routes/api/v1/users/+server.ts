@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryMany, queryOne, withAdminDb } from '$lib/server/db';
 import { withRequiredUser } from '$lib/server/route';
-import { isAdmin } from '$lib/server/policy';
+import { isAdmin, isSuperuser } from '$lib/server/policy';
 import { parsePaginationParams } from '$lib/server/pagination';
 import { sendForgotNotification } from '$lib/server/notifications';
 import type { User } from '$lib/types';
@@ -63,7 +63,13 @@ export const GET: RequestHandler = async (event) => {
 
 		if (pagination.value.mode === 'all') {
 			const users = await withAdminDb((db) =>
-				queryMany(db, 'SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC;')
+				queryMany(
+					db,
+					isSuperuser(auth.user)
+						? 'SELECT id, name, email, role, `group`, is_superuser, created_at FROM users ORDER BY created_at DESC;'
+						: 'SELECT id, name, email, role, `group`, is_superuser, created_at FROM users WHERE `group` = $group ORDER BY created_at DESC;',
+					{ group: auth.user.group }
+				)
 			);
 			return jsonOk(event, { users: users ?? [] });
 		}
@@ -72,12 +78,20 @@ export const GET: RequestHandler = async (event) => {
 		const users = await withAdminDb((db) =>
 			queryMany(
 				db,
-				'SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC LIMIT $limit START $offset;',
-				{ limit, offset }
+				isSuperuser(auth.user)
+					? 'SELECT id, name, email, role, `group`, is_superuser, created_at FROM users ORDER BY created_at DESC LIMIT $limit START $offset;'
+					: 'SELECT id, name, email, role, `group`, is_superuser, created_at FROM users WHERE `group` = $group ORDER BY created_at DESC LIMIT $limit START $offset;',
+				{ limit, offset, group: auth.user.group }
 			)
 		);
 		const countRow = await withAdminDb((db) =>
-			queryOne<{ total_items: number }>(db, 'SELECT count() AS total_items FROM users GROUP ALL;')
+			queryOne<{ total_items: number }>(
+				db,
+				isSuperuser(auth.user)
+					? 'SELECT count() AS total_items FROM users GROUP ALL;'
+					: 'SELECT count() AS total_items FROM users WHERE `group` = $group GROUP ALL;',
+				{ group: auth.user.group }
+			)
 		);
 
 		return jsonOk(event, {
@@ -126,14 +140,17 @@ export const POST: RequestHandler = async (event) => {
 						email: $email,
 						role: $role,
 						password: crypto::argon2::generate($password),
-						forgot_token: $forgotToken
-					} RETURN id, name, email, role, created_at;`,
+						forgot_token: $forgotToken,
+						\`group\`: $group,
+						is_superuser: false
+					} RETURN id, name, email, role, \`group\`, is_superuser, created_at;`,
 					{
 						name,
 						email,
 						role: roleRaw,
 						password: randomPassword,
-						forgotToken
+						forgotToken,
+						group: auth.user.group
 					}
 				)
 			);
@@ -158,4 +175,3 @@ export const POST: RequestHandler = async (event) => {
 		return jsonOk(event, { user: createdUser }, 201);
 	});
 };
-

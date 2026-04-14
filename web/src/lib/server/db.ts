@@ -74,8 +74,8 @@ export const queryOne = async <T>(
 	return rows[0] ?? null;
 };
 
-export const getJob = async (jobId: RecordId, token: string, role?: string) => {
-	if (role === 'admin') {
+export const getJob = async (jobId: RecordId, token: string, isSuperuser = false) => {
+	if (isSuperuser) {
 		return withAdminDb((db) => queryOne(db, 'SELECT * FROM jobs WHERE id = $id LIMIT 1;', { id: jobId }));
 	}
 	return withUserDb(token, (db) => queryOne(db, 'SELECT * FROM jobs WHERE id = $id LIMIT 1;', { id: jobId }));

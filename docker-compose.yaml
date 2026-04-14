@@ -168,7 +168,7 @@ services:
 
   web:
     restart: always
-    profiles: ["backend", "aio"]
+    profiles: ["backend"]
     depends_on:
       db:
         condition: service_healthy

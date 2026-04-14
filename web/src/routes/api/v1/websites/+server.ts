@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryMany, queryOne, withAdminDb, withUserDb } from '$lib/server/db';
-import { canCreateWebsite, isAdmin } from '$lib/server/policy';
+import { canCreateWebsite, isSuperuser } from '$lib/server/policy';
 import { withRequiredUser } from '$lib/server/route';
 import { parsePaginationParams } from '$lib/server/pagination';
 import { generateWebsiteVerificationCode } from '$lib/server/website-verification';
@@ -27,7 +27,7 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		if (pagination.value.mode === 'all') {
-			if (isAdmin(auth.user)) {
+			if (isSuperuser(auth.user)) {
 				const rows = await withAdminDb((db) => queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC;'));
 				return jsonOk(event, { websites: rows ?? [] });
 			}
@@ -39,7 +39,7 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		const { limit, offset, page, pageSize } = pagination.value;
-		if (isAdmin(auth.user)) {
+		if (isSuperuser(auth.user)) {
 			const rows = await withAdminDb((db) =>
 				queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC LIMIT $limit START $offset;', {
 					limit,
@@ -122,13 +122,21 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		try {
-			const website = await withAdminDb((db) =>
-				queryOne(
-					db,
-					'CREATE websites CONTENT { owner: $user, users: [], url: $url, description: $description, verification_code: $verificationCode, verified_at: NONE } RETURN AFTER;',
-					{ user: auth.user.id, url, description, verificationCode }
-				)
-			);
+			const website = await (isSuperuser(auth.user)
+				? withAdminDb((db) =>
+						queryOne(
+							db,
+							'CREATE websites CONTENT { owner: $user, users: [], url: $url, description: $description, verification_code: $verificationCode, verified_at: NONE } RETURN AFTER;',
+							{ user: auth.user.id, url, description, verificationCode }
+						)
+					)
+				: withUserDb(auth.token, (db) =>
+						queryOne(
+							db,
+							'CREATE websites CONTENT { owner: $user, users: [], url: $url, description: $description, verification_code: $verificationCode, verified_at: NONE } RETURN AFTER;',
+							{ user: auth.user.id, url, description, verificationCode }
+						)
+					));
 
 			return jsonOk(event, { website }, 201);
 		} catch (error) {

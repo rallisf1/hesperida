@@ -45,12 +45,13 @@ export const actions: Actions = {
 	invite: async (event) => {
 		const formData = await event.request.formData();
 		const email = String(formData.get('email') ?? '').trim();
-		if (!email) return fail(400, { invite_error: 'email is required.' });
+		const role = String(formData.get('role') ?? '').trim().toLowerCase();
+		if (!email || !role) return fail(400, { invite_error: 'email and role are required.' });
 
 		try {
 			await callDashboardApi(event, `/api/v1/websites/${event.params.id}/invite`, {
 				method: 'POST',
-				body: { email }
+				body: { email, role }
 			});
 			return { invite_success: true };
 		} catch (error) {

@@ -60,9 +60,13 @@ export const POST: RequestHandler = async (event) => {
 	if (!email) return jsonError(event, 400, 'bad_request', 'email is required.');
 
 	const website = await withAdminDb((db) =>
-		queryOne<Website>(db, 'SELECT id, owner, users, url FROM websites WHERE id = $id LIMIT 1;', {
-			id: websiteId
-		})
+		queryOne<Website & { owner_group?: string }>(
+			db,
+			'SELECT id, owner, users, url, owner.group AS owner_group FROM websites WHERE id = $id LIMIT 1;',
+			{
+				id: websiteId
+			}
+		)
 	);
 	if (!website) return jsonError(event, 404, 'not_found', 'Website not found.');
 
@@ -76,9 +80,13 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const ownerUser = await withAdminDb((db) =>
-		queryOne<User>(db, 'SELECT id, name, email FROM users WHERE id = $id LIMIT 1;', {
-			id: website.owner
-		})
+		queryOne<User>(
+			db,
+			'SELECT id, name, email, `group` FROM users WHERE id = $id LIMIT 1;',
+			{
+				id: website.owner
+			}
+		)
 	);
 	if (!ownerUser) return jsonError(event, 404, 'not_found', 'Owner user not found.');
 
@@ -87,9 +95,13 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	let user = await withAdminDb((db) =>
-		queryOne<User>(db, 'SELECT id, email, forgot_token FROM users WHERE email = $email LIMIT 1;', {
-			email
-		})
+		queryOne<User>(
+			db,
+			'SELECT id, email, forgot_token, role, `group`, is_superuser FROM users WHERE email = $email LIMIT 1;',
+			{
+				email
+			}
+		)
 	);
 
 	let createdUserId: RecordId | null = null;
@@ -107,19 +119,43 @@ export const POST: RequestHandler = async (event) => {
 				`CREATE users CONTENT {
 					name: $name,
 					email: $email,
-					role: 'viewer',
+					role: 'editor',
 					password: crypto::argon2::generate($password),
-					forgot_token: $forgotToken
-				} RETURN id, email, forgot_token;`,
+					forgot_token: $forgotToken,
+					\`group\`: $group,
+					is_superuser: false
+				} RETURN id, email, forgot_token, role, \`group\`, is_superuser;`,
 				{
 					name: defaultName,
 					email,
 					password: randomPassword,
-					forgotToken
+					forgotToken,
+					group: ownerUser.group
 				}
 			)
 		);
 		createdUserId = user?.id ?? null;
+	} else {
+		if (user.group !== ownerUser.group) {
+			return jsonError(
+				event,
+				409,
+				'cross_group_transfer_forbidden',
+				'Cannot transfer ownership to a user from a different group.'
+			);
+		}
+
+		if (user.role === 'viewer') {
+			user = await withAdminDb((db) =>
+				queryOne<User>(
+						db,
+						'UPDATE $id SET role = "editor" RETURN id, email, forgot_token, role, `group`, is_superuser;',
+						{
+							id: user!.id
+						}
+					)
+				);
+		}
 	}
 
 	if (!user) return jsonError(event, 400, 'transfer_failed', 'Unable to resolve target user.');
@@ -150,7 +186,9 @@ export const POST: RequestHandler = async (event) => {
 		memberSet.delete(oldOwnerId);
 	}
 
-	const updatedMembers = Array.from(memberSet).map((memberId) => new RecordId('users', toRouteId(memberId)));
+	const updatedMembers = Array.from(memberSet).map(
+		(memberId) => new RecordId('users', toRouteId(memberId))
+	);
 
 	const updated = await withAdminDb((db) =>
 		queryOne<Website>(

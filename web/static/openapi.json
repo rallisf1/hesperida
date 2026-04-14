@@ -176,6 +176,91 @@
         }
       }
     },
+    "/api/v1/websites/{id}/transfer-ownership": {
+      "post": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "Transfer website ownership to another user (owner only)",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "keep_previous_owner_access": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ownership transferred"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "502": {
+            "description": "Notification delivery failed"
+          }
+        }
+      }
+    },
+    "/api/v1/websites/{id}/members": {
+      "get": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "Get owner/member user profiles for a website",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Website member details"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/v1/websites/{id}/verify": {
       "get": {
         "tags": [
@@ -262,7 +347,7 @@
         "tags": [
           "Websites"
         ],
-        "summary": "Invite a user to a website by email",
+        "summary": "Invite a user to a website by email and role",
         "security": [
           {
             "apiKeyAuth": [],
@@ -276,11 +361,20 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "email"
+                  "email",
+                  "role"
                 ],
                 "properties": {
                   "email": {
                     "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "editor",
+                      "viewer"
+                    ]
                   }
                 }
               }
@@ -411,7 +505,15 @@
             "apiKeyAuth": [],
             "bearerAuth": []
           }
-        ]
+        ],
+        "responses": {
+          "200": {
+            "description": "User deleted"
+          },
+          "409": {
+            "description": "User owns websites and cannot be deleted"
+          }
+        }
       }
     },
     "/api/v1/users/me": {
@@ -517,6 +619,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "User owns one or more websites"
           }
         }
       }

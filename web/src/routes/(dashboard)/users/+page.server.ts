@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
 import { parseAllowedFilter } from '$lib/server/filter';
 import type { ApiUser } from '$lib/types/api';
-import { mapUserToView } from '$lib/server/dashboard-mappers';
+import { mapUserToView, toRouteIdString } from '$lib/server/dashboard-mappers';
 
 const parsePositive = (value: string | null): number | null => {
 	if (!value) return null;
@@ -15,6 +15,7 @@ const parsePositive = (value: string | null): number | null => {
 export const load: PageServerLoad = async (event) => {
 	const allowedFilters = ['all', 'admin', 'editor', 'viewer'] as const;
 	const initialFilter = parseAllowedFilter(event.url.searchParams.get('filter'), allowedFilters, 'all');
+	const isSuperuser = event.locals.user?.is_superuser === true;
 
 	const page = parsePositive(event.url.searchParams.get('page'));
 	const pageSize = parsePositive(event.url.searchParams.get('page_size'));
@@ -30,9 +31,19 @@ export const load: PageServerLoad = async (event) => {
 			'/api/v1/users',
 			{ searchParams: search }
 		);
-		const users = (data.users ?? []).map(mapUserToView);
+		const users = (data.users ?? []).map(mapUserToView).map((user) =>
+			isSuperuser
+				? user
+				: {
+						...user,
+						group: '',
+						is_superuser: false
+					}
+		);
 		return {
 			users,
+			isSuperuser,
+			currentUserId: toRouteIdString(event.locals.user?.id ?? ''),
 			initialFilter,
 			page: data.page ?? null,
 			page_size: data.page_size ?? null,
@@ -43,6 +54,8 @@ export const load: PageServerLoad = async (event) => {
 		if (error instanceof DashboardApiError) {
 			return {
 				users: [],
+				isSuperuser,
+				currentUserId: toRouteIdString(event.locals.user?.id ?? ''),
 				initialFilter,
 				page: null,
 				page_size: null,

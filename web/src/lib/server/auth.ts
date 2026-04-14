@@ -7,6 +7,8 @@ export interface AuthUser {
 	id: RecordId;
 	email: string;
 	name: string;
+	group: string;
+	is_superuser: boolean;
 	role?: 'admin' | 'editor' | 'viewer';
 	created_at?: string;
 }
@@ -78,7 +80,9 @@ export const getCurrentUserStatus = async (
 	try {
 		const user = await withUserDb(token, async (db) => {
 			const [rows] = await db
-				.query('SELECT id, email, name, role, created_at FROM users WHERE id = $auth.id LIMIT 1;')
+				.query(
+					'SELECT id, email, name, role, `group`, is_superuser, created_at FROM users WHERE id = $auth.id LIMIT 1;'
+				)
 				.collect<[AuthUser[]]>();
 			return rows?.[0] ?? null;
 		});

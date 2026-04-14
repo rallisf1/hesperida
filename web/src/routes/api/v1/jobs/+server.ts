@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryMany, queryOne, withAdminDb, withUserDb } from '$lib/server/db';
-import { canCreateJob, isAdmin } from '$lib/server/policy';
+import { canCreateJob, isSuperuser } from '$lib/server/policy';
 import { withRequiredUser } from '$lib/server/route';
 import { tools as ALLOWED_TOOLS } from '$lib/constants';
 import type { Tool, Website } from '$lib/types';
@@ -30,7 +30,7 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		if (pagination.value.mode === 'all') {
-			if (isAdmin(auth.user)) {
+			if (isSuperuser(auth.user)) {
 				const rows = await withAdminDb((db) => queryMany(db, 'SELECT * FROM jobs ORDER BY created_at DESC;'));
 				return jsonOk(event, { jobs: rows ?? [] });
 			}
@@ -41,7 +41,7 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		const { limit, offset, page, pageSize } = pagination.value;
-		if (isAdmin(auth.user)) {
+		if (isSuperuser(auth.user)) {
 			const rows = await withAdminDb((db) =>
 				queryMany(db, 'SELECT * FROM jobs ORDER BY created_at DESC LIMIT $limit START $offset;', {
 					limit,
@@ -122,47 +122,67 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		const website = typeof payload.website === 'string' ? new RecordId('websites', payload.website) : null;
-		const types = Array.isArray(payload.types) ? payload.types.filter((item): item is Tool => typeof item === 'string' && ALLOWED_TOOLS.includes(item as Tool)) : [];
-		const options = payload.options && typeof payload.options === 'object' && !Array.isArray(payload.options) ? payload.options : null;
+		const types = Array.isArray(payload.types)
+			? payload.types.filter(
+					(item): item is Tool =>
+						typeof item === 'string' && ALLOWED_TOOLS.includes(item as Tool)
+				)
+			: [];
+		const options =
+			payload.options && typeof payload.options === 'object' && !Array.isArray(payload.options)
+				? payload.options
+				: null;
 
 		if (!website) return jsonError(event, 400, 'bad_request', 'website is required.');
 
-		let websiteRow = await withAdminDb((db) =>
-			queryOne<Website>(
-				db,
-				isAdmin(auth.user)
-					? 'SELECT id, url, verification_code, verified_at FROM websites WHERE id = $id LIMIT 1;'
-					: 'SELECT id, url, verification_code, verified_at FROM websites WHERE id = $id AND (owner = $user OR $user IN users) LIMIT 1;',
-				{
-					id: website,
-					user: auth.user.id
-				}
-			)
-		);
+		let websiteRow = await (isSuperuser(auth.user)
+			? withAdminDb((db) =>
+					queryOne<Website>(
+						db,
+						'SELECT id, url, verification_code, verified_at FROM websites WHERE id = $id LIMIT 1;',
+						{ id: website }
+					)
+				)
+			: withUserDb(auth.token, (db) =>
+					queryOne<Website>(
+						db,
+						'SELECT id, url, verification_code, verified_at FROM websites WHERE id = $id LIMIT 1;',
+						{ id: website }
+					)
+				));
 		if (!websiteRow) return jsonError(event, 404, 'not_found', 'Website not found.');
 
 		const verification = await verifyWebsiteOwnership(websiteRow);
 
-		if(!verification.verified) {
-			return jsonError(event, 403, 'website_not_verified', 'Cannot create jobs for unverified websites', verification);
+		if (!verification.verified) {
+			return jsonError(
+				event,
+				403,
+				'website_not_verified',
+				'Cannot create jobs for unverified websites',
+				verification
+			);
 		}
 
 		try {
-			const job = await withAdminDb((db) => {
-				const payload: Record<string, unknown> = { website };
+			const createJob = async (db: Parameters<typeof queryOne>[0]) => {
+				const createPayload: Record<string, unknown> = { website };
 				let sql = 'CREATE jobs CONTENT { website: $website, status: "pending"';
-				if(types.length) {
+				if (types.length) {
 					sql += ', types: $types';
-					payload.types = types
+					createPayload.types = types;
 				}
-				if(options) {
+				if (options) {
 					sql += ', options: $options';
-					payload.options = options;
+					createPayload.options = options;
 				}
-				sql += '} RETURN AFTER;'
+				sql += '} RETURN AFTER;';
+				return queryOne(db, sql, createPayload);
+			};
 
-				return queryOne( db, sql, payload );
-			});
+			const job = await (isSuperuser(auth.user)
+				? withAdminDb((db) => createJob(db))
+				: withUserDb(auth.token, (db) => createJob(db)));
 
 			return jsonOk(event, { job }, 201);
 		} catch (error) {

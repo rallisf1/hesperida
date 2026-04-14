@@ -114,24 +114,48 @@ export const PATCH: RequestHandler = async (event) => {
 			}
 
 			if (Object.keys(patch).length && wantsPasswordChange) {
-				return queryOne<{ id: string; email: string; name: string; role?: string; created_at?: string }>(
+				return queryOne<{
+					id: string;
+					email: string;
+					name: string;
+					role?: string;
+					group?: string;
+					is_superuser?: boolean;
+					created_at?: string;
+				}>(
 					db,
-					'UPDATE $id MERGE $patch SET password = crypto::argon2::generate($newPassword) RETURN id, email, name, role, created_at;',
+					'UPDATE $id MERGE $patch SET password = crypto::argon2::generate($newPassword) RETURN id, email, name, role, `group`, is_superuser, created_at;',
 					{ id: auth.user.id, patch, newPassword }
 				);
 			}
 
 			if (wantsPasswordChange) {
-				return queryOne<{ id: string; email: string; name: string; role?: string; created_at?: string }>(
+				return queryOne<{
+					id: string;
+					email: string;
+					name: string;
+					role?: string;
+					group?: string;
+					is_superuser?: boolean;
+					created_at?: string;
+				}>(
 					db,
-					'UPDATE $id SET password = crypto::argon2::generate($newPassword) RETURN id, email, name, role, created_at;',
+					'UPDATE $id SET password = crypto::argon2::generate($newPassword) RETURN id, email, name, role, `group`, is_superuser, created_at;',
 					{ id: auth.user.id, newPassword }
 				);
 			}
 
-			return queryOne<{ id: string; email: string; name: string; role?: string; created_at?: string }>(
+			return queryOne<{
+				id: string;
+				email: string;
+				name: string;
+				role?: string;
+				group?: string;
+				is_superuser?: boolean;
+				created_at?: string;
+			}>(
 				db,
-				'UPDATE $id MERGE $patch RETURN id, email, name, role, created_at;',
+				'UPDATE $id MERGE $patch RETURN id, email, name, role, `group`, is_superuser, created_at;',
 				{ id: auth.user.id, patch }
 			);
 		});
@@ -150,6 +174,9 @@ export const PATCH: RequestHandler = async (event) => {
 export const DELETE: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
+	if (auth.user.is_superuser) {
+		return jsonError(event, 403, 'forbidden', 'Superuser account cannot be deleted.');
+	}
 
 	let payload: Record<string, unknown>;
 	try {

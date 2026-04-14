@@ -20,6 +20,7 @@ const appriseApiKey = read('APPRISE_API_KEY');
 const notificationEmailTargetTemplate = read('NOTIFICATION_EMAIL_TARGET_TEMPLATE');
 const notificationBrandLogoUrl = read('NOTIFICATION_BRAND_LOGO_URL');
 const gotenbergUrl = read('GOTENBERG_URL') || 'http://pdf:3000';
+const authSignupEnabled = (read('AUTH_SIGNUP_ENABLED') || 'true').toLowerCase() === 'true';
 const websiteVerificationTtlRaw = read('WEBSITE_VERIFICATION_TTL_SECONDS') || '604800';
 const websiteVerificationTtlSeconds = Number.parseInt(websiteVerificationTtlRaw, 10);
 if (!Number.isFinite(websiteVerificationTtlSeconds) || websiteVerificationTtlSeconds < 1) {
@@ -41,6 +42,7 @@ export const config = {
 	notificationEmailTargetTemplate,
 	notificationBrandLogoUrl,
 	gotenbergUrl,
+	authSignupEnabled,
 	websiteVerificationTtlSeconds,
 	surrealUser: read('SURREAL_USER'),
 	surrealPass: read('SURREAL_PASS'),

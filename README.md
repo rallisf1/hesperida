@@ -19,11 +19,10 @@ A self-hosted web scanner that shows you how both people and bots see your websi
 
 ### Dashboard
 
-A Sveltekit dashboard is under construction (TBA). The main functionality shall be:
+A Sveltekit dashboard is in beta. The main functionality is:
 
 1. CRUD for users/websites/jobs
 2. View scan results
-3. Compare scan results as a progress timeline
 
 ### API
 
@@ -50,7 +49,14 @@ In this phase, notification targets are user-level settings stored in `users.not
   - With SurrealDB SaaS
   `docker compose run --rm db-init && docker compose --profile backend up -d`
 4. (optional) you can pre-build the tools containers using `docker compose --profile tools build`. If you skip this the first run will take a few minutes.
-5. While the dashboard is being developed you can use the [API](http://localhost:3000/api). New jobs are automatically picked up by the orchestrator.
+5. Open `https://localhost:3000` (or according to your configuration)
+
+### Super User account
+
+**email:** hesperida@local.me
+**password:** the value of `SURREAL_PASS`
+
+You can change both later
 
 ### Updating
 
@@ -94,10 +100,9 @@ Things that I don't personally need, but would be helpful to some users. Check t
 
 ### Dashboard
 
-1. Generate a PDF report
-2. Public dashboards (e.g. to share with a client/colleague)
-3. Better ACL/Teams/sub-accounts
-4. AI assistant to help you fix any errors found
+1. Public dashboards (e.g. to share with a client/colleague), although the `/jobs/[id]/pdf` links are public.
+2. AI assistant to help you fix any errors found
+3. Compare scan results as a progress timeline or diff
 
 ### API
 
@@ -185,7 +190,7 @@ To verify your website either:
 - add a TXT DNS record for `hesperida.yourdomain.com` with `websites.verification_token` as its value, or
 - add a `hesperida-${websites.verification_token}.txt` (empty) file to your web root
 
-and use the `/api/v1/websites/[id]/verify` API endpoint.
+then verify it via the dashboard or use the `/api/v1/websites/[id]/verify` API endpoint.
 
 ### Can I use it in a CI/CD pipeline?
 
@@ -195,6 +200,10 @@ Yes, as long as you use a proper (a.k.a. with a live domain) staging environment
 
 In theory, as long as you respect the [AGPL license](./LICENSE), yes; multi-tenancy is baked in. In practice, it would take a lot of effort to scale this in its current form (self-managed docker containers), and be a nightmare to maintain.
 If I decide to spin up a SaaS, I will write a proprietary kubernetes orchestrator from scratch and use SurrealDB cloud as well.
+
+### I want to change my user group.
+
+Only superusers can do that. As a non-superuser all you can do is delete or transfer the ownership of any websites you own and delete your account. If you want to start a new group sign up (provided sign ups are enabled), else ask a user to invite you.
 
 ### Is this a vibe coded project?
 

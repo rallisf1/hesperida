@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
 import { queryMany, queryOne, withAdminDb, withUserDb } from '$lib/server/db';
-import { isAdmin } from '$lib/server/policy';
+import { isSuperuser } from '$lib/server/policy';
 import { parsePaginationParams } from '$lib/server/pagination';
 
 /**
@@ -30,7 +30,7 @@ export const GET: RequestHandler = async (event) => {
 	}
 
 	if (pagination.value.mode === 'all') {
-		const rows = isAdmin(auth.user)
+		const rows = isSuperuser(auth.user)
 			? await withAdminDb((db) => queryMany(db, 'SELECT * FROM job_queue ORDER BY created_at DESC;'))
 			: await withUserDb(auth.token, (db) => queryMany(db, 'SELECT * FROM job_queue ORDER BY created_at DESC;'));
 
@@ -38,7 +38,7 @@ export const GET: RequestHandler = async (event) => {
 	}
 
 	const { limit, offset, page, pageSize } = pagination.value;
-	const rows = isAdmin(auth.user)
+	const rows = isSuperuser(auth.user)
 		? await withAdminDb((db) =>
 				queryMany(db, 'SELECT * FROM job_queue ORDER BY created_at DESC LIMIT $limit START $offset;', {
 					limit,
@@ -51,7 +51,7 @@ export const GET: RequestHandler = async (event) => {
 					offset
 				})
 			);
-	const countRow = isAdmin(auth.user)
+	const countRow = isSuperuser(auth.user)
 		? await withAdminDb((db) =>
 				queryOne<{ total_items: number }>(db, 'SELECT count() AS total_items FROM job_queue GROUP ALL;')
 			)

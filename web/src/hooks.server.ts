@@ -10,6 +10,7 @@ import {
 } from '$lib/server/auth';
 import { checkAuthRateLimit } from '$lib/server/rate-limit';
 import { warmPlaywrightDevicesCache } from '$lib/server/playwright-devices';
+import { ensureSuperuser } from '$lib/server/superuser';
 
 const isAuthRoute = (pathname: string): boolean => pathname.startsWith('/api/v1/auth/');
 const isScreenshotRoute = (pathname: string): boolean => pathname.startsWith('/api/v1/screenshots/');
@@ -25,6 +26,7 @@ const isPublicDashboardRoute = (pathname: string): boolean =>
 	isStaticAssetRoute(pathname) ||
 	isPublicPdfReportRoute(pathname);
 let configValidated = false;
+let superuserEnsured = false;
 
 // Best-effort startup warmup for local playwright devices cache.
 warmPlaywrightDevicesCache();
@@ -47,6 +49,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 			throw new Error(`Missing required environment variables for APP_MODE=${config.appMode}: ${missingEnv.join(', ')}`);
 		}
 		configValidated = true;
+	}
+
+	if (!superuserEnsured && (config.appMode === 'api' || config.appMode === 'both')) {
+		await ensureSuperuser();
+		superuserEnsured = true;
 	}
 
 	const started = Date.now();

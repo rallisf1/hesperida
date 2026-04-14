@@ -1,12 +1,16 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Table from '$lib/components/ui/table';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { createToastEnhance } from '$lib/form-toast';
   	import { formatDate } from '$lib/utils.js';
 
-	let { data } = $props();
+	let { data, form } = $props();
 	let websiteFilter = $state<'owner' | 'member'>('owner');
 
 	const filteredWebsites = $derived.by(() => {
@@ -23,8 +27,35 @@
 		<p><strong>Name:</strong> {data.user.name}</p>
 		<p><strong>Email:</strong> {data.user.email}</p>
 		<p class="capitalize"><strong>Role:</strong> {data.user.role ?? '-'}</p>
+		{#if data.isSuperuser}
+			<p><strong>Group:</strong> {data.user.group || '-'}</p>
+		{/if}
 		<p><strong>Created:</strong> {formatDate(data.user.created_at, true)}</p>
 	</div>
+
+	{#if data.canChangeGroup}
+		<div class="rounded-md border p-4 space-y-2">
+			<Label for="group-change" class="text-lg font-semibold">Change Group</Label>
+			<form
+				method="POST"
+				action="?/change_group"
+				class="flex w-full max-w-sm flex-col gap-2"
+				use:enhance={createToastEnhance({
+					success: ({ formData }) => {
+						const group = String(formData.get('group') ?? '').trim();
+						return `Group changed to ${group || 'new group'}.`;
+					},
+					error: 'Failed to change group.'
+				})}
+			>
+				<Input id="group-change" name="group" placeholder="new-group-id" />
+				<Button type="submit" variant="outline">Change Group</Button>
+			</form>
+			{#if form?.change_group_error}
+				<p class="text-sm text-destructive">{form.change_group_error}</p>
+			{/if}
+		</div>
+	{/if}
 
 	<div class="flex items-center gap-3">
 		<a href={`/users/${data.user.id}/edit`}>

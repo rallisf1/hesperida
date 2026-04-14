@@ -17,6 +17,8 @@ export interface User {
     name: string;
     email: string;
     password: string;
+    group: string;
+    is_superuser: boolean;
     role: 'admin' | 'editor' | 'viewer';
     forgot_token?: string | null;
     notification_targets?: NotificationTarget[];

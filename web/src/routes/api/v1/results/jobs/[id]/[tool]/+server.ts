@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
 import { queryOne, withAdminDb, withUserDb } from '$lib/server/db';
-import { isAdmin } from '$lib/server/policy';
+import { isSuperuser } from '$lib/server/policy';
 import { tools } from '$lib/constants';
 import type { Tool } from '$lib/types';
 import { RecordId } from 'surrealdb';
@@ -54,13 +54,13 @@ export const GET: RequestHandler = async (event) => {
 
 	const jobId = new RecordId('jobs', event.params.id);
 	const jobSql = 'SELECT * FROM jobs WHERE id = $id LIMIT 1;';
-	const job = isAdmin(auth.user)
+	const job = isSuperuser(auth.user)
 		? await withAdminDb((db) => queryOne<Record<string, unknown>>(db, jobSql, { id: jobId }))
 		: await withUserDb(auth.token, (db) => queryOne<Record<string, unknown>>(db, jobSql, { id: jobId }));
 	if (!job) return jsonError(event, 404, 'not_found', 'Job not found.');
 
 	const value = job[tool];
-	const result = isAdmin(auth.user)
+	const result = isSuperuser(auth.user)
 		? await withAdminDb((db) => fetchResult(db, value))
 		: await withUserDb(auth.token, (db) => fetchResult(db, value));
 

@@ -20,9 +20,10 @@ describe('API Website Invite Integration', () => {
 		const ownerPassword = 'pass12345';
 		const inviteeEmail = randomEmail('invite_existing');
 		const inviteePassword = 'pass12345';
+		const group = crypto.randomUUID();
 
-		const owner = await createUser({ name: 'Invite Owner', email: ownerEmail, password: ownerPassword, role: 'editor' });
-		const invitee = await createUser({ name: 'Invite Existing', email: inviteeEmail, password: inviteePassword, role: 'viewer' });
+		const owner = await createUser({ name: 'Invite Owner', email: ownerEmail, password: ownerPassword, role: 'editor', group });
+		const invitee = await createUser({ name: 'Invite Existing', email: inviteeEmail, password: inviteePassword, role: 'viewer', group });
 		if (!owner || !invitee) throw new Error('Failed to create users');
 
 		const website = await createWebsite({
@@ -39,7 +40,7 @@ describe('API Website Invite Integration', () => {
 		const firstInvite = await client.call({
 			method: 'POST',
 			path: invitePath,
-			body: { email: inviteeEmail }
+			body: { email: inviteeEmail, role: 'viewer' }
 		});
 		expect(firstInvite.response.status).toBe(200);
 		expect(firstInvite.json.ok).toBeTrue();
@@ -47,7 +48,7 @@ describe('API Website Invite Integration', () => {
 		const secondInvite = await client.call({
 			method: 'POST',
 			path: invitePath,
-			body: { email: inviteeEmail }
+			body: { email: inviteeEmail, role: 'viewer' }
 		});
 		expect(secondInvite.response.status).toBe(200);
 
@@ -80,7 +81,7 @@ describe('API Website Invite Integration', () => {
 		const invite = await client.call({
 			method: 'POST',
 			path: `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/invite`,
-			body: { email: unknownEmail }
+			body: { email: unknownEmail, role: 'viewer' }
 		});
 		expect(invite.response.status).toBe(200);
 
@@ -98,9 +99,10 @@ describe('API Website Invite Integration', () => {
 		const ownerPassword = 'pass12345';
 		const viewerEmail = randomEmail('invite_viewer');
 		const viewerPassword = 'pass12345';
+		const group = crypto.randomUUID();
 
-		const owner = await createUser({ name: 'Invite Owner 3', email: ownerEmail, password: ownerPassword, role: 'editor' });
-		const viewer = await createUser({ name: 'Invite Viewer', email: viewerEmail, password: viewerPassword, role: 'viewer' });
+		const owner = await createUser({ name: 'Invite Owner 3', email: ownerEmail, password: ownerPassword, role: 'editor', group });
+		const viewer = await createUser({ name: 'Invite Viewer', email: viewerEmail, password: viewerPassword, role: 'viewer', group });
 		if (!owner || !viewer) throw new Error('Failed to create users');
 
 		const website = await createWebsite({
@@ -124,7 +126,7 @@ describe('API Website Invite Integration', () => {
 		const res = await client.call({
 			method: 'POST',
 			path: `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/invite`,
-			body: { email: randomEmail('should_fail_invite') }
+			body: { email: randomEmail('should_fail_invite'), role: 'viewer' }
 		});
 
 		expect(res.response.status).toBe(403);
@@ -135,13 +137,15 @@ describe('API Website Invite Integration', () => {
 		const ownerEmail = randomEmail('invite_owner_fail');
 		const ownerPassword = 'pass12345';
 		const inviteeEmail = randomEmail('invitee_fail');
+		const group = crypto.randomUUID();
 
-		const owner = await createUser({ name: 'Invite Owner Fail', email: ownerEmail, password: ownerPassword, role: 'editor' });
+		const owner = await createUser({ name: 'Invite Owner Fail', email: ownerEmail, password: ownerPassword, role: 'editor', group });
 		const invitee = await createUser({
 			name: 'Invitee Fail',
 			email: inviteeEmail,
 			password: 'pass12345',
-			role: 'viewer'
+			role: 'viewer',
+			group
 		});
 		if (!owner || !invitee) throw new Error('Failed to create users');
 
@@ -159,7 +163,7 @@ describe('API Website Invite Integration', () => {
 		const res = await client.call({
 			method: 'POST',
 			path: invitePath,
-			body: { email: inviteeEmail }
+			body: { email: inviteeEmail, role: 'viewer' }
 		});
 		expect(res.response.status).toBe(502);
 		expect(res.json.error.code).toBe('notification_failed');
@@ -176,9 +180,10 @@ describe('API Website Invite Integration', () => {
 		const ownerPassword = 'pass12345';
 		const memberEmail = randomEmail('uninvite_member');
 		const memberPassword = 'pass12345';
+		const group = crypto.randomUUID();
 
-		const owner = await createUser({ name: 'Uninvite Owner', email: ownerEmail, password: ownerPassword, role: 'editor' });
-		const member = await createUser({ name: 'Uninvite Member', email: memberEmail, password: memberPassword, role: 'viewer' });
+		const owner = await createUser({ name: 'Uninvite Owner', email: ownerEmail, password: ownerPassword, role: 'editor', group });
+		const member = await createUser({ name: 'Uninvite Member', email: memberEmail, password: memberPassword, role: 'viewer', group });
 		if (!owner || !member) throw new Error('Failed to create users');
 
 		const website = await createWebsite({
@@ -253,18 +258,21 @@ describe('API Website Invite Integration', () => {
 		const ownerPassword = 'pass12345';
 		const targetEmail = randomEmail('transfer_target_keep');
 		const targetPassword = 'pass12345';
+		const group = crypto.randomUUID();
 
 		const owner = await createUser({
 			name: 'Transfer Owner Keep',
 			email: ownerEmail,
 			password: ownerPassword,
-			role: 'editor'
+			role: 'editor',
+			group
 		});
 		const target = await createUser({
 			name: 'Transfer Target Keep',
 			email: targetEmail,
 			password: targetPassword,
-			role: 'viewer'
+			role: 'viewer',
+			group
 		});
 		if (!owner || !target) throw new Error('Failed to create users');
 
@@ -306,18 +314,21 @@ describe('API Website Invite Integration', () => {
 		const ownerPassword = 'pass12345';
 		const targetEmail = randomEmail('transfer_target_remove');
 		const targetPassword = 'pass12345';
+		const group = crypto.randomUUID();
 
 		const owner = await createUser({
 			name: 'Transfer Owner Remove',
 			email: ownerEmail,
 			password: ownerPassword,
-			role: 'editor'
+			role: 'editor',
+			group
 		});
 		const target = await createUser({
 			name: 'Transfer Target Remove',
 			email: targetEmail,
 			password: targetPassword,
-			role: 'viewer'
+			role: 'viewer',
+			group
 		});
 		if (!owner || !target) throw new Error('Failed to create users');
 
@@ -388,7 +399,7 @@ describe('API Website Invite Integration', () => {
 			{ email: unknownEmail }
 		);
 		expect(createdUser).toBeTruthy();
-		expect(createdUser?.role).toBe('viewer');
+		expect(createdUser?.role).toBe('editor');
 		expect(createdUser?.forgot_token).toBeTruthy();
 
 		const refreshed = await adminOne<{ owner?: string }>(
@@ -405,10 +416,11 @@ describe('API Website Invite Integration', () => {
 		const memberPassword = 'pass12345';
 		const targetEmail = randomEmail('transfer_target_forbidden');
 		const targetPassword = 'pass12345';
+		const group = crypto.randomUUID();
 
-		const owner = await createUser({ name: 'Owner Forbidden', email: ownerEmail, password: ownerPassword, role: 'editor' });
-		const member = await createUser({ name: 'Member Forbidden', email: memberEmail, password: memberPassword, role: 'editor' });
-		const target = await createUser({ name: 'Target Forbidden', email: targetEmail, password: targetPassword, role: 'viewer' });
+		const owner = await createUser({ name: 'Owner Forbidden', email: ownerEmail, password: ownerPassword, role: 'editor', group });
+		const member = await createUser({ name: 'Member Forbidden', email: memberEmail, password: memberPassword, role: 'editor', group });
+		const target = await createUser({ name: 'Target Forbidden', email: targetEmail, password: targetPassword, role: 'viewer', group });
 		if (!owner || !member || !target) throw new Error('Failed to create users');
 
 		const website = await createWebsite({
@@ -492,9 +504,10 @@ describe('API Website Invite Integration', () => {
 		const ownerPassword = 'pass12345';
 		const viewerEmail = randomEmail('uninvite_viewer');
 		const viewerPassword = 'pass12345';
+		const group = crypto.randomUUID();
 
-		const owner = await createUser({ name: 'Uninvite Owner Viewer', email: ownerEmail, password: ownerPassword, role: 'editor' });
-		const viewer = await createUser({ name: 'Uninvite Viewer', email: viewerEmail, password: viewerPassword, role: 'viewer' });
+		const owner = await createUser({ name: 'Uninvite Owner Viewer', email: ownerEmail, password: ownerPassword, role: 'editor', group });
+		const viewer = await createUser({ name: 'Uninvite Viewer', email: viewerEmail, password: viewerPassword, role: 'viewer', group });
 		if (!owner || !viewer) throw new Error('Failed to create users');
 
 		const website = await createWebsite({
