@@ -20,7 +20,7 @@ const toBytes = (value: unknown): Uint8Array | null => {
  * /api/v1/screenshots/{id}:
  *   get:
  *     tags: [Screenshots]
- *     summary: Proxy WCAG screenshot image by wcag_results id
+ *     summary: Get WCAG screenshot
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []

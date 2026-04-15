@@ -1,4 +1,5 @@
 import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+import apiEndpointsSidebar from './docs/api/endpoints/sidebar';
 
 const sidebars: SidebarsConfig = {
   docsSidebar: [
@@ -16,7 +17,16 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'API',
-      items: ['api/overview', 'api/auth-acl', 'api/endpoints'],
+      items: [
+        'api/overview',
+        'api/auth-acl',
+        {
+          type: 'category',
+          label: 'Endpoint Map',
+          link: { type: 'generated-index', slug: '/api/endpoints' },
+          items: apiEndpointsSidebar as any,
+        },
+      ],
     },
     {
       type: 'category',

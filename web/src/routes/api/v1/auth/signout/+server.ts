@@ -9,10 +9,14 @@ import { jsonOk } from '$lib/server/http';
  * /api/v1/auth/signout:
  *   post:
  *     tags: [Auth]
- *     summary: Sign out and clear session cookie
+ *     summary: Sign out
  *     responses:
  *       200:
  *         description: Signed out
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessEnvelope'
  */
 export const POST: RequestHandler = async (event) => {
 	const token = getAuthToken(event);

@@ -24,7 +24,7 @@ const parseTimestamp = (value: unknown): number => {
  * /api/v1/job-queue/{id}/unstuck:
  *   post:
  *     tags: [JobQueue]
- *     summary: Move a stale pending queue task to waiting
+ *     summary: Unstuck a job queue task
  *     description: Only non-viewers can unstuck tasks. Task must be pending and older than 5 minutes.
  *     security:
  *       - apiKeyAuth: []
@@ -37,6 +37,10 @@ const parseTimestamp = (value: unknown): number => {
  *     responses:
  *       200:
  *         description: Task moved to waiting
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/JobQueueTaskEnvelope'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       409:

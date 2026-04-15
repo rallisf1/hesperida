@@ -16,25 +16,77 @@ const isUserRole = (value: string): value is User["role"] =>
  * /api/v1/users/{id}:
  *   get:
  *     tags: [Users]
- *     summary: Get a user by id (admin only)
+ *     summary: Get user
+ *     description: Admin-only
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: User details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserEnvelope'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
  *   patch:
  *     tags: [Users]
- *     summary: Update a user (admin only)
+ *     summary: Update user
+ *     description: Admin-only
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: User updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserEnvelope'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       409:
+ *         $ref: '#/components/responses/Conflict'
  *   delete:
  *     tags: [Users]
- *     summary: Delete a user (admin only)
+ *     summary: Delete user
+ *     description: Admin-only
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
  *     responses:
  *       200:
  *         description: User deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/DeleteEnvelope'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
  *       409:
  *         description: User owns websites and cannot be deleted
  */

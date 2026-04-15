@@ -11,13 +11,17 @@ import { RecordId } from 'surrealdb';
  * /api/v1/jobs/{id}/queue:
  *   get:
  *     tags: [JobQueue]
- *     summary: List queue tasks for the current job
+ *     summary: List queue tasks of job
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
  *     responses:
  *       200:
  *         description: Job Queue task list
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/JobQueueByJobEnvelope'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */

@@ -15,13 +15,17 @@ const websiteSelectSql =
  * /api/v1/websites:
  *   get:
  *     tags: [Websites]
- *     summary: List websites for the current user
+ *     summary: List websites
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
  *     responses:
  *       200:
  *         description: Website list
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/WebsitesListEnvelope'
  */
 export const GET: RequestHandler = async (event) => {
 	return withRequiredUser(event, async (auth) => {
@@ -86,7 +90,7 @@ export const GET: RequestHandler = async (event) => {
  * /api/v1/websites:
  *   post:
  *     tags: [Websites]
- *     summary: Create a website
+ *     summary: Create website
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -103,6 +107,10 @@ export const GET: RequestHandler = async (event) => {
  *     responses:
  *       201:
  *         description: Website created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/WebsiteEnvelope'
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  */

@@ -14,13 +14,17 @@ import { RecordId } from 'surrealdb';
  * /api/v1/jobs:
  *   get:
  *     tags: [Jobs]
- *     summary: List jobs for the current user
+ *     summary: List jobs
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
  *     responses:
  *       200:
  *         description: Job list
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/JobsListEnvelope'
  */
 export const GET: RequestHandler = async (event) => {
 	return withRequiredUser(event, async (auth) => {
@@ -81,7 +85,8 @@ export const GET: RequestHandler = async (event) => {
  * /api/v1/jobs:
  *   post:
  *     tags: [Jobs]
- *     summary: Create a new scan job
+ *     summary: Create job
+ *     description: Non-viewers only. Jobs are automatically parsed into job queue tasks and executed by the orchestrator.
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -101,6 +106,10 @@ export const GET: RequestHandler = async (event) => {
  *     responses:
  *       201:
  *         description: Job created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/JobEnvelope'
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       403:

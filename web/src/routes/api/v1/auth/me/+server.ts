@@ -7,12 +7,16 @@ import { jsonError, jsonOk } from '$lib/server/http';
  * /api/v1/auth/me:
  *   get:
  *     tags: [Auth]
- *     summary: Get current authenticated user
+ *     summary: Get my account
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Current user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthCurrentUserEnvelope'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */

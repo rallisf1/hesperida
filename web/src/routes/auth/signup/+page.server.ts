@@ -1,9 +1,22 @@
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import { setSessionCookies } from '$lib/server/auth';
+import { config } from '$lib/server/config';
 import type { ApiEnvelope } from '$lib/types/api';
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async () => {
+	if (!config.authSignupEnabled) {
+		throw redirect(303, '/auth/signin?signup=disabled');
+	}
+	return {};
+};
 
 export const actions: Actions = {
 	default: async (event) => {
+		if (!config.authSignupEnabled) {
+			throw redirect(303, '/auth/signin?signup=disabled');
+		}
+
 		const formData = await event.request.formData();
 		const name = String(formData.get('name') ?? '').trim();
 		const email = String(formData.get('email') ?? '').trim();

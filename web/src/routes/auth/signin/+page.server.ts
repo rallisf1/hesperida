@@ -1,6 +1,15 @@
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import { setSessionCookies } from '$lib/server/auth';
 import type { ApiEnvelope } from '$lib/types/api';
+import { config } from '$lib/server/config';
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async (event) => {
+	return {
+		signupEnabled: config.authSignupEnabled,
+		signupDisabled: event.url.searchParams.get('signup') === 'disabled'
+	};
+};
 
 export const actions: Actions = {
 	default: async (event) => {

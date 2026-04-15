@@ -16,18 +16,24 @@ const isUserRole = (value: string): value is User["role"] =>
  * /api/v1/users:
  *   get:
  *     tags: [Users]
- *     summary: List users (admin only)
+ *     summary: List users
+ *     description: Admin only
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
  *     responses:
  *       200:
  *         description: User list
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UsersListEnvelope'
  *       403:
  *         $ref: '#/components/responses/Unauthorized'
  *   post:
  *     tags: [Users]
- *     summary: Create user (admin only) and send onboarding reset token
+ *     summary: Create user
+ *     description: Admin only. A password reset token is sent automatically via email.
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -47,6 +53,10 @@ const isUserRole = (value: string): value is User["role"] =>
  *     responses:
  *       201:
  *         description: User created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserEnvelope'
  *       502:
  *         description: Notification delivery failed
  */

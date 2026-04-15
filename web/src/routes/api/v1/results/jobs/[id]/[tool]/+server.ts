@@ -24,7 +24,7 @@ const fetchResult = async (db: any, value: unknown): Promise<unknown> => {
  * /api/v1/results/jobs/{id}/{tool}:
  *   get:
  *     tags: [Results]
- *     summary: Get a specific tool result for a job
+ *     summary: Get single result of a job
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -42,6 +42,10 @@ const fetchResult = async (db: any, value: unknown): Promise<unknown> => {
  *     responses:
  *       200:
  *         description: Tool result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ResultByToolEnvelope'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */

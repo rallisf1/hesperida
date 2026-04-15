@@ -9,7 +9,7 @@ import { getCurrentUser, setSessionCookies } from '$lib/server/auth';
  * /api/v1/auth/signin:
  *   post:
  *     tags: [Auth]
- *     summary: Sign in with email and password
+ *     summary: Sign in
  *     requestBody:
  *       required: true
  *       content:
@@ -23,6 +23,10 @@ import { getCurrentUser, setSessionCookies } from '$lib/server/auth';
  *     responses:
  *       200:
  *         description: Authenticated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthSessionEnvelope'
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       401:

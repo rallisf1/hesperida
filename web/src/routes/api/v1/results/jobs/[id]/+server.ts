@@ -12,7 +12,7 @@ import { computeExpiresInDays } from '$lib/server/result-fields';
  * /api/v1/results/jobs/{id}:
  *   get:
  *     tags: [Results]
- *     summary: Get aggregated results for a job
+ *     summary: Get all results of a job
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -24,6 +24,10 @@ import { computeExpiresInDays } from '$lib/server/result-fields';
  *     responses:
  *       200:
  *         description: Aggregated results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ResultsByJobEnvelope'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */

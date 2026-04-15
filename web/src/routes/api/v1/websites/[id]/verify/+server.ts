@@ -35,7 +35,8 @@ const getAccessibleWebsite = async (
  * /api/v1/websites/{id}/verify:
  *   get:
  *     tags: [Websites]
- *     summary: Verify website ownership using DNS TXT and HTTP fallback
+ *     summary: Verify website
+ *     description: Verifies ownership using DNS TXT and HTTP (web root file) as fallback
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -47,6 +48,10 @@ const getAccessibleWebsite = async (
  *     responses:
  *       200:
  *         description: Verification result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/WebsiteVerificationEnvelope'
  *       409:
  *         description: Website is already verified
  *       404:

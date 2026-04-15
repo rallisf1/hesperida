@@ -7,6 +7,18 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.6.1] - 2026-04-15
+
+### Added
+
+- Interactive API documentation for website
+- Publish docs to github pages workflow
+
+### Changed
+
+- Add response schemas to API endpoints swagger docs
+- Gatekeep `/auth/signup` when `AUTH_SIGNUP_ENABLED` is `false`
+
 ## [0.6.0] - 2026-04-15
 
 ### Added

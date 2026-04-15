@@ -1,7 +1,7 @@
 {
 	"name": "hesperida-web",
 	"private": true,
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"type": "module",
 	"repository": {
 		"type": "git",
@@ -13,8 +13,8 @@
 	"license": "AGPL-3.0-only",
 	"scripts": {
 		"dev": "bunx --bun vite dev",
-		"build": "vite build",
-		"preview": "vite preview",
+		"build": "bunx --bun vite build",
+		"preview": "bunx --bun vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",

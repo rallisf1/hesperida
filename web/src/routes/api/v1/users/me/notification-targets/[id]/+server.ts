@@ -12,7 +12,8 @@ import { validateNotificationTarget } from '$lib/server/notifications/targets';
  * /api/v1/users/me/notification-targets/{id}:
  *   patch:
  *     tags: [Users]
- *     summary: Update a notification target (test send required)
+ *     summary: Update notification target
+ *     description: Requires a successful send test.
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -24,9 +25,13 @@ import { validateNotificationTarget } from '$lib/server/notifications/targets';
  *     responses:
  *       200:
  *         description: Notification target updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/NotificationTargetAndTargetsEnvelope'
  *   delete:
  *     tags: [Users]
- *     summary: Delete a notification target
+ *     summary: Delete notification target
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -38,6 +43,10 @@ import { validateNotificationTarget } from '$lib/server/notifications/targets';
  *     responses:
  *       200:
  *         description: Notification target deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/NotificationTargetsDeleteEnvelope'
  */
 export const PATCH: RequestHandler = async (event) => {
 	return withRequiredUser(event, async (auth) => {

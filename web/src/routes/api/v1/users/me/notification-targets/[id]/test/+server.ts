@@ -10,7 +10,7 @@ import { getUserNotificationTargets } from '$lib/server/notifications/store';
  * /api/v1/users/me/notification-targets/{id}/test:
  *   post:
  *     tags: [Users]
- *     summary: Send a test notification to a target
+ *     summary: Test notification
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -22,6 +22,10 @@ import { getUserNotificationTargets } from '$lib/server/notifications/store';
  *     responses:
  *       200:
  *         description: Test sent
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessEnvelope'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       502:

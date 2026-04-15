@@ -22,7 +22,7 @@ const getWebsite = async (websiteId: RecordId, token: string, superuser = false)
  * /api/v1/websites/{id}/members:
  *   get:
  *     tags: [Websites]
- *     summary: Get owner/member user profiles for a website
+ *     summary: List members
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -34,6 +34,10 @@ const getWebsite = async (websiteId: RecordId, token: string, superuser = false)
  *     responses:
  *       200:
  *         description: Website member details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/WebsiteMembersEnvelope'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */

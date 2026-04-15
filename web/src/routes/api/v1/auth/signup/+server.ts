@@ -9,7 +9,7 @@ import { getCurrentUser, setSessionCookies } from '$lib/server/auth';
  * /api/v1/auth/signup:
  *   post:
  *     tags: [Auth]
- *     summary: Register a new user account
+ *     summary: Sign up
  *     requestBody:
  *       required: true
  *       content:
@@ -24,6 +24,10 @@ import { getCurrentUser, setSessionCookies } from '$lib/server/auth';
  *     responses:
  *       201:
  *         description: Account created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthSessionEnvelope'
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       401:

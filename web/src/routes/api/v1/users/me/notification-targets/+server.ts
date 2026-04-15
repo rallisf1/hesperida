@@ -12,16 +12,21 @@ import { validateNotificationTarget } from '$lib/server/notifications/targets';
  * /api/v1/users/me/notification-targets:
  *   get:
  *     tags: [Users]
- *     summary: List current user notification targets
+ *     summary: List notification targets
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
  *     responses:
  *       200:
  *         description: Notification targets
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/NotificationTargetsEnvelope'
  *   post:
  *     tags: [Users]
- *     summary: Create a notification target (test send required)
+ *     summary: Create notification
+ *     description: Requires a successful send test.
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -39,6 +44,10 @@ import { validateNotificationTarget } from '$lib/server/notifications/targets';
  *     responses:
  *       201:
  *         description: Notification target created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/NotificationTargetAndTargetsEnvelope'
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       502:

@@ -9,7 +9,7 @@ import type { User } from '$lib/types';
  * /api/v1/auth/forgot:
  *   post:
  *     tags: [Auth]
- *     summary: Start password reset flow for a user email
+ *     summary: Request password reset
  *     requestBody:
  *       required: true
  *       content:
@@ -22,13 +22,17 @@ import type { User } from '$lib/types';
  *     responses:
  *       200:
  *         description: Reset token generated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessEnvelope'
  *       502:
  *         description: Notification delivery failed
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *   patch:
  *     tags: [Auth]
- *     summary: Complete password reset using forgot token
+ *     summary: Complete password reset
  *     requestBody:
  *       required: true
  *       content:
@@ -42,6 +46,10 @@ import type { User } from '$lib/types';
  *     responses:
  *       200:
  *         description: Password updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessEnvelope'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */

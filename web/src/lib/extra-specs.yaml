@@ -81,3 +81,9 @@ components:
                 error:
                   code: conflict
                   message: Resource state conflict.
+    GeneralError:
+      description: Generic application error response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'

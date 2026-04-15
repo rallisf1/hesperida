@@ -17,7 +17,7 @@ import type { User, Website } from '$lib/types';
  * /api/v1/websites/{id}/uninvite:
  *   post:
  *     tags: [Websites]
- *     summary: Remove a user's access to a website by email
+ *     summary: Uninvite member
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -33,6 +33,10 @@ import type { User, Website } from '$lib/types';
  *     responses:
  *       200:
  *         description: User access removed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/WebsiteUninviteEnvelope'
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       403:
@@ -131,4 +135,3 @@ export const POST: RequestHandler = async (event) => {
 
 	return jsonOk(event, { website: updated, removed: true });
 };
-

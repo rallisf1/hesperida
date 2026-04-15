@@ -10,7 +10,7 @@ import { RecordId } from 'surrealdb';
  * /api/v1/jobs/{id}:
  *   get:
  *     tags: [Jobs]
- *     summary: Get a job by id
+ *     summary: Get job
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -22,6 +22,10 @@ import { RecordId } from 'surrealdb';
  *     responses:
  *       200:
  *         description: Job details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/JobEnvelope'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */

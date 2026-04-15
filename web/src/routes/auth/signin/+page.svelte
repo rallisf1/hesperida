@@ -10,7 +10,7 @@
 	} from "$lib/components/ui/field/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 
-	let { form } = $props();
+	let { data, form } = $props();
 </script>
 
 <Card.Root>
@@ -24,6 +24,11 @@
 				<FieldSeparator class="*:data-[slot=field-separator-content]:bg-card">
 					Sign In
 				</FieldSeparator>
+				{#if data.signupDisabled}
+					<FieldDescription class="text-center text-amber-600 dark:text-amber-400">
+						Sign up is disabled. Ask an admin for an invite.
+					</FieldDescription>
+				{/if}
 				<Field>
 					<FieldLabel for="email-signin">Email</FieldLabel>
 					<Input
@@ -49,12 +54,13 @@
 				{/if}
 				<Field>
 					<Button type="submit">Login</Button>
+					{#if data.signupEnabled}
 					<FieldDescription class="text-center">
 						Don't have an account? <a href="/auth/signup">Sign up</a>
 					</FieldDescription>
+					{/if}
 				</Field>
 			</FieldGroup>
 		</form>
 	</Card.Content>
 </Card.Root>
-

@@ -10,7 +10,7 @@ import { RecordId } from 'surrealdb';
  * /api/v1/job-queue/{id}:
  *   get:
  *     tags: [JobQueue]
- *     summary: Get a queue task by id
+ *     summary: Get job queue task
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -22,6 +22,10 @@ import { RecordId } from 'surrealdb';
  *     responses:
  *       200:
  *         description: Queue task
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/JobQueueTaskEnvelope'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */

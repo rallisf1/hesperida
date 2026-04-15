@@ -10,7 +10,8 @@ import { RecordId } from 'surrealdb';
  * /api/v1/job-queue/{id}/cancel:
  *   post:
  *     tags: [JobQueue]
- *     summary: Cancel a waiting queue task
+ *     summary: Cancel a job queue task
+ *     description: Only non-viewers can cancel tasks. Task must have waiting status.
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -22,6 +23,10 @@ import { RecordId } from 'surrealdb';
  *     responses:
  *       200:
  *         description: Task canceled
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/JobQueueTaskEnvelope'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       409:

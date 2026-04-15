@@ -10,13 +10,17 @@ import { parsePaginationParams } from '$lib/server/pagination';
  * /api/v1/job-queue:
  *   get:
  *     tags: [JobQueue]
- *     summary: List queue tasks for the current user
+ *     summary: List job queue tasks
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
  *     responses:
  *       200:
  *         description: Queue task list
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/JobQueueListEnvelope'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */

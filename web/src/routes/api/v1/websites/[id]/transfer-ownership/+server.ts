@@ -12,7 +12,8 @@ import type { User, Website } from '$lib/types';
  * /api/v1/websites/{id}/transfer-ownership:
  *   post:
  *     tags: [Websites]
- *     summary: Transfer website ownership to another user (owner only)
+ *     summary: Transfer ownership
+ *     description: Owner-only. The recipient cannot be an existing viewer.
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -29,6 +30,10 @@ import type { User, Website } from '$lib/types';
  *     responses:
  *       200:
  *         description: Ownership transferred
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/WebsiteTransferOwnershipEnvelope'
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       403:

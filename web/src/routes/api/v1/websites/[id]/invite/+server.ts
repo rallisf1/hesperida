@@ -37,7 +37,7 @@ const createUniqueGroup = async (): Promise<string> => {
  * /api/v1/websites/{id}/invite:
  *   post:
  *     tags: [Websites]
- *     summary: Invite a user to a website by email and role
+ *     summary: Invite member
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -56,6 +56,10 @@ const createUniqueGroup = async (): Promise<string> => {
  *     responses:
  *       200:
  *         description: User invited
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/WebsiteInviteEnvelope'
  *       502:
  *         description: Notification delivery failed
  *       403:

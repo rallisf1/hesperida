@@ -1,6 +1,7 @@
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import type * as OpenApiPlugin from 'docusaurus-plugin-openapi-docs';
 
 const config: Config = {
   title: 'Hesperida',
@@ -29,6 +30,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           routeBasePath: '/',
+          docItemComponent: '@theme/ApiItem',
           editUrl:
             'https://github.com/rallisf1/hesperida/blob/main/docs/',
         },
@@ -41,6 +43,24 @@ const config: Config = {
   ],
   plugins: [
     [
+      'docusaurus-plugin-openapi-docs',
+      {
+        id: 'openapi',
+        docsPluginId: 'classic',
+        config: {
+          endpoints: {
+            specPath: 'openapi/openapi.json',
+            outputDir: 'docs/api/endpoints',
+            sidebarOptions: {
+              groupPathsBy: 'tag',
+              categoryLinkSource: 'auto',
+            },
+            showSchemas: true,
+          } satisfies OpenApiPlugin.Options,
+        },
+      },
+    ],
+    [
       require.resolve('@easyops-cn/docusaurus-search-local'),
       {
         hashed: true,
@@ -52,6 +72,7 @@ const config: Config = {
       },
     ],
   ],
+  themes: ['docusaurus-theme-openapi-docs'],
 
   themeConfig: {
     image: 'img/docusaurus-social-card.jpg',

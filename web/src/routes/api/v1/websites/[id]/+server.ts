@@ -25,7 +25,7 @@ const getWebsite = async (websiteId: RecordId, token: string, superuser = false)
  * /api/v1/websites/{id}:
  *   get:
  *     tags: [Websites]
- *     summary: Get a website by id
+ *     summary: Get website
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -37,6 +37,10 @@ const getWebsite = async (websiteId: RecordId, token: string, superuser = false)
  *     responses:
  *       200:
  *         description: Website details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/WebsiteEnvelope'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
@@ -56,7 +60,7 @@ export const GET: RequestHandler = async (event) => {
  * /api/v1/websites/{id}:
  *   delete:
  *     tags: [Websites]
- *     summary: Delete a website
+ *     summary: Delete website
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -68,6 +72,10 @@ export const GET: RequestHandler = async (event) => {
  *     responses:
  *       200:
  *         description: Website deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/DeleteEnvelope'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */

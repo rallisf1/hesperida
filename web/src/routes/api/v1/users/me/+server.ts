@@ -9,13 +9,17 @@ import { clearSessionCookies } from '$lib/server/auth';
  * /api/v1/users/me:
  *   get:
  *     tags: [Users]
- *     summary: Get current user profile
+ *     summary: Get my user
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
  *     responses:
  *       200:
  *         description: Current user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserEnvelope'
  */
 export const GET: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
@@ -29,7 +33,7 @@ export const GET: RequestHandler = async (event) => {
  * /api/v1/users/me:
  *   patch:
  *     tags: [Users]
- *     summary: Update current user profile
+ *     summary: Update my user
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -47,11 +51,15 @@ export const GET: RequestHandler = async (event) => {
  *     responses:
  *       200:
  *         description: User updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserEnvelope'
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *   delete:
  *     tags: [Users]
- *     summary: Delete current user account
+ *     summary: Delete my user
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -67,6 +75,10 @@ export const GET: RequestHandler = async (event) => {
  *     responses:
  *       200:
  *         description: User deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/DeleteEnvelope'
  *       409:
  *         description: User owns one or more websites
  *       400:
