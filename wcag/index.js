@@ -9,6 +9,8 @@ const deviceName = (process.env.WCAG_DEVICE_NAME || 'Desktop Chrome').trim();
 if (!url || !url.length) throw new Error('Host parameter missing!');
 if (!job_id || !job_id.length) throw new Error('Job ID parameter missing!');
 
+const url_check = new URL(url); // just to throw an error if it's not a url
+
 const parseCsv = (input) => {
   if (!input || !input.length) return [];
   return input.split(',').map((item) => item.trim()).filter(Boolean);

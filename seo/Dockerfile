@@ -1,9 +1,8 @@
-FROM bun:1-slim
+FROM node:22-trixie-slim
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-RUN npm install -g @seomator/seo-audit \
-    && npx playwright install chromium --with-deps
+RUN npx playwright install chromium --with-deps
 
 RUN apt install -y git
 
@@ -18,10 +17,16 @@ WORKDIR /app
 
 ARG CACHE_BUST
 
-# TODO: git clone https://github.com/seo-skills/seo-audit-skill.git and build it
+RUN git clone https://github.com/seo-skills/seo-audit-skill.git seomator
+
+WORKDIR /app/seomator
+
+RUN npm install && npm run build
+
+WORKDIR /app
 
 COPY ./seo /app
 
-RUN bun install
+RUN npm install
 
-ENTRYPOINT ["bun", "/app/index.ts"]
+ENTRYPOINT ["node", "/app/index.js"]

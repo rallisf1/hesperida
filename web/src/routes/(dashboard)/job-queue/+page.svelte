@@ -243,6 +243,13 @@
 												{/snippet}
 											</DropdownMenu.Item>
 										{/if}
+										{#if task.status === 'completed'}
+											<DropdownMenu.Item>
+												{#snippet child({ props })}
+													<a href={`/job-queue/${task.id}/diff`} {...props}>Compare</a>
+												{/snippet}
+											</DropdownMenu.Item>
+										{/if}
 										{#if task.status === 'waiting'}
 											<DropdownMenu.Separator />
 											<DropdownMenu.Item variant="destructive">

@@ -23,6 +23,7 @@
 	import { Label } from "$lib/components/ui/label/index.js";
 	import { toggleMode, mode } from "mode-watcher";
 	import type { DashboardNotificationEvent } from "$lib/notifications";
+  import { asset } from "$app/paths";
 
 	let { data, children } = $props();
 
@@ -175,7 +176,7 @@
 					<Sidebar.MenuButton class="data-[slot=sidebar-menu-button]:p-1.5!">
 						{#snippet child({ props })}
 							<a href="/" {...props}>
-								<SparklesIcon class="size-5!" />
+								<img src={asset('/hesperida-icon.svg')} class="max-h-5 w-auto" alt="Hesperida Web Scanner" />
 								<span class="text-base font-semibold">Hesperida</span>
 							</a>
 						{/snippet}

@@ -1,3 +1,5 @@
+![Hesperida Web Scanner](./assets/hesperida-logo.svg)
+
 # Hesperida
 
 A self-hosted web scanner that shows you how both people and bots see your websites & web applications.
@@ -106,7 +108,6 @@ Things that I don't personally need, but would be helpful to some users. Check t
 
 1. Public dashboards (e.g. to share with a client/colleague), although the `/jobs/[id]/pdf` links are public.
 2. AI assistant to help you fix any errors found
-3. Compare scan results as a progress timeline or diff
 
 ### API
 

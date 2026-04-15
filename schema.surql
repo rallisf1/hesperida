@@ -331,12 +331,12 @@ DEFINE FIELD IF NOT EXISTS registrar.url ON domain_results TYPE string | null;
 DEFINE FIELD IF NOT EXISTS registrar.email ON domain_results TYPE string | null;
 DEFINE FIELD IF NOT EXISTS registrar.phone ON domain_results TYPE string | null;
 DEFINE FIELD OVERWRITE statuses ON domain_results TYPE array<string> | [];
-DEFINE FIELD IF NOT EXISTS transferLock ON domain_results TYPE bool;
+DEFINE FIELD OVERWRITE transferLock ON domain_results TYPE bool | null;
 DEFINE FIELD IF NOT EXISTS creationDate ON domain_results TYPE datetime | null;
 DEFINE FIELD IF NOT EXISTS updatedDate ON domain_results TYPE datetime | null;
 DEFINE FIELD IF NOT EXISTS expirationDate ON domain_results TYPE datetime | null;
-DEFINE FIELD IF NOT EXISTS dnssecEnabled ON domain_results TYPE bool;
-DEFINE FIELD IF NOT EXISTS privacyEnabled ON domain_results TYPE bool;
+DEFINE FIELD OVERWRITE dnssecEnabled ON domain_results TYPE bool | null;
+DEFINE FIELD OVERWRITE privacyEnabled ON domain_results TYPE bool | null;
 DEFINE FIELD OVERWRITE nameservers ON domain_results TYPE array<string> | [];
 DEFINE FIELD IF NOT EXISTS records ON domain_results TYPE object FLEXIBLE;
 

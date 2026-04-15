@@ -21,7 +21,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Dashboard',
-      items: ['dashboard/overview'],
+      items: ['dashboard/overview', 'dashboard/compare-diff'],
     },
     {
       type: 'category',

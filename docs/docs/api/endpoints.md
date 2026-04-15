@@ -59,6 +59,8 @@ Notification targets:
 - `POST /api/v1/job-queue/{id}/cancel`
 - `POST /api/v1/job-queue/{id}/unstuck`
 
+Note: task compare/diff is frontend-driven in dashboard routes and does not have an `/api/v1/job-queue/.../compare/...` endpoint.
+
 ## Results
 
 - `GET /api/v1/results/jobs/{id}`

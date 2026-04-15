@@ -5,6 +5,7 @@ import { canCreateWebsite, isSuperuser } from '$lib/server/policy';
 import { withRequiredUser } from '$lib/server/route';
 import { parsePaginationParams } from '$lib/server/pagination';
 import { ensureWebsiteVerification } from '$lib/server/website-verification';
+import type { Website } from '$lib/types';
 
 const websiteSelectSql =
 	'SELECT *, verification_id.verification_code as verification_code, verification_id.verified_at as verified_at, verification_id.verification_method as verification_method FROM websites';
@@ -128,14 +129,14 @@ export const POST: RequestHandler = async (event) => {
 		try {
 			const website = await (isSuperuser(auth.user)
 				? withAdminDb((db) =>
-						queryOne(
+						queryOne<Website>(
 							db,
 							'CREATE websites CONTENT { owner: $user, users: [], url: $url, description: $description, verification_id: NONE } RETURN AFTER;',
 							{ user: auth.user.id, url, description }
 						)
 					)
 				: withUserDb(auth.token, (db) =>
-						queryOne(
+						queryOne<Website>(
 							db,
 							'CREATE websites CONTENT { owner: $user, users: [], url: $url, description: $description, verification_id: NONE } RETURN AFTER;',
 							{ user: auth.user.id, url, description }

@@ -149,12 +149,12 @@ export interface ApiDomainResult {
 		phone: string | null;
 	};
 	statuses: string[];
-	transferLock: boolean;
+	transferLock: boolean | null;
 	creationDate: ApiDateTime | null;
 	updatedDate: ApiDateTime | null;
 	expirationDate: ApiDateTime | null;
-	dnssecEnabled: boolean;
-	privacyEnabled: boolean;
+	dnssecEnabled: boolean | null;
+	privacyEnabled: boolean | null;
 	nameservers: string[];
 	records?: Record<string, Record<string, unknown>>;
 	expires_in?: number;

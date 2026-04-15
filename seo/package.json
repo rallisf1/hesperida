@@ -1,6 +1,6 @@
 {
   "name": "hesperida-seo",
-  "module": "index.ts",
+  "module": "index.js",
   "type": "module",
   "private": true,
   "devDependencies": {

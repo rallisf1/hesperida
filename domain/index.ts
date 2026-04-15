@@ -170,6 +170,11 @@ if(tld && !restrictedTLDs.includes(tld)) {
 const discoveredHosts = await getPassiveHosts(domain!);
 const dns = await getDnsRecords(domain!, host, discoveredHosts) as unknown as DomainRecords;
 
+const boolNull = (value: unknown) => {
+    if(typeof value === 'boolean') return value;
+    return null;
+}
+
 const result: Values<Domain> = {
     job: new RecordId('jobs', job_id.split(':')[1]!),
     domain: results?.domain ?? domain?.toUpperCase(),
@@ -186,13 +191,13 @@ const result: Values<Domain> = {
         phone: results?.registrar?.phone ?? null
     },
     statuses: Array.isArray(results?.statuses) ? results?.statuses.map((s: {status:string}) => s.status.toLowerCase()) : [],
-    transferLock: results?.transferLock ?? false,
+    transferLock: boolNull(results?.transferLock),
     creationDate: results?.creationDate ? new DateTime(results?.creationDate): null,
     updatedDate: results?.updatedDate ? new DateTime(results?.updatedDate): null,
     expirationDate: results?.expirationDate ? new DateTime(results?.expirationDate): null,
     //deletionDate: results?.deletionDate ? new DateTime(results?.deletionDate): null,
-    dnssecEnabled: results?.dnssec?.enabled ?? false,
-    privacyEnabled: results?.privacyEnabled ?? false,
+    dnssecEnabled: boolNull(results?.dnssec?.enabled),
+    privacyEnabled: boolNull(results?.privacyEnabled),
     nameservers: Array.isArray(results?.nameservers) ? [...new Set(results?.nameservers.map((ns: {host?:string}) => ns.host!.toLowerCase()).filter(Boolean))]: [],
     records: dns
 };

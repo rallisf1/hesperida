@@ -148,12 +148,12 @@ export interface Domain {
     phone: string | null;
   };
   statuses: string[];
-  transferLock: boolean;
+  transferLock: boolean | null;
   creationDate: DateTime | null;
   updatedDate: DateTime | null;
   expirationDate: DateTime | null;
-  dnssecEnabled: boolean;
-  privacyEnabled: boolean;
+  dnssecEnabled: boolean | null;
+  privacyEnabled: boolean | null;
   nameservers: string[];
   records?: DomainRecords;
   created_at?: DateTime;

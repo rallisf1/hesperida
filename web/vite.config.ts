@@ -1,7 +1,20 @@
+import { readFileSync } from 'node:fs';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import openapiPlugin from 'sveltekit-openapi-generator';
+
+const getPackageVersion = (): string => {
+	try {
+		const packageJsonPath = new URL('./package.json', import.meta.url);
+		const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { version?: unknown };
+		return typeof packageJson.version === 'string' ? packageJson.version : '0.0.0';
+	} catch {
+		return '0.0.0';
+	}
+};
+
+const appVersion = getPackageVersion();
 
 export default defineConfig({
     plugins: [
@@ -9,7 +22,7 @@ export default defineConfig({
             // OpenAPI info section
             info: {
                 title: 'Hesperida Web App Scanner API',
-                version: '0.4.1',
+                version: appVersion,
                 description: 'Use WEB_API_KEY in an x-api-key header, and the token from auth signin/signup in a Bearer Authentication header'
             },
             servers: [

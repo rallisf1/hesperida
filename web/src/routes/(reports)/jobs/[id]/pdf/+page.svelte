@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { NormalizedReportRow } from '$lib/server/report-normalization';
 	import * as Table from '$lib/components/ui/table';
+  import { asset } from '$app/paths';
 
 	type ScoreCard = {
 		tool: string;
@@ -175,11 +176,29 @@
 		return Number.isFinite(numeric) ? `${numeric.toFixed(2)} ms` : formatScalar(value);
 	};
 
-	const isEnabled = (value: unknown): boolean => {
-		if (typeof value === 'boolean') return value;
-		if (typeof value === 'number') return value === 1;
-		if (typeof value === 'string') return ['true', '1', 'yes', 'enabled'].includes(value.toLowerCase());
-		return false;
+	const isEnabled = (value: unknown, label = false): boolean | string => {
+		if (typeof value === 'boolean') {
+			if(value) {
+				return label ? 'Enabled' : true;
+			} else {
+				return label ? 'Disabled' : false;
+			}
+		}			
+		if (typeof value === 'number') {
+			if (value === 1) {
+				return label ? 'Enabled' : true;
+			} else {
+				return label ? 'Disabled' : false;
+			}
+		}
+		if (typeof value === 'string') {
+			if (['true', '1', 'yes', 'enabled'].includes(value.toLowerCase())) {
+				return label ? 'Enabled' : true;
+			} else {
+				return label ? 'Disabled' : false;
+			}
+		}
+		return label ? 'N/A' : false;
 	};
 
 	const cdnFieldLabel = (cdnType: unknown): string =>
@@ -237,7 +256,7 @@
 	<thead class="section cover">
 		<tr class="cover-top mb-2">
 			<td class="brand-row">
-				<div class="brand-mark self-start mt-1">H</div>
+				<img src={asset('/hesperida-logo.svg')} class="max-h-30 w-auto self-start" alt="Hesperida Web Scanner" />
 				<div>
 					<p class="brand-name">Hesperida</p>
 					<p class="brand-subtitle">Web Quality & Security Assessment</p>
@@ -374,20 +393,20 @@
 					<li><strong>Days Until Expiry:</strong> {formatScalar(report.infrastructure.domain.days_until_expiry)}</li>
 					<li>
 						<strong>DNSSEC:</strong>
-						<span class={`badge ${isEnabled(report.infrastructure.domain.dnssecEnabled) ? 'status-pass' : 'status-fail'}`}>
-							{isEnabled(report.infrastructure.domain.dnssecEnabled) ? 'Enabled' : 'Disabled'}
+						<span class={`badge align-text-bottom ${isEnabled(report.infrastructure.domain.dnssecEnabled) ? 'status-pass' : 'status-fail'}`}>
+							{isEnabled(report.infrastructure.domain.dnssecEnabled, true)}
 						</span>
 					</li>
 					<li>
 						<strong>Privacy:</strong>
-						<span class={`badge ${isEnabled(report.infrastructure.domain.privacyEnabled) ? 'status-pass' : 'status-fail'}`}>
-							{isEnabled(report.infrastructure.domain.privacyEnabled) ? 'Enabled' : 'Disabled'}
+						<span class={`badge align-text-bottom ${isEnabled(report.infrastructure.domain.privacyEnabled) ? 'status-pass' : 'status-fail'}`}>
+							{isEnabled(report.infrastructure.domain.privacyEnabled, true)}
 						</span>
 					</li>
 					<li>
 						<strong>Transfer Lock:</strong>
-						<span class={`badge ${isEnabled(report.infrastructure.domain.transferLock) ? 'status-pass' : 'status-fail'}`}>
-							{isEnabled(report.infrastructure.domain.transferLock) ? 'Enabled' : 'Disabled'}
+						<span class={`badge align-text-bottom ${isEnabled(report.infrastructure.domain.transferLock) ? 'status-pass' : 'status-fail'}`}>
+							{isEnabled(report.infrastructure.domain.transferLock, true)}
 						</span>
 					</li>
 				</ul>

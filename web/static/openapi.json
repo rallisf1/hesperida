@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Hesperida Web App Scanner API",
-    "version": "0.4.1",
+    "version": "0.6.0",
     "description": "Use WEB_API_KEY in an x-api-key header, and the token from auth signin/signup in a Bearer Authentication header"
   },
   "servers": [
@@ -289,6 +289,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Website is already verified"
           },
           "422": {
             "$ref": "#/components/responses/GeneralError"
@@ -1042,6 +1045,42 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/job-queue/{id}/unstuck": {
+      "post": {
+        "tags": [
+          "JobQueue"
+        ],
+        "summary": "Move a stale pending queue task to waiting",
+        "description": "Only non-viewers can unstuck tasks. Task must be pending and older than 5 minutes.",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task moved to waiting"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
           }
         }
       }

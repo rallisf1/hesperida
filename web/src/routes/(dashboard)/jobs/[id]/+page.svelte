@@ -567,32 +567,44 @@
 				</ul>
 				<ul class="flex justify-center my-2">
 					<li class="flex gap-2" style="--spacing: 0.375rem;">
-						<Badge variant="outline" class="text-sm">
+						<Badge variant={domain.dnssecEnabled ? "default" : "destructive"} class="text-sm">
+						<a href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions" target="_blank" class="flex items-center gap-1">DNSSEC
 						{#if domain.dnssecEnabled}
-						<a href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions" target="_blank" class="text-accent">DNSSEC</a>
-						<ThumbsUpIcon color="var(--accent)" size={16} />
+						<ThumbsUpIcon size={16} />
 						{:else}
-						<a href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions" target="_blank" class="text-destructive">DNSSEC</a>
-						<ThumbsDownIcon color="var(--destructive)" size={16} />
+						{#if domain.dnssecEnabled ===  null}
+						N/A
+						{:else}
+						<ThumbsDownIcon size={16} />
 						{/if}
+						{/if}
+						</a>
 						</Badge>
-						<Badge variant="outline" class="text-sm">
+						<Badge variant={domain.privacyEnabled ? "default" : "destructive"} class="text-sm">
+						<a href="https://en.wikipedia.org/wiki/Domain_privacy" target="_blank" class="flex items-center gap-1">Privacy
 						{#if domain.privacyEnabled}
-						<a href="https://en.wikipedia.org/wiki/Domain_privacy" target="_blank" class="text-accent">Privacy</a>
-						<ThumbsUpIcon color="var(--accent)" size={16} />
+						<ThumbsUpIcon size={16} />
 						{:else}
-						<a href="https://en.wikipedia.org/wiki/Domain_privacy" target="_blank" class="text-destructive">Privacy</a>
-						<ThumbsDownIcon color="var(--destructive)" size={16} />
+						{#if domain.privacyEnabled ===  null}
+						N/A
+						{:else}
+						<ThumbsDownIcon size={16} />
 						{/if}
+						{/if}
+						</a>
 						</Badge>
-						<Badge variant="outline" class="text-sm">
+						<Badge variant={domain.transferLock ? "default" : "destructive"} class="text-sm">
+						<a href="https://en.wikipedia.org/wiki/Registrar-Lock" target="_blank" class="flex items-center gap-1">Transfer Lock
 						{#if domain.transferLock}
-						<a href="https://en.wikipedia.org/wiki/Registrar-Lock" target="_blank" class="text-accent">Transfer Lock</a>
-						<ThumbsUpIcon color="var(--accent)" size={16} />
+						<ThumbsUpIcon size={16} />
 						{:else}
-						<a href="https://en.wikipedia.org/wiki/Registrar-Lock" target="_blank" class="text-destructive">Transfer Lock</a>
-						<ThumbsDownIcon color="var(--destructive)" size={16} />
+						{#if domain.transferLock ===  null}
+						N/A
+						{:else}
+						<ThumbsDownIcon size={16} />
 						{/if}
+						{/if}
+						</a>
 						</Badge>
 					</li>
 				</ul>

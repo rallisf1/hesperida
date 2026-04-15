@@ -6,6 +6,7 @@ COPY ./web/package.json ./web/bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY ./web ./
+COPY ./assets ./static
 COPY ./constants.ts ./src/lib/constants.ts
 COPY ./types.d.ts ./src/lib//types.d.ts
 RUN bun run build

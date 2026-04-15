@@ -5,7 +5,17 @@ sidebar_position: 1
 description: Self-hosted web scanning platform documentation.
 ---
 
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
 # Hesperida
+
+<div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+  <img
+    src={useBaseUrl('/img/hesperida-logo.svg')}
+    alt="Hesperida logo"
+    style={{ maxWidth: '360px', width: '100%', height: 'auto' }}
+  />
+</div>
 
 Hesperida is a Docker-first, self-hosted platform for website scanning, reporting, and operations monitoring.
 
