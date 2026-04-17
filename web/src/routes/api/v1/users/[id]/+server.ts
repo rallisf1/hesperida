@@ -156,6 +156,7 @@ export const PATCH: RequestHandler = async (event) => {
 				return jsonError(event, 400, 'bad_request', 'You cannot change your own group.');
 			}
 
+			let targetUser: { is_superuser?: boolean } | null = null;
 			if (!isSuperuser(auth.user)) {
 				const allowed = await withAdminDb((db) =>
 					queryOne<{ id?: string }>(
@@ -167,18 +168,28 @@ export const PATCH: RequestHandler = async (event) => {
 				if (!allowed?.id) return jsonError(event, 404, 'not_found', 'User not found.');
 			}
 
-			if (patch.group) {
-				const target = await withAdminDb((db) =>
+			if (patch.group || patch.role) {
+				targetUser = await withAdminDb((db) =>
 					queryOne<{ is_superuser?: boolean }>(
 						db,
 						'SELECT is_superuser FROM users WHERE id = $id LIMIT 1;',
 						{ id: userId }
 					)
 				);
-				if (!target) return jsonError(event, 404, 'not_found', 'User not found.');
-				if (target.is_superuser) {
-					return jsonError(event, 400, 'bad_request', 'Cannot change superuser group.');
-				}
+				if (!targetUser) return jsonError(event, 404, 'not_found', 'User not found.');
+			}
+
+			if (patch.group && targetUser?.is_superuser) {
+				return jsonError(event, 400, 'bad_request', 'Cannot change superuser group.');
+			}
+
+			if (patch.role && targetUser?.is_superuser && patch.role !== 'admin') {
+				return jsonError(
+					event,
+					400,
+					'bad_request',
+					'Superuser accounts can only have the admin role.'
+				);
 			}
 
 			if (patch.role === 'viewer') {

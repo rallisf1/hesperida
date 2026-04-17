@@ -21,7 +21,25 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const name = String(formData.get('name') ?? '').trim();
 		const email = String(formData.get('email') ?? '').trim();
-		const role = String(formData.get('role') ?? '').trim();
+		const submittedRole = String(formData.get('role') ?? '').trim();
+
+		let isTargetSuperuser = false;
+		try {
+			const current = await callDashboardApi<{ user: ApiUser }>(
+				event,
+				`/api/v1/users/${event.params.id}`
+			);
+			isTargetSuperuser = Boolean(current.user.is_superuser);
+		} catch (error) {
+			if (error instanceof DashboardApiError) {
+				return fail(error.status, {
+					error: error.message,
+					values: { name, email, role: submittedRole }
+				});
+			}
+			throw error;
+		}
+		const role = isTargetSuperuser ? 'admin' : submittedRole;
 
 		if (!name || !email || !role) {
 			return fail(400, { error: 'name, email and role are required.', values: { name, email, role } });

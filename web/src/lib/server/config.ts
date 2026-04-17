@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import packageJson from '../../../../../package.json';
 
 export type AppMode = 'both' | 'api' | 'dashboard';
 
@@ -10,6 +11,11 @@ const appModeRaw = (read('APP_MODE') || 'both').toLowerCase();
 if (!['both', 'api', 'dashboard'].includes(appModeRaw)) {
 	throw new Error(`Invalid APP_MODE: ${appModeRaw}. Expected one of both|api|dashboard.`);
 }
+
+const packageMeta = packageJson as {
+	version?: string;
+	repository?: string | { url?: string };
+};
 
 const appMode = appModeRaw as AppMode;
 const apiUrl = read('API_URL');
@@ -43,11 +49,20 @@ export const config = {
 	surrealAddress: read('SURREAL_ADDRESS') || 'db:8000',
 	surrealProtocol,
 	surrealWsUrl: `${wsProtocol}://${read('SURREAL_ADDRESS') || 'db:8000'}`,
+	surrealOptions: {
+		reconnect: {
+			enabled: true,
+			attempts: 5,
+			retryDelay: 1000
+		}
+	},
 	sessionCookieName: read('SESSION_COOKIE_NAME') || 'hesperida_session',
 	sessionRefreshCookieName: read('SESSION_REFRESH_COOKIE_NAME') || 'hesperida_refresh',
 	sessionCookieSecure: (read('SESSION_COOKIE_SECURE') || 'false').toLowerCase() === 'true',
 	sessionCookieMaxAge: Number.parseInt(read('SESSION_COOKIE_MAX_AGE') || `${60 * 60}`, 10),
 	wappalyzerDB: read('WP_PATH') || '/app/wappalyzer.db',
+	version: packageMeta.version,
+	repoUrl: packageMeta.repository,
 	debug: (read('DEBUG') || 'false').toLowerCase() === 'true'
 } as const;
 

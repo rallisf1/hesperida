@@ -1,0 +1,106 @@
+name: Auto Tag from web/package.json
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "web/package.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-tag-version
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read current and previous versions
+        id: versions
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${BEFORE_SHA:-}" ]]; then
+            echo "::error::Missing github.event.before SHA; cannot determine previous version."
+            exit 1
+          fi
+
+          CURRENT_VERSION="$(node -p "require('./web/package.json').version")"
+          if [[ -z "${CURRENT_VERSION}" ]]; then
+            echo "::error::Current web/package.json version is empty."
+            exit 1
+          fi
+
+          if ! PREVIOUS_CONTENT="$(git show "${BEFORE_SHA}:web/package.json" 2>/dev/null)"; then
+            echo "::error::Unable to read previous web/package.json from commit ${BEFORE_SHA}."
+            exit 1
+          fi
+
+          PREVIOUS_VERSION="$(node -e "const pkg=JSON.parse(process.argv[1]); if(!pkg.version){process.exit(1)}; console.log(pkg.version)" "${PREVIOUS_CONTENT}" 2>/dev/null || true)"
+          if [[ -z "${PREVIOUS_VERSION}" ]]; then
+            echo "::error::Unable to parse previous web/package.json version from commit ${BEFORE_SHA}."
+            exit 1
+          fi
+
+          echo "current=${CURRENT_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "previous=${PREVIOUS_VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Skip when version has not changed
+        if: steps.versions.outputs.current == steps.versions.outputs.previous
+        run: echo "web/package.json version unchanged (${{ steps.versions.outputs.current }}). Skipping tag creation."
+
+      - name: Create and push annotated tag
+        if: steps.versions.outputs.current != steps.versions.outputs.previous
+        env:
+          VERSION: ${{ steps.versions.outputs.current }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="v${VERSION}"
+
+          if git show-ref --tags --verify --quiet "refs/tags/${TAG}" || git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists. Nothing to do."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          CHANGELOG_SECTION="$(
+            awk -v version="${VERSION}" '
+              BEGIN { capture = 0 }
+              $0 ~ "^## \\[" version "\\]" { capture = 1 }
+              capture {
+                if ($0 ~ /^## \[/ && $0 !~ "^## \\[" version "\\]") {
+                  exit
+                }
+                print
+              }
+            ' CHANGELOG.md
+          )"
+
+          if [[ -z "${CHANGELOG_SECTION}" ]]; then
+            echo "::error::Could not find CHANGELOG section for version ${VERSION}."
+            exit 1
+          fi
+
+          {
+            echo "Release ${TAG}"
+            echo
+            echo "${CHANGELOG_SECTION}"
+          } > /tmp/tag-message.txt
+
+          git tag -a "${TAG}" -F /tmp/tag-message.txt
+          git push origin "${TAG}"

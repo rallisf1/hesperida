@@ -14,6 +14,8 @@ RUN git clone https://github.com/sullo/nikto.git /nikto
 
 FROM oven/bun:debian
 
+ARG NODE_ENV=production
+ENV NODE_ENV=$NODE_ENV
 ENV PIP_ROOT_USER_ACTION=ignore
 
 RUN apt-get update \

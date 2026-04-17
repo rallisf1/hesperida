@@ -20,7 +20,9 @@ console.log('Hesperida Orchestrator starting...');
 
 const docker = new Dockerode({socketPath: '/var/run/docker.sock'});
 
-if(DEBUG) console.debug(`Docker environment variables: ${JSON.stringify(ENV)}`);
+if (DEBUG) {
+    console.debug(`Docker environment variables: ${JSON.stringify(ENV)}`);
+}
 
 for (const tool of tools) {
     let imageExists = false;
@@ -34,21 +36,24 @@ for (const tool of tools) {
         }
         if(DEBUG) console.debug(`Docker image hesperida-${tool} NOT found!`);
     }
-    if(!imageExists || REBUILD) {
-        console.log(`${REBUILD ? 'Re-': ''}Building image hesperida-${tool}...`);
-        const files = await readdir(`/tools/${tool}`);
-        const toolFiles = files.filter(f => f !== 'node_modules' && !f.startsWith('.')).map(f => `${tool}/${f}`);
-        let stream = await docker.buildImage({
-            context: '/tools',
-            src: toolFiles
-        },
-        {
-            t: `hesperida-${tool}`,
-            dockerfile: `${tool}/Dockerfile`
-        });
-        await new Promise((resolve, reject) => {
-            docker.modem.followProgress(stream, (err, res) => err ? reject(err) : resolve(res));
-        });
+    if (Bun.env.NODE_ENV === "development") {
+        // check/rebuild tool images for development
+        if(!imageExists || REBUILD) {
+            console.log(`${REBUILD ? 'Re-': ''}Building image hesperida-${tool}...`);
+            const files = await readdir(`/tools/${tool}`);
+            const toolFiles = files.filter(f => f !== 'node_modules' && !f.startsWith('.')).map(f => `${tool}/${f}`);
+            let stream = await docker.buildImage({
+                context: '/tools',
+                src: toolFiles
+            },
+            {
+                t: `hesperida-${tool}`,
+                dockerfile: `${tool}/Dockerfile`
+            });
+            await new Promise((resolve, reject) => {
+                docker.modem.followProgress(stream, (err, res) => err ? reject(err) : resolve(res));
+            });
+        }
     }
 }
 
@@ -76,7 +81,12 @@ await db.connect(`${Bun.env.SURREAL_PROTOCOL === 'https' ? 'wss': 'ws'}://${Bun.
 	authentication: {
 		username: Bun.env.SURREAL_USER!,
 		password: Bun.env.SURREAL_PASS!
-	}
+	},
+    reconnect: {
+        enabled: true,
+        attempts: 5,
+        retryDelay: 1000
+    }
 });
 
 const queue = new Table('job_queue');

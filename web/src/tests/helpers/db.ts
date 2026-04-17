@@ -5,7 +5,7 @@ import { toRegistrableDomain } from 'rdapper';
 
 let initialized = false;
 const DB_TIMEOUT_MS = Number.parseInt(process.env.TEST_DB_TIMEOUT_MS || '10000', 10);
-const schemaPath = resolve(process.cwd(), '..', 'schema.surql');
+const schemaPath = resolve(process.cwd(), 'src', 'lib', 'server', 'schema.surql');
 
 const withTimeout = async <T>(promise: Promise<T>, op: string): Promise<T> => {
 	const timeout = new Promise<never>((_, reject) => {

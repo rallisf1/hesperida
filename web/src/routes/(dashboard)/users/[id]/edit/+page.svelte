@@ -8,7 +8,8 @@
 
 	let { data, form } = $props();
 
-	let selectedRole = $derived(form?.values?.role ?? data.user.role)
+	let selectedRole = $derived(form?.values?.role ?? data.user.role);
+	const isSuperuserTarget = $derived(Boolean(data.user.is_superuser));
 </script>
 
 <div class="p-4 lg:p-6 max-w-xl space-y-4">
@@ -41,16 +42,21 @@
 		</div>
 		<div class="flex w-full max-w-sm flex-col gap-1.5">
 			<Label for="role" class="text-lg">Role</Label>
-			<Select.Root type="single" name="role" bind:value={selectedRole}>
-				<Select.Trigger id="role" class="h-8! capitalize">{selectedRole}</Select.Trigger>
-				<Select.Content align="start">
-					{#if data.currentUserRole === "admin"}
-					<Select.Item value="admin">Admin</Select.Item>
-					{/if}
-					<Select.Item value="editor">Editor</Select.Item>
-					<Select.Item value="viewer">Viewer</Select.Item>
-				</Select.Content>
-			</Select.Root>
+			{#if isSuperuserTarget}
+				<input type="hidden" name="role" value="admin" />
+				<Input id="role" value="Admin" readonly class="h-10 capitalize" />
+			{:else}
+				<Select.Root type="single" name="role" bind:value={selectedRole}>
+					<Select.Trigger id="role" class="h-8! capitalize">{selectedRole}</Select.Trigger>
+					<Select.Content align="start">
+						{#if data.currentUserRole === "admin"}
+							<Select.Item value="admin">Admin</Select.Item>
+						{/if}
+						<Select.Item value="editor">Editor</Select.Item>
+						<Select.Item value="viewer">Viewer</Select.Item>
+					</Select.Content>
+				</Select.Root>
+			{/if}
 		</div>
 		<div class="flex items-center gap-3">
 			<Button type="submit" size="lg">Save</Button>

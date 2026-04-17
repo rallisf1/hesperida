@@ -4,8 +4,9 @@
 	import * as Field from "$lib/components/ui/field/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 
-	let { form } = $props();
+	let { data, form } = $props();
 	const forgotTokenValue = $derived.by(() => {
+		if(data.token) return data.token;
 		if (!form || typeof form !== "object" || !("values" in form) || !form.values) return "";
 		const values = form.values as { forgotToken?: string };
 		return values.forgotToken ?? "";
@@ -28,6 +29,7 @@
 						type="text"
 						required
 						value={forgotTokenValue}
+						readonly={data.token !== null}
 					/>
 				</Field.Field>
 				<Field.Field>

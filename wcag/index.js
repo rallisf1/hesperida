@@ -116,6 +116,11 @@ const isValidAxeResult = (raw) => {
       authentication: {
         username: process.env.SURREAL_USER,
         password: process.env.SURREAL_PASS
+      },
+      reconnect: {
+        enabled: true,
+        attempts: 5,
+        retryDelay: 1000
       }
     });
 

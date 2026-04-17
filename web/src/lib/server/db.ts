@@ -18,7 +18,8 @@ const connectAdmin = async (): Promise<Surreal> => {
 		authentication: {
 			username: config.surrealUser,
 			password: config.surrealPass
-		}
+		},
+		...config.surrealOptions
 	});
 	return db;
 };

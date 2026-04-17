@@ -6,7 +6,6 @@ import { RecordId } from 'surrealdb';
 import { toRouteId } from '$lib/server/record-id';
 import { techSearch, type Technology } from '$lib/server/wappalyzer';
 import { env } from '$env/dynamic/private';
-import packageJson from '../../../../../../package.json';
 import { mapProbeGeoToSummary } from '$lib/server/geo';
 import QRCode from 'qrcode';
 import { config } from '$lib/server/config';
@@ -34,11 +33,6 @@ type WcagDeviceSection = {
 	errors: number;
 	rows: NormalizedReportRow[];
 	screenshot_data_url: string | null;
-};
-
-const packageMeta = packageJson as {
-	version?: string;
-	repository?: string | { url?: string };
 };
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -84,7 +78,7 @@ const toTechSummary = (value: unknown): Technology[] => {
 };
 
 const toRepositoryUrl = (): string => {
-	const repo = packageMeta.repository;
+	const repo = config.repoUrl;
 	const raw = typeof repo === 'string' ? repo : repo?.url ?? '';
 	return raw.endsWith('.git') ? raw.slice(0, -4) : raw;
 };
@@ -393,7 +387,7 @@ export const load: PageServerLoad = async (event) => {
 			},
 			footer: {
 				hostname: event.url.hostname,
-				version: packageMeta.version ?? 'unknown',
+				version: config.version ?? 'unknown',
 				repository: toRepositoryUrl(),
 				security_score_threshold: securityThreshold,
 				credits: [

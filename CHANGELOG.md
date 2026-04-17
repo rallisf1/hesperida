@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.6.2] - 2026-04-17
+
+### Added
+
+- CI/CD Github workflows
+
+### Changed
+
+- Distinguish dev and production environments and builds
+- COPY shared files into containers instead of binding them from root
+- Updated the main dashboard colors with the ones from the logo
+- Websocket database connections fail after 5 attempts with 1s timeout each
+- The database schema is imported, if needed, by the web app during start instead of a standalone container
+
 ## [0.6.1] - 2026-04-15
 
 ### Added
@@ -16,6 +30,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Add response schemas to API endpoints
 - Gatekeep `/auth/signup` when `AUTH_SIGNUP_ENABLED` is `false`
+
+### Fixed
+
+- Services that connect to the database over web sockets would hang (retry forever) when they couldn't connect to the database
 
 ## [0.6.0] - 2026-04-15
 

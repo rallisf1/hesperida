@@ -16,7 +16,8 @@ export const sendAppriseNotification = async (input: AppriseNotifyInput): Promis
 
 	const endpoint = `${config.appriseUrl.replace(/\/+$/, '')}/notify`;
 	const headers = new Headers({
-		'content-type': 'application/json'
+		'content-type': 'application/json',
+		accept: 'application/json'
 	});
 
 	if (config.appriseApiKey) {
@@ -35,6 +36,11 @@ export const sendAppriseNotification = async (input: AppriseNotifyInput): Promis
 		})
 	});
 
+
+	if (response.status > 200) {
+		throw new Error(`Apprise returned HTTP ${response.status}`);
+	}
+
 	let payload: Record<string, unknown> | null = null;
 	try {
 		payload = (await response.json()) as Record<string, unknown>;
@@ -42,15 +48,8 @@ export const sendAppriseNotification = async (input: AppriseNotifyInput): Promis
 		payload = null;
 	}
 
-	if (!response.ok) {
-		const errorMessage =
-			typeof payload?.error === 'string'
-				? payload.error
-				: typeof payload?.message === 'string'
-					? payload.message
-					: `Apprise returned HTTP ${response.status}`;
-		throw new Error(errorMessage);
-	}
+	console.log(response.status);
+	console.log(payload);
 
 	const status = String(payload?.status ?? '').toLowerCase();
 	if (status && !APPRISE_STATUS_OK.has(status)) {

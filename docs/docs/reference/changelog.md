@@ -7,6 +7,20 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.6.2] - 2026-04-17
+
+### Added
+
+- CI/CD Github workflows
+
+### Changed
+
+- Distinguish dev and production environments and builds
+- COPY shared files into containers instead of binding them from root
+- Updated the main dashboard colors with the ones from the logo
+- Websocket database connections fail after 5 attempts with 1s timeout each
+- The database schema is imported, if needed, by the web app during start instead of a standalone container
+
 ## [0.6.1] - 2026-04-15
 
 ### Added

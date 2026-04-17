@@ -1,3 +1,4 @@
+import schemaSurql from './schema.surql?raw';
 import { queryOne, withAdminDb } from './db';
 import { config } from './config';
 
@@ -7,14 +8,24 @@ const SUPERUSER_GROUP = 'superuser';
 
 let ensurePromise: Promise<void> | null = null;
 
-const upsertSuperuser = async (): Promise<void> => {
+const applySchema = async (): Promise<void> => {
+	await withAdminDb(async (db) => {
+		const [schemaVersion] = await db.query('RETURN $schemaVersion').collect();
+		if(schemaVersion !== config.version) {
+			await db.import(schemaSurql);
+			await db.query(`DEFINE PARAM OVERWRITE $schemaVersion VALUE '${config.version}'`);
+		}
+	});
+};
+
+const ensureSuperuser = async (): Promise<void> => {
 	await withAdminDb(async (db) => {
 		const existing = await queryOne<{ id: string }>(
 			db,
 			'SELECT id FROM users WHERE is_superuser = true LIMIT 1;'
 		);
 		if (existing?.id) return;
-		
+
 		await db
 			.query(
 				`CREATE users CONTENT {
@@ -36,12 +47,14 @@ const upsertSuperuser = async (): Promise<void> => {
 	});
 };
 
-export const ensureSuperuser = async (): Promise<void> => {
+export const ensureDbInit = async (): Promise<void> => {
+	await applySchema();
 	if (!ensurePromise) {
-		ensurePromise = upsertSuperuser().finally(() => {
+		ensurePromise = (async () => {
+			await ensureSuperuser();
+		})().finally(() => {
 			ensurePromise = null;
 		});
 	}
 	await ensurePromise;
 };
-

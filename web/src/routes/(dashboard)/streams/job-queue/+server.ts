@@ -20,6 +20,7 @@ const connectUserDb = async (token: string): Promise<Surreal> => {
 	await db.connect(config.surrealWsUrl, {
 		namespace: config.surrealNamespace,
 		database: config.surrealDatabase,
+		...config.surrealOptions
 	});
 	await db.authenticate(token);
 	return db;

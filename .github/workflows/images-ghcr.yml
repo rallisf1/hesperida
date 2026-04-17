@@ -1,0 +1,86 @@
+name: Release Images to GHCR
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ghcr-images-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./web/package.json').version")"
+          SHA_SHORT="$(git rev-parse --short=12 HEAD)"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "sha_short=${SHA_SHORT}" >> "${GITHUB_OUTPUT}"
+
+      - name: Validate git tag against package version
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_TAG="v${{ steps.version.outputs.version }}"
+          ACTUAL_TAG="${GITHUB_REF_NAME}"
+          if [[ "${ACTUAL_TAG}" != "${EXPECTED_TAG}" ]]; then
+            echo "::error::Tag/version mismatch. Expected ${EXPECTED_TAG} from web/package.json, got ${ACTUAL_TAG}."
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push multi-arch images
+        shell: bash
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          SHA_SHORT: ${{ steps.version.outputs.sha_short }}
+          SURREAL_PASS: ci-placeholder-secret
+        run: |
+          set -euo pipefail
+
+          owner_lc="$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')"
+          repo_lc="$(echo "${REPO}" | tr '[:upper:]' '[:lower:]')"
+          services=(probe whois ssl domain seo wcag security stress orchestrator web)
+
+          args=(
+            --file docker-compose.dev.yaml
+            --push
+            --set "*.platform=linux/amd64,linux/arm64"
+          )
+
+          for service in "${services[@]}"; do
+            image="ghcr.io/${owner_lc}/${repo_lc}-${service}"
+            tags="${image}:${VERSION},${image}:sha-${SHA_SHORT},${image}:latest"
+            args+=(--set "${service}.tags=${tags}")
+          done
+
+          docker buildx bake "${args[@]}" "${services[@]}"

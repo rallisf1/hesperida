@@ -7,6 +7,8 @@
 	import { createToastEnhance } from '$lib/form-toast';
 
 	let { data, form } = $props();
+
+	let selectedRole = $state('');
 </script>
 
 <div class="p-4 lg:p-6 max-w-xl space-y-4">
@@ -39,8 +41,8 @@
 		</div>
 		<div class="flex w-full max-w-sm flex-col gap-1.5">
 			<Label for="role" class="text-lg">Role</Label>
-			<Select.Root type="single" name="role">
-				<Select.Trigger id="role" class="h-8!">Select a role</Select.Trigger>
+			<Select.Root type="single" name="role" bind:value={selectedRole}>
+				<Select.Trigger id="role" class="h-8!">{selectedRole.length ? selectedRole : 'Select a role' }</Select.Trigger>
 				<Select.Content align="start">
 					{#if data.currentUserRole === "admin"}
 					<Select.Item value="admin">Admin</Select.Item>

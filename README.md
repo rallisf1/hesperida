@@ -29,13 +29,13 @@ A Sveltekit dashboard is in beta. The main functionality is:
 
 ### API
 
-All the dashboard functionality is available through [OpenAPI](http://localhost:3000/api).
+All the dashboard functionality is available through [OpenAPI](https://rallisf1.github.io/hesperida/api/endpoints/hesperida-web-app-scanner-api).
 
 ### Alerts & Webhooks
 
 [Apprise](https://github.com/caronc/apprise) is now integrated for notification messages and emails.
 Invite/forgot flows use `NOTIFICATION_EMAIL_TARGET_TEMPLATE` as the delivery target.
-User-level notification targets are stored in `users.notification_targets` for in-app managed channels.
+User-level notification targets are stored in `users.notification_targets` for in-app managed channels (WIP).
 
 ## Tech Stack
 
@@ -45,17 +45,14 @@ User-level notification targets are stored in `users.notification_targets` for i
 
 ## How to use
 
-1. Download, a.k.a. `git clone https://github.com/rallisf1/hesperida.git`
+1. Download, a.k.a. `git clone https://github.com/rallisf1/hesperida.git && cd hesperida`
 2. `cp .env.example .env` and edit it with your information
 3. Start it up:
   - With a self-hosted database
   `docker compose --profile aio up -d`
   - With SurrealDB SaaS
-  `docker compose run --rm db-init && docker compose --profile backend up -d`
-  - Development profile (db + db-init + orchestrator only)
-  `docker compose --profile dev up -d`
-4. (optional) you can pre-build the tools containers using `docker compose --profile tools build`. If you skip this the first run will take a few minutes.
-5. Open `https://localhost:3000` (or according to your configuration)
+  `docker compose --profile backend up -d`
+4. Open `http://localhost:3000` (or according to your configuration)
 
 ### Super User account
 
@@ -67,10 +64,18 @@ You can change both later
 ### Updating
 
 1. `docker compose --profile aio down` to stop the running containers
-2. `git pull` to pull the latest version
-3. `docker compose --profile tools build` to rebuild the tools
-4. `docker compose build orchestrator` to rebuild the orchestrator
-5. `docker compose --profile aio up -d` to start
+2. `docker compose pull` to update all the docker images
+3. `docker compose --profile aio up -d` to start
+
+## How to run the dev environment
+
+1. Download, a.k.a. `git clone https://github.com/rallisf1/hesperida.git && cd hesperida`
+2. `cp .env.example .env` and edit it with your information. Use `NODE_ENV=development`.
+3. create a shortcut to the .env for the sveltekit project: `ln -s .env web/.env`
+3. Start it up `docker compose --profile dev up`
+4. (optional) you can pre-build the tools containers using `docker compose --profile tools build`. If you skip this the first run will take a few minutes.
+5. In another terminal run the sveltekit project with `cd web && bun install && bun run dev`
+6. Open `http://localhost:5173` (or the port indicated in the terminal output)
 
 ## Known bugs
 
@@ -79,7 +84,6 @@ You can change both later
   2. Not enough resources, upgrade your host
 - There is no cleanup cron for the `job_queue` yet (TODO)
 - Orphan containers may be left behind if the orchestrator crashes. When I tried using `AutoRemove: true` in the container settings the containers exited before finishing. AFAIK it's a bug with Bun. This is not a big deal as they're not left running, but a cleanup cron will be needed for those as well. (TODO)
-- The `orchestrator` and `wcag` containers appear stuck when they can't connect to the database due to the infinite reconnect attempts
 
 ## Ideas
 
@@ -108,6 +112,7 @@ Things that I don't personally need, but would be helpful to some users. Check t
 
 1. Public dashboards (e.g. to share with a client/colleague), although the `/jobs/[id]/pdf` links are public.
 2. AI assistant to help you fix any errors found
+3. Auth.js authentication integration
 
 ### API
 

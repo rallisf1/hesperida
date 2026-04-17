@@ -102,6 +102,19 @@ export const PATCH: RequestHandler = async (event) => {
 	const patch: Record<string, unknown> = {};
 	if (typeof payload.name === 'string') patch.name = payload.name.trim();
 	if (typeof payload.email === 'string') patch.email = payload.email.trim();
+	if (typeof payload.role === 'string') {
+		const requestedRole = payload.role.trim().toLowerCase();
+		if (auth.user.is_superuser && requestedRole !== 'admin') {
+			return jsonError(
+				event,
+				400,
+				'bad_request',
+				'Superuser accounts can only have the admin role.'
+			);
+		}
+		return jsonError(event, 400, 'bad_request', 'role cannot be updated via /api/v1/users/me.');
+	}
+
 	const oldPassword = typeof payload.old_password === 'string' ? payload.old_password : '';
 	const newPassword = typeof payload.password === 'string' ? payload.password : '';
 

@@ -10,7 +10,7 @@ import {
 } from '$lib/server/auth';
 import { checkAuthRateLimit } from '$lib/server/rate-limit';
 import { warmPlaywrightDevicesCache } from '$lib/server/playwright-devices';
-import { ensureSuperuser } from '$lib/server/superuser';
+import { ensureDbInit } from '$lib/server/db-init';
 
 const isAuthRoute = (pathname: string): boolean => pathname.startsWith('/api/v1/auth/');
 const isScreenshotRoute = (pathname: string): boolean => pathname.startsWith('/api/v1/screenshots/');
@@ -26,7 +26,7 @@ const isPublicDashboardRoute = (pathname: string): boolean =>
 	isStaticAssetRoute(pathname) ||
 	isPublicPdfReportRoute(pathname);
 let configValidated = false;
-let superuserEnsured = false;
+let dbInitialized = false;
 
 // Best-effort startup warmup for local playwright devices cache.
 warmPlaywrightDevicesCache();
@@ -51,9 +51,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 		configValidated = true;
 	}
 
-	if (!superuserEnsured && (config.appMode === 'api' || config.appMode === 'both')) {
-		await ensureSuperuser();
-		superuserEnsured = true;
+	if (!dbInitialized && (config.appMode === 'api' || config.appMode === 'both')) {
+		await ensureDbInit();
+		dbInitialized = true;
 	}
 
 	const started = Date.now();

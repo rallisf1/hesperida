@@ -1,8 +1,10 @@
 services:
   probe:
-    image: ghcr.io/rallisf1/hesperida-probe:latest
     restart: never
     profiles: [tools]
+    build:
+      context: ./
+      dockerfile: ./probe/Dockerfile
     environment:
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
@@ -16,9 +18,11 @@ services:
       - "WCAG_EXCLUDE_RULES=${WCAG_EXCLUDE_RULES:-}"
   
   whois:
-    image: ghcr.io/rallisf1/hesperida-whois:latest
     restart: never
     profiles: [tools]
+    build:
+      context: ./
+      dockerfile: ./whois/Dockerfile
     environment:
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
@@ -29,10 +33,13 @@ services:
       - "DEBUG=${DEBUG:-false}"
 
   ssl:
-    image: ghcr.io/rallisf1/hesperida-ssl:latest
     restart: never
     profiles: [tools]
+    build:
+      context: ./
+      dockerfile: ./ssl/Dockerfile
     environment:
+      - "NODE_ENV=${NODE_ENV:-production}"
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
@@ -42,10 +49,13 @@ services:
       - "DEBUG=${DEBUG:-false}"
 
   domain:
-    image: ghcr.io/rallisf1/hesperida-domain:latest
     restart: never
     profiles: [tools]
+    build:
+      context: ./
+      dockerfile: ./domain/Dockerfile
     environment:
+      - "NODE_ENV=${NODE_ENV:-production}"
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
@@ -53,12 +63,17 @@ services:
       - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "DEBUG=${DEBUG:-false}"
+    volumes:
+      - ./data/rdap-cache.json:/rdap-cache.json:rw
 
   seo:
-    image: ghcr.io/rallisf1/hesperida-seo:latest
     restart: never
     profiles: [tools]
+    build:
+      context: ./
+      dockerfile: ./seo/Dockerfile
     environment:
+      - "NODE_ENV=${NODE_ENV:-production}"
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
@@ -68,11 +83,14 @@ services:
       - "DEBUG=${DEBUG:-false}"
 
   wcag:
-    image: ghcr.io/rallisf1/hesperida-wcag:latest
     restart: never
     profiles: [tools]
+    build:
+      context: ./
+      dockerfile: ./wcag/Dockerfile
     ipc: host
     environment:
+      - "NODE_ENV=${NODE_ENV:-production}"
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
@@ -82,10 +100,13 @@ services:
       - "DEBUG=${DEBUG:-false}"
 
   security:
-    image: ghcr.io/rallisf1/hesperida-security:latest
     restart: never
     profiles: [tools]
+    build:
+      context: ./
+      dockerfile: ./security/Dockerfile
     environment:
+      - "NODE_ENV=${NODE_ENV:-production}"
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
@@ -98,9 +119,11 @@ services:
       - "SECURITY_SCORE_THRESHOLD=${SECURITY_SCORE_THRESHOLD:-400}"
 
   stress:
-    image: ghcr.io/rallisf1/hesperida-stress:latest
     restart: never
     profiles: [tools]
+    build:
+      context: ./
+      dockerfile: ./stress/Dockerfile
     environment:
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
@@ -120,13 +143,17 @@ services:
       - "STRESS_LATENCY_WARN_MS=${STRESS_LATENCY_WARN_MS:-500}"
 
   orchestrator:
-    image: ghcr.io/rallisf1/hesperida-orchestrator:latest
     restart: always
-    profiles: ["backend", "aio"]
+    profiles: ["backend", "aio", "dev"]
+#    command: ["--rebuild"] # comment this for not to rebuild the tool containers on every orchestrator start
     depends_on:
       db:
         condition: service_healthy
+    build:
+      context: ./
+      dockerfile: ./orchestrator/Dockerfile
     environment:
+      - "NODE_ENV=${NODE_ENV:-production}"
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
@@ -136,15 +163,26 @@ services:
       - "DEBUG=${DEBUG:-false}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./domain:/tools/domain:ro
+      - ./probe:/tools/probe:ro
+      - ./seo:/tools/seo:ro
+      - ./ssl:/tools/ssl:ro
+      - ./wcag:/tools/wcag:ro
+      - ./whois:/tools/whois:ro
+      - ./security:/tools/security:ro
+      - ./stress:/tools/stress:ro
 
   web:
-    image: ghcr.io/rallisf1/hesperida-web:latest
     restart: always
     profiles: ["backend", "aio"]
     depends_on:
       db:
         condition: service_healthy
+    build:
+      context: ./
+      dockerfile: ./web/Dockerfile
     environment:
+      - "NODE_ENV=${NODE_ENV:-production}"
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
@@ -182,11 +220,13 @@ services:
   apprise:
     restart: always
     image: caronc/apprise:latest
-    profiles: ["backend", "aio"]
+    profiles: ["backend", "aio", "dev"]
     environment:
       - APPRISE_STATEFUL_MODE=disabled
       - APPRISE_API_ONLY=yes
       - APPRISE_WORKER_COUNT=${APPRISE_WORKER_COUNT:-1}
+    ports:
+      - "127.0.0.1:8001:8000"
     healthcheck:
       test:
         [
@@ -201,9 +241,9 @@ services:
   pdf:
     restart: always
     image: 'gotenberg/gotenberg:latest'
-    profiles: ["backend", "aio"]
+    profiles: ["backend", "aio", "dev"]
     ports:
-      - "127.0.0.1:${PDF_PORT:-3000}:3000"
+      - "127.0.0.1:3001:3000"
     healthcheck:
       interval: 60s
       test:
@@ -213,10 +253,10 @@ services:
         - 'http://gotenberg:3000/health'
       timeout: 10s
 
-  db: # comment this service out if you're using SurrealDB SaaS
+  db:
     restart: always
     image: surrealdb/surrealdb:latest
-    profiles: ["database", "aio"]
+    profiles: ["database", "aio", "dev"]
     environment:
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
@@ -232,16 +272,11 @@ services:
     command: start
     user: "1000"
     ports:
-      - 127.0.0.1:${DB_PORT:-8000}:8000 # remove "127.0.0.1:" to make it publically available, not recommended; better use a reverse proxy
+      - 127.0.0.1:8000:8000 # remove "127.0.0.1:" to make it publically available, not recommended; better use a reverse proxy
     volumes:
-      - hesperida-db-data:/mydata
+      - ./data:/mydata
     healthcheck:
         test: ["CMD", "/surreal", "is-ready"]
         interval: 5s
         timeout: 5s
         retries: 5
-
-  # TODO add a reverse proxy
-
-volumes:
-  hesperida-db-data:

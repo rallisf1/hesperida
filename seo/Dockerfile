@@ -1,5 +1,7 @@
 FROM node:22-trixie-slim
 
+ARG NODE_ENV=production
+ENV NODE_ENV=$NODE_ENV
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 RUN npx playwright install chromium --with-deps

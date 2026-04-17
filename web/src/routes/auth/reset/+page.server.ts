@@ -1,5 +1,13 @@
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { ApiEnvelope } from '$lib/types/api';
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async (event) => {
+	const token = event.url.searchParams.get('token');
+	return {
+		token
+	}
+}
 
 export const actions: Actions = {
 	default: async (event) => {
