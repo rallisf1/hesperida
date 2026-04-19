@@ -37,9 +37,26 @@ This page lists the most important environment variables.
 
 | Variable | Purpose |
 | --- | --- |
-| `APPRISE_URL` | Apprise API endpoint |
-| `NOTIFICATION_EMAIL_TARGET_TEMPLATE` | template target used for invite/forgot flows |
+| `APPRISE_URL` | Apprise API endpoint for user notification targets |
 | `NOTIFICATION_BRAND_LOGO_URL` | logo used in long-form notification templates |
+
+## System Email (SMTP)
+
+| Variable | Purpose |
+| --- | --- |
+| `SMTP_HOST` | SMTP server hostname |
+| `SMTP_PORT` | SMTP server port |
+| `SMTP_USER` | SMTP auth user |
+| `SMTP_PASS` | SMTP auth password |
+| `SMTP_SECURE` | use SMTPS/TLS (`true`/`false`) |
+| `SMTP_FROM` | sender address used for forgot/invite/onboarding emails |
+
+Routes that require SMTP (return `503 smtp_not_configured` when unavailable):
+
+- `POST /api/v1/auth/forgot`
+- `POST /api/v1/users`
+- `POST /api/v1/websites/{id}/invite`
+- `POST /api/v1/websites/{id}/transfer-ownership`
 
 ## Reporting
 

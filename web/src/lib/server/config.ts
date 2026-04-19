@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import packageJson from '../../../../../package.json';
+import packageJson from '../../../package.json';
 
 export type AppMode = 'both' | 'api' | 'dashboard';
 
@@ -23,8 +23,10 @@ const apiKey = read('API_KEY');
 const webApiKey = read('WEB_API_KEY');
 const appriseUrl = read('APPRISE_URL');
 const appriseApiKey = read('APPRISE_API_KEY');
-const notificationEmailTargetTemplate = read('NOTIFICATION_EMAIL_TARGET_TEMPLATE');
 const notificationBrandLogoUrl = read('NOTIFICATION_BRAND_LOGO_URL');
+const publicDashboardUrl = read('DASHBOARD_URL');
+const smtpPortRaw = read('SMTP_PORT');
+const parsedSmtpPort = Number.parseInt(smtpPortRaw || '0', 10);
 const gotenbergUrl = read('GOTENBERG_URL') || 'http://pdf:3000';
 const authSignupEnabled = (read('AUTH_SIGNUP_ENABLED') || 'true').toLowerCase() === 'true';
 
@@ -38,8 +40,14 @@ export const config = {
 	webApiKey,
 	appriseUrl,
 	appriseApiKey,
-	notificationEmailTargetTemplate,
 	notificationBrandLogoUrl,
+	publicDashboardUrl,
+	smtpHost: read('SMTP_HOST'),
+	smtpPort: Number.isFinite(parsedSmtpPort) ? parsedSmtpPort : 0,
+	smtpUser: read('SMTP_USER'),
+	smtpPass: read('SMTP_PASS'),
+	smtpSecure: (read('SMTP_SECURE') || 'false').toLowerCase() === 'true',
+	smtpFrom: read('SMTP_FROM'),
 	gotenbergUrl,
 	authSignupEnabled,
 	surrealUser: read('SURREAL_USER'),
@@ -66,6 +74,26 @@ export const config = {
 	debug: (read('DEBUG') || 'false').toLowerCase() === 'true'
 } as const;
 
+export const SMTP_NOT_CONFIGURED_MESSAGE =
+	'SMTP env vars missing; this operation is disabled in single-user mode.';
+
+export const isSmtpConfigured = (): boolean => {
+	const host = read('SMTP_HOST');
+	const port = Number.parseInt(read('SMTP_PORT') || '0', 10);
+	const user = read('SMTP_USER');
+	const pass = read('SMTP_PASS');
+	const from = read('SMTP_FROM');
+
+	return Boolean(
+		host &&
+			Number.isFinite(port) &&
+			port > 0 &&
+			user &&
+			pass &&
+			from
+	);
+};
+
 export const getMissingRequiredEnv = (): string[] => {
 	const missing: string[] = [];
 
@@ -76,15 +104,6 @@ export const getMissingRequiredEnv = (): string[] => {
 
 	if (config.appMode === 'api' || config.appMode === 'both') {
 		if (!config.webApiKey) missing.push('WEB_API_KEY');
-		if (!config.appriseUrl) missing.push('APPRISE_URL');
-		if (!config.notificationEmailTargetTemplate) missing.push('NOTIFICATION_EMAIL_TARGET_TEMPLATE');
-		if (
-			config.notificationEmailTargetTemplate &&
-			!config.notificationEmailTargetTemplate.includes('{{email}}')
-		) {
-			missing.push('NOTIFICATION_EMAIL_TARGET_TEMPLATE(must include {{email}})');
-		}
-		if (!config.notificationBrandLogoUrl) missing.push('NOTIFICATION_BRAND_LOGO_URL');
 		for (const key of REQUIRED_IN_API_MODE) {
 			if (!read(key)) missing.push(key);
 		}

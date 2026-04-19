@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Hesperida Web App Scanner API",
-    "version": "0.6.2",
+    "version": "0.7.0",
     "description": "Use WEB_API_KEY in an x-api-key header, and the token from auth signin/signup in a Bearer Authentication header"
   },
   "servers": [
@@ -261,6 +261,9 @@
           },
           "502": {
             "description": "Notification delivery failed"
+          },
+          "503": {
+            "description": "SMTP is not configured"
           }
         }
       }
@@ -461,6 +464,9 @@
           },
           "502": {
             "description": "Notification delivery failed"
+          },
+          "503": {
+            "description": "SMTP is not configured"
           }
         }
       }
@@ -550,6 +556,9 @@
           },
           "502": {
             "description": "Notification delivery failed"
+          },
+          "503": {
+            "description": "SMTP is not configured"
           }
         }
       }
@@ -601,7 +610,7 @@
           "Users"
         ],
         "summary": "Update user",
-        "description": "Admin-only",
+        "description": "Admin-only. Superuser can also update user group.",
         "security": [
           {
             "apiKeyAuth": [],
@@ -618,6 +627,36 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "editor",
+                      "viewer"
+                    ]
+                  },
+                  "group": {
+                    "type": "string",
+                    "description": "Superuser-only. Send an empty string to generate a new unique group id."
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "User updated",
@@ -1607,6 +1646,9 @@
           },
           "502": {
             "description": "Notification delivery failed"
+          },
+          "503": {
+            "description": "SMTP is not configured"
           }
         }
       },

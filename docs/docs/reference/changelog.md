@@ -7,6 +7,25 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.7.0] - 2026-04-19
+
+### Added
+
+- Contribution guide
+- ARCHITECTURE.md for AI (or human) coding agents
+- Ability for the superuser to edit user groups
+
+### Changed
+
+- Use nodemailer for system notifications (password reset / user invites), instead of apprise
+
+### Fixed
+
+- ghcr image deployment
+- user group edge cases
+- non-admin users could not edit their account
+- config had wrong `package.json` path
+
 ## [0.6.2] - 2026-04-17
 
 ### Added

@@ -1,7 +1,8 @@
 import type { RequestHandler } from './$types';
 import { queryOne, withAdminDb } from '$lib/server/db';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
-import { sendForgotNotification } from '$lib/server/notifications';
+import { sendForgotSystemEmail } from '$lib/server/system-mail';
+import { isSmtpConfigured, SMTP_NOT_CONFIGURED_MESSAGE } from '$lib/server/config';
 import type { User } from '$lib/types';
 
 /**
@@ -28,6 +29,8 @@ import type { User } from '$lib/types';
  *               $ref: '#/components/schemas/SuccessEnvelope'
  *       502:
  *         description: Notification delivery failed
+ *       503:
+ *         description: SMTP is not configured
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *   patch:
@@ -54,6 +57,10 @@ import type { User } from '$lib/types';
  *         $ref: '#/components/responses/NotFound'
  */
 export const POST: RequestHandler = async (event) => {
+	if (!isSmtpConfigured()) {
+		return jsonError(event, 503, 'smtp_not_configured', SMTP_NOT_CONFIGURED_MESSAGE);
+	}
+
 	let payload: Record<string, unknown>;
 	try {
 		payload = await parseJson(event.request);
@@ -82,7 +89,7 @@ export const POST: RequestHandler = async (event) => {
 	);
 
 	try {
-		await sendForgotNotification({
+		await sendForgotSystemEmail({
 			email: user.email,
 			forgotToken
 		});

@@ -4,7 +4,9 @@ import { queryMany, queryOne, withAdminDb } from '$lib/server/db';
 import { withRequiredUser } from '$lib/server/route';
 import { isAdmin, isSuperuser } from '$lib/server/policy';
 import { parsePaginationParams } from '$lib/server/pagination';
-import { sendForgotNotification } from '$lib/server/notifications';
+import { sendForgotSystemEmail } from '$lib/server/system-mail';
+import { isSmtpConfigured, SMTP_NOT_CONFIGURED_MESSAGE } from '$lib/server/config';
+import { createUniqueGroup } from '$lib/server/groups';
 import type { User } from '$lib/types';
 import { userRoles } from '$lib/constants';
 
@@ -59,6 +61,8 @@ const isUserRole = (value: string): value is User["role"] =>
  *               $ref: '#/components/schemas/UserEnvelope'
  *       502:
  *         description: Notification delivery failed
+ *       503:
+ *         description: SMTP is not configured
  */
 export const GET: RequestHandler = async (event) => {
 	return withRequiredUser(event, async (auth) => {
@@ -118,6 +122,9 @@ export const POST: RequestHandler = async (event) => {
 		if (!isAdmin(auth.user)) {
 			return jsonError(event, 403, 'forbidden', 'Only admin users can create users.');
 		}
+		if (!isSmtpConfigured()) {
+			return jsonError(event, 503, 'smtp_not_configured', SMTP_NOT_CONFIGURED_MESSAGE);
+		}
 
 		let payload: Record<string, unknown>;
 		try {
@@ -139,6 +146,14 @@ export const POST: RequestHandler = async (event) => {
 
 		const forgotToken = crypto.randomUUID();
 		const randomPassword = crypto.randomUUID();
+		let group = auth.user.group;
+		if (isSuperuser(auth.user)) {
+			try {
+				group = await createUniqueGroup();
+			} catch (error) {
+				return jsonError(event, 400, 'create_failed', (error as Error).message);
+			}
+		}
 
 		let createdUser: { id: string; name: string; email: string; role: string; created_at?: string } | null = null;
 		try {
@@ -160,7 +175,7 @@ export const POST: RequestHandler = async (event) => {
 						role: roleRaw,
 						password: randomPassword,
 						forgotToken,
-						group: auth.user.group
+						group
 					}
 				)
 			);
@@ -173,7 +188,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		try {
-			await sendForgotNotification({
+			await sendForgotSystemEmail({
 				email: createdUser.email,
 				forgotToken
 			});

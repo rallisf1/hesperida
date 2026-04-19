@@ -40,6 +40,6 @@ describe('Notifications helpers', () => {
 				body: 'Body',
 				format: 'text'
 			})
-		).rejects.toThrow('Mock Apprise failure');
+		).rejects.toThrow('Apprise returned HTTP 500');
 	});
 });

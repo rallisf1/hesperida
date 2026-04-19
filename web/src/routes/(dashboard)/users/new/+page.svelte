@@ -42,7 +42,7 @@
 		<div class="flex w-full max-w-sm flex-col gap-1.5">
 			<Label for="role" class="text-lg">Role</Label>
 			<Select.Root type="single" name="role" bind:value={selectedRole}>
-				<Select.Trigger id="role" class="h-8!">{selectedRole.length ? selectedRole : 'Select a role' }</Select.Trigger>
+				<Select.Trigger id="role" class="h-8! capitalize">{selectedRole.length ? selectedRole : 'Select a role' }</Select.Trigger>
 				<Select.Content align="start">
 					{#if data.currentUserRole === "admin"}
 					<Select.Item value="admin">Admin</Select.Item>

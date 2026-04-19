@@ -13,8 +13,8 @@
 </script>
 
 <div class="p-4 lg:p-6 max-w-xl space-y-4">
-	<h2 class="text-xl font-semibold">Create User</h2>
-	<p class="text-sm text-muted-foreground">The user will receive a reset email to set their password.</p>
+	<h2 class="text-xl font-semibold">Edit User</h2>
+	<p class="text-sm text-muted-foreground">Update user profile and role settings.</p>
 
 	{#if form?.error}
 		<p class="text-sm text-destructive">{form.error}</p>
@@ -58,9 +58,22 @@
 				</Select.Root>
 			{/if}
 		</div>
+		{#if data.canEditGroup}
+		<div class="flex w-full max-w-sm flex-col gap-1.5">
+			<Label for="group" class="text-lg">Group</Label>
+				<Input
+					id="group"
+					name="group"
+					placeholder="Leave empty to generate new group"
+					value={form?.values?.group ?? data.user.group}
+					class="h-10"
+				/>
+				<p class="text-xs text-muted-foreground">Leave empty to auto-generate a new unique group id.</p>
+		</div>
+		{/if}
 		<div class="flex items-center gap-3">
 			<Button type="submit" size="lg">Save</Button>
-			<Button href="/users" size="lg" variant="outline">Cancel</Button>
+			<Button href={data.breadcrumbEntityHref} size="lg" variant="outline">Cancel</Button>
 		</div>
 	</form>
 </div>

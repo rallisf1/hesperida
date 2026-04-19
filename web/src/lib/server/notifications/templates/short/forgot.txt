@@ -1,1 +1,1 @@
-{{app_name}} reset token: {{forgot_token}} - via Hesperida
+{{app_name}} reset url: {{public_dashboard_url}}/auth/reset?token={{forgot_token}}

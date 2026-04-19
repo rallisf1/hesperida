@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.7.0] - 2026-04-19
+
+### Added
+
+- Contribution guide
+- ARCHITECTURE.md for AI (or human) coding agents
+- Ability for the superuser to edit user groups
+
+### Changed
+
+- Use nodemailer for system notifications (password reset / user invites), instead of apprise
+
+### Fixed
+
+- ghcr image deployment
+- user group edge cases
+- non-admin users could not edit their account
+- config had wrong `package.json` path
+
 ## [0.6.2] - 2026-04-17
 
 ### Added

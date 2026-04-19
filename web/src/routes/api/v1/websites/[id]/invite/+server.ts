@@ -8,8 +8,10 @@ import {
 	isAdmin,
 	isSuperuser
 } from '$lib/server/policy';
-import { sendInviteNotification } from '$lib/server/notifications';
+import { sendInviteSystemEmail } from '$lib/server/system-mail';
+import { isSmtpConfigured, SMTP_NOT_CONFIGURED_MESSAGE } from '$lib/server/config';
 import { normalizeRecordId } from '$lib/server/record-id';
+import { createUniqueGroup } from '$lib/server/groups';
 import { RecordId } from 'surrealdb';
 import type { User, Website } from '$lib/types';
 import { userRoles } from '$lib/constants';
@@ -17,20 +19,6 @@ import { userRoles } from '$lib/constants';
 type AppRole = User['role'];
 
 const isUserRole = (value: string): value is AppRole => userRoles.includes(value);
-const createUniqueGroup = async (): Promise<string> => {
-	for (let attempt = 0; attempt < 20; attempt += 1) {
-		const candidate = crypto.randomUUID();
-		const existing = await withAdminDb((db) =>
-			queryOne<{ id: string }>(
-				db,
-				'SELECT id FROM users WHERE `group` = $group LIMIT 1;',
-				{ group: candidate }
-			)
-		);
-		if (!existing?.id) return candidate;
-	}
-	throw new Error('Unable to allocate unique group id.');
-};
 
 /**
  * @swagger
@@ -62,6 +50,8 @@ const createUniqueGroup = async (): Promise<string> => {
  *               $ref: '#/components/schemas/WebsiteInviteEnvelope'
  *       502:
  *         description: Notification delivery failed
+ *       503:
+ *         description: SMTP is not configured
  *       403:
  *         $ref: '#/components/responses/Unauthorized'
  *       404:
@@ -70,6 +60,9 @@ const createUniqueGroup = async (): Promise<string> => {
 export const POST: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
+	if (!isSmtpConfigured()) {
+		return jsonError(event, 503, 'smtp_not_configured', SMTP_NOT_CONFIGURED_MESSAGE);
+	}
 
 	const websiteId = new RecordId('websites', event.params.id);
 
@@ -185,9 +178,14 @@ export const POST: RequestHandler = async (event) => {
 		const forgotToken = crypto.randomUUID();
 		const randomPassword = crypto.randomUUID();
 		const defaultName = email.split('@')[0] || 'invited-user';
-		const invitedGroup = isSuperuser(auth.user)
-			? await createUniqueGroup()
-			: auth.user.group;
+		let invitedGroup = auth.user.group;
+		if (isSuperuser(auth.user)) {
+			try {
+				invitedGroup = await createUniqueGroup();
+			} catch (error) {
+				return jsonError(event, 400, 'invite_failed', (error as Error).message);
+			}
+		}
 		createdForgotToken = forgotToken;
 		user = await withAdminDb((db) =>
 			queryOne<User>(
@@ -217,7 +215,7 @@ export const POST: RequestHandler = async (event) => {
 	if (!user) return jsonError(event, 400, 'invite_failed', 'Unable to invite user.');
 
 	try {
-		await sendInviteNotification({
+		await sendInviteSystemEmail({
 			email: user.email,
 			websiteUrl: website.url,
 			inviterName: auth.user.name || auth.user.email,

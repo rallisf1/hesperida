@@ -6,7 +6,6 @@
 	import ListTodoIcon from "@lucide/svelte/icons/list-todo";
 	import FileCodeIcon from "@lucide/svelte/icons/file-code";
 	import FileQuestionMarkIcon from "@lucide/svelte/icons/file-question-mark";
-	import SparklesIcon from "@lucide/svelte/icons/sparkles";
 	import GithubStar from "$lib/components/ui/button/github-star.svelte";
 	import { Separator } from "$lib/components/ui/separator/index.js";
 	import { page } from "$app/state";
@@ -23,7 +22,7 @@
 	import { Label } from "$lib/components/ui/label/index.js";
 	import { toggleMode, mode } from "mode-watcher";
 	import type { DashboardNotificationEvent } from "$lib/notifications";
-  import { asset } from "$app/paths";
+  	import { asset } from "$app/paths";
 
 	let { data, children } = $props();
 
@@ -34,7 +33,7 @@
 
 	export const navMain = [
 		{ title: "Home", url: "/", icon: HouseIcon },
-		{ title: "Users", url: "/users", icon: UsersIcon },
+		{ title: "Users", url: "/users", icon: UsersIcon, adminOnly: true },
 		{ title: "Websites", url: "/websites", icon: GlobeIcon },
 		{ title: "Jobs", url: "/jobs", icon: BriefcaseBusinessIcon },
 		{ title: "Job Queue", url: "/job-queue", icon: ListTodoIcon }
@@ -177,17 +176,17 @@
 						{#snippet child({ props })}
 							<a href="/" {...props}>
 								<img src={asset('/hesperida-icon.svg')} class="max-h-5 w-auto" alt="Hesperida Web Scanner" />
-								<span class="text-base font-semibold">Hesperida</span>
+								<span class="text-base font-semibold">Hesperida <span class="text-xs">v{data.version}</span></span>
 							</a>
 						{/snippet}
 					</Sidebar.MenuButton>
 				</Sidebar.MenuItem>
 			</Sidebar.Menu>
 		</Sidebar.Header>
-		<Sidebar.Content>
-			<NavMain items={navMain} />
-			<NavSecondary items={navSecondary} class="mt-auto" />
-		</Sidebar.Content>
+			<Sidebar.Content>
+				<NavMain items={navMain} currentUserRole={data.user.role ?? 'viewer'} />
+				<NavSecondary items={navSecondary} class="mt-auto" />
+			</Sidebar.Content>
 		<Sidebar.Footer>
 			<div class="flex items-center space-x-2 p-2">
 				{#key darkMode}

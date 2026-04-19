@@ -43,6 +43,7 @@ export const load: PageServerLoad = async (event) => {
 		user: visibleUser,
 		websites,
 		isSuperuser,
+		currentUserRole: event.locals.user?.role ?? null,
 		canChangeGroup: isSuperuser && currentUserRouteId !== userRouteId && !visibleUser.is_superuser,
 		breadcrumbEntityLabel: user.name?.trim() || user.email?.trim() || `User ${userRouteId}`,
 		breadcrumbEntityHref: `/users/${userRouteId}`

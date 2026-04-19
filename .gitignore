@@ -3,7 +3,6 @@ data/*.db
 .env
 */node_modules
 .sample-data
-ARCHITECTURE.md
 .codex
 .waylog
 web/wappalyzer.ts

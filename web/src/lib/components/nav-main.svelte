@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+  	import type { User } from "$lib/types";
 	import type { Component } from "svelte";
 
-	let { items }: { items: { title: string; url: string; icon?: Component }[] } = $props();
+	let { items, currentUserRole }: { items: { title: string; url: string; icon?: Component, adminOnly?: boolean }[], currentUserRole: User["role"] } = $props();
 
 	const normalizePath = (path: string): string => {
 		if (path === "/") return "/";
@@ -22,6 +23,7 @@
 	<Sidebar.GroupContent>
 		<Sidebar.Menu>
 			{#each items as item (item.title)}
+			{#if !item.adminOnly || (item.adminOnly && currentUserRole === 'admin')}
 				<Sidebar.MenuItem>
 					<Sidebar.MenuButton
 						tooltipContent={item.title}
@@ -40,6 +42,7 @@
 						{/snippet}
 					</Sidebar.MenuButton>
 				</Sidebar.MenuItem>
+			{/if}
 			{/each}
 		</Sidebar.Menu>
 	</Sidebar.GroupContent>

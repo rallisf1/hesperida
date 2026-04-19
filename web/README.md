@@ -16,8 +16,13 @@ Integration tests use `bun:test` and call the API handlers through `hooks.server
   - `SURREAL_PASS` (`root`)
   - `WEB_API_KEY` (`test-web-api-key`)
   - `APPRISE_URL` (`http://apprise.test` in tests)
-  - `NOTIFICATION_EMAIL_TARGET_TEMPLATE` (`mailto://{{email}}`)
   - `NOTIFICATION_BRAND_LOGO_URL` (`https://example.test/logo.png`)
+  - `SMTP_HOST` (`smtp.test`)
+  - `SMTP_PORT` (`587`)
+  - `SMTP_USER` (`smtp-user`)
+  - `SMTP_PASS` (`smtp-pass`)
+  - `SMTP_SECURE` (`false`)
+  - `SMTP_FROM` (`Hesperida <noreply@example.test>`)
 
 Test preload creates an ephemeral namespace/database per run by suffixing `SURREAL_NAMESPACE` and `SURREAL_DATABASE`.
 

@@ -33,8 +33,8 @@ All the dashboard functionality is available through [OpenAPI](https://rallisf1.
 
 ### Alerts & Webhooks
 
-[Apprise](https://github.com/caronc/apprise) is now integrated for notification messages and emails.
-Invite/forgot flows use `NOTIFICATION_EMAIL_TARGET_TEMPLATE` as the delivery target.
+[Apprise](https://github.com/caronc/apprise) is integrated for user-managed notification targets.
+System emails (forgot password, invite, onboarding) are sent via SMTP (`SMTP_*` env vars).
 User-level notification targets are stored in `users.notification_targets` for in-app managed channels (WIP).
 
 ## Tech Stack

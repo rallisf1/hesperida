@@ -4,6 +4,7 @@ import { queryOne, withAdminDb } from '$lib/server/db';
 import { withRequiredUser } from '$lib/server/route';
 import { isAdmin, isSuperuser } from '$lib/server/policy';
 import { normalizeRecordId } from '$lib/server/record-id';
+import { createUniqueGroup } from '$lib/server/groups';
 import { RecordId } from 'surrealdb';
 import type { User } from '$lib/types';
 import { userRoles } from '$lib/constants';
@@ -17,7 +18,7 @@ const isUserRole = (value: string): value is User["role"] =>
  *   get:
  *     tags: [Users]
  *     summary: Get user
- *     description: Admin-only
+ *     description: Admin-only, except users can read their own record.
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -40,7 +41,7 @@ const isUserRole = (value: string): value is User["role"] =>
  *   patch:
  *     tags: [Users]
  *     summary: Update user
- *     description: Admin-only
+ *     description: Admin-only, except users can update their own basic profile fields.
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
@@ -49,6 +50,21 @@ const isUserRole = (value: string): value is User["role"] =>
  *         name: id
  *         required: true
  *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               email: { type: string }
+ *               role:
+ *                 type: string
+ *                 enum: [admin, editor, viewer]
+ *               group:
+ *                 type: string
+ *                 description: Superuser-only. Send an empty string to generate a new unique group id.
  *     responses:
  *       200:
  *         description: User updated
@@ -92,16 +108,19 @@ const isUserRole = (value: string): value is User["role"] =>
  */
 export const GET: RequestHandler = async (event) => {
 	return withRequiredUser(event, async (auth) => {
-		if (!isAdmin(auth.user)) {
+		const userId = new RecordId('users', event.params.id);
+		const isSelf = normalizeRecordId(auth.user.id) === normalizeRecordId(userId);
+		if (!isAdmin(auth.user) && !isSelf) {
 			return jsonError(event, 403, 'forbidden', 'Only admin users can view users.');
 		}
 
-		const userId = new RecordId('users', event.params.id);
 		const user = await withAdminDb((db) =>
 			queryOne(
 				db,
 				isSuperuser(auth.user)
 					? 'SELECT id, name, email, role, `group`, is_superuser, created_at FROM users WHERE id = $id LIMIT 1;'
+					: isAdmin(auth.user)
+						? 'SELECT id, name, email, role, `group`, is_superuser, created_at FROM users WHERE id = $id AND `group` = $group LIMIT 1;'
 					: 'SELECT id, name, email, role, `group`, is_superuser, created_at FROM users WHERE id = $id AND `group` = $group LIMIT 1;',
 				{ id: userId, group: auth.user.group }
 			)
@@ -114,7 +133,9 @@ export const GET: RequestHandler = async (event) => {
 
 export const PATCH: RequestHandler = async (event) => {
 	return withRequiredUser(event, async (auth) => {
-		if (!isAdmin(auth.user)) {
+		const userId = new RecordId('users', event.params.id);
+		const isSelf = normalizeRecordId(auth.user.id) === normalizeRecordId(userId);
+		if (!isAdmin(auth.user) && !isSelf) {
 			return jsonError(event, 403, 'forbidden', 'Only admin users can update users.');
 		}
 
@@ -128,16 +149,6 @@ export const PATCH: RequestHandler = async (event) => {
 		const patch: Record<string, unknown> = {};
 		if (typeof payload.name === 'string') patch.name = payload.name.trim();
 		if (typeof payload.email === 'string') patch.email = payload.email.trim().toLowerCase();
-		if (typeof payload.group === 'string') {
-			const nextGroup = payload.group.trim();
-			if (!nextGroup) {
-				return jsonError(event, 400, 'bad_request', 'group must be a non-empty string.');
-			}
-			if (!isSuperuser(auth.user)) {
-				return jsonError(event, 403, 'forbidden', 'Only superuser can change user groups.');
-			}
-			patch.group = nextGroup;
-		}
 		if (typeof payload.role === 'string') {
 			const role = payload.role.trim().toLowerCase();
 			if (!isUserRole(role)) {
@@ -146,17 +157,8 @@ export const PATCH: RequestHandler = async (event) => {
 			patch.role = role;
 		}
 
-		if (!Object.keys(patch).length) {
-			return jsonError(event, 400, 'bad_request', 'At least one field is required (name, email, role, group).');
-		}
-
-		const userId = new RecordId('users', event.params.id);
 		try {
-			if (patch.group && normalizeRecordId(auth.user.id) === normalizeRecordId(userId)) {
-				return jsonError(event, 400, 'bad_request', 'You cannot change your own group.');
-			}
-
-			let targetUser: { is_superuser?: boolean } | null = null;
+			let targetUser: { is_superuser?: boolean; group?: string; role?: string } | null = null;
 			if (!isSuperuser(auth.user)) {
 				const allowed = await withAdminDb((db) =>
 					queryOne<{ id?: string }>(
@@ -165,22 +167,82 @@ export const PATCH: RequestHandler = async (event) => {
 						{ id: userId, group: auth.user.group }
 					)
 				);
-				if (!allowed?.id) return jsonError(event, 404, 'not_found', 'User not found.');
+				if (!allowed?.id && !isSelf) return jsonError(event, 404, 'not_found', 'User not found.');
 			}
 
-			if (patch.group || patch.role) {
+			if (typeof payload.group === 'string' || patch.role || isSelf) {
 				targetUser = await withAdminDb((db) =>
-					queryOne<{ is_superuser?: boolean }>(
+					queryOne<{ is_superuser?: boolean; group?: string; role?: string }>(
 						db,
-						'SELECT is_superuser FROM users WHERE id = $id LIMIT 1;',
+						'SELECT is_superuser, `group`, role FROM users WHERE id = $id LIMIT 1;',
 						{ id: userId }
 					)
 				);
 				if (!targetUser) return jsonError(event, 404, 'not_found', 'User not found.');
 			}
 
-			if (patch.group && targetUser?.is_superuser) {
-				return jsonError(event, 400, 'bad_request', 'Cannot change superuser group.');
+			// Non-admin self updates can only keep role/group unchanged.
+			if (!isAdmin(auth.user) && isSelf) {
+				if (typeof payload.group === 'string') {
+					const submittedGroup = payload.group.trim();
+					if (submittedGroup !== (targetUser?.group ?? '')) {
+						return jsonError(
+							event,
+							403,
+							'forbidden',
+							'Only superuser can change user groups.'
+						);
+					}
+				}
+				if (typeof payload.role === 'string') {
+					const submittedRole = payload.role.trim().toLowerCase();
+					if (submittedRole !== (targetUser?.role ?? '').toLowerCase()) {
+						return jsonError(
+							event,
+							403,
+							'forbidden',
+							'Only admin users can update user roles.'
+						);
+					}
+					delete patch.role;
+				}
+			}
+
+			if (typeof payload.group === 'string') {
+				const submittedGroup = payload.group.trim();
+				const currentGroup = targetUser?.group ?? '';
+				const wantsGroupChange = submittedGroup === '' || submittedGroup !== currentGroup;
+
+				if (wantsGroupChange) {
+					if (!isSuperuser(auth.user)) {
+						return jsonError(event, 403, 'forbidden', 'Only superuser can change user groups.');
+					}
+					if (normalizeRecordId(auth.user.id) === normalizeRecordId(userId)) {
+						return jsonError(event, 400, 'bad_request', 'You cannot change your own group.');
+					}
+					if (targetUser?.is_superuser) {
+						return jsonError(event, 400, 'bad_request', 'Cannot change superuser group.');
+					}
+
+					if (!submittedGroup) {
+						try {
+							patch.group = await createUniqueGroup();
+						} catch (error) {
+							return jsonError(event, 400, 'update_failed', (error as Error).message);
+						}
+					} else {
+						patch.group = submittedGroup;
+					}
+				}
+			}
+
+			if (!Object.keys(patch).length) {
+				return jsonError(
+					event,
+					400,
+					'bad_request',
+					'At least one field is required (name, email, role, group).'
+				);
 			}
 
 			if (patch.role && targetUser?.is_superuser && patch.role !== 'admin') {

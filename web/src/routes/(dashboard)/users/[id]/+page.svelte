@@ -9,6 +9,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { createToastEnhance } from '$lib/form-toast';
   	import { formatDate } from '$lib/utils.js';
+  import { da } from 'zod/v4/locales';
 
 	let { data, form } = $props();
 	let websiteFilter = $state<'owner' | 'member'>('owner');
@@ -64,12 +65,14 @@
 				Edit
 			</Button>
 		</a>
+		{#if data.currentUserRole === 'admin'}
 		<a href="/users">
 			<Button variant="outline">
 				<ArrowLeftIcon class="size-4" />
 				Back to list
 			</Button>
 		</a>
+		{/if}
 	</div>
 
 	<div class="space-y-3">

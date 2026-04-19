@@ -3,7 +3,10 @@ import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryOne, withAdminDb } from '$lib/server/db';
 import { normalizeRecordId, toRouteId } from '$lib/server/record-id';
-import { sendInviteNotification } from '$lib/server/notifications';
+import { sendInviteSystemEmail } from '$lib/server/system-mail';
+import { isSmtpConfigured, SMTP_NOT_CONFIGURED_MESSAGE } from '$lib/server/config';
+import { isSuperuser } from '$lib/server/policy';
+import { createUniqueGroup } from '$lib/server/groups';
 import { RecordId } from 'surrealdb';
 import type { User, Website } from '$lib/types';
 
@@ -42,10 +45,15 @@ import type { User, Website } from '$lib/types';
  *         $ref: '#/components/responses/NotFound'
  *       502:
  *         description: Notification delivery failed
+ *       503:
+ *         description: SMTP is not configured
  */
 export const POST: RequestHandler = async (event) => {
 	const auth = await requireUser(event);
 	if ('error' in auth) return auth.error;
+	if (!isSmtpConfigured()) {
+		return jsonError(event, 503, 'smtp_not_configured', SMTP_NOT_CONFIGURED_MESSAGE);
+	}
 
 	const websiteId = new RecordId('websites', event.params.id);
 
@@ -117,6 +125,14 @@ export const POST: RequestHandler = async (event) => {
 		const randomPassword = crypto.randomUUID();
 		const defaultName = email.split('@')[0] || 'invited-user';
 		createdForgotToken = forgotToken;
+		let targetGroup = ownerUser.group;
+		if (isSuperuser(auth.user)) {
+			try {
+				targetGroup = await createUniqueGroup();
+			} catch (error) {
+				return jsonError(event, 400, 'transfer_failed', (error as Error).message);
+			}
+		}
 
 		user = await withAdminDb((db) =>
 			queryOne<User>(
@@ -135,7 +151,7 @@ export const POST: RequestHandler = async (event) => {
 					email,
 					password: randomPassword,
 					forgotToken,
-					group: ownerUser.group
+					group: targetGroup
 				}
 			)
 		);
@@ -166,7 +182,7 @@ export const POST: RequestHandler = async (event) => {
 	if (!user) return jsonError(event, 400, 'transfer_failed', 'Unable to resolve target user.');
 
 	try {
-		await sendInviteNotification({
+		await sendInviteSystemEmail({
 			email: user.email,
 			websiteUrl: website.url,
 			inviterName: ownerUser.name || ownerUser.email,

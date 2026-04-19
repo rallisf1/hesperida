@@ -36,8 +36,7 @@ export const sendAppriseNotification = async (input: AppriseNotifyInput): Promis
 		})
 	});
 
-
-	if (response.status > 200) {
+	if (response.status >= 300) {
 		throw new Error(`Apprise returned HTTP ${response.status}`);
 	}
 
@@ -47,9 +46,6 @@ export const sendAppriseNotification = async (input: AppriseNotifyInput): Promis
 	} catch {
 		payload = null;
 	}
-
-	console.log(response.status);
-	console.log(payload);
 
 	const status = String(payload?.status ?? '').toLowerCase();
 	if (status && !APPRISE_STATUS_OK.has(status)) {
