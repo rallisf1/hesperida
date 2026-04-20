@@ -42,6 +42,16 @@ export interface Job {
     created_at?: DateTime;
 }
 
+export interface Schedule {
+    id?: RecordId<'schedule'>;
+    job: RecordId<'jobs'>;
+    cron: string;
+    created: RecordId<'jobs'>[];
+    enabled: boolean;
+    created_at?: DateTime;
+    updated_at?: DateTime;
+}
+
 export interface Website {
     id?: RecordId<'websites'>;
     owner: RecordId<'users'>;

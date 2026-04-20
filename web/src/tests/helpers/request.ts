@@ -20,6 +20,8 @@ import * as jobQueueByJob from '../../routes/api/v1/jobs/[id]/queue/+server';
 
 import * as queue from '../../routes/api/v1/job-queue/+server';
 import * as queueById from '../../routes/api/v1/job-queue/[id]/+server';
+import * as schedules from '../../routes/api/v1/schedule/+server';
+import * as scheduleById from '../../routes/api/v1/schedule/[id]/+server';
 
 import * as resultsByJob from '../../routes/api/v1/results/jobs/[id]/+server';
 import * as resultsByTool from '../../routes/api/v1/results/jobs/[id]/[tool]/+server';
@@ -62,6 +64,8 @@ const routes: RouteEntry[] = [
 	{ regex: /^\/api\/v1\/jobs\/(?<id>[^/]+)$/, module: jobById },
 	{ regex: /^\/api\/v1\/job-queue$/, module: queue },
 	{ regex: /^\/api\/v1\/job-queue\/(?<id>[^/]+)$/, module: queueById },
+	{ regex: /^\/api\/v1\/schedule$/, module: schedules },
+	{ regex: /^\/api\/v1\/schedule\/(?<id>[^/]+)$/, module: scheduleById },
 	{ regex: /^\/api\/v1\/results\/jobs\/(?<id>[^/]+)\/(?<tool>[^/]+)$/, module: resultsByTool },
 	{ regex: /^\/api\/v1\/results\/jobs\/(?<id>[^/]+)$/, module: resultsByJob }
 ];

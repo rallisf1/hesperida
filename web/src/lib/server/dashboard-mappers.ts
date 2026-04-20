@@ -2,11 +2,20 @@ import { toRouteId } from './record-id';
 import type {
 	ApiDateTime,
 	ApiJob,
+	ApiSchedule,
+	ApiScheduleRunJob,
 	ApiQueueTask,
 	ApiUser,
 	ApiWebsite
 } from '$lib/types/api';
-import type { JobView, QueueTaskView, UserView, WebsiteView } from '$lib/types/view';
+import type {
+	JobView,
+	QueueTaskView,
+	ScheduleRunJobView,
+	ScheduleView,
+	UserView,
+	WebsiteView
+} from '$lib/types/view';
 
 const toIso = (value: unknown): string => {
 	if (!value) return '';
@@ -50,3 +59,21 @@ export const mapQueueTaskToView = (
 	website_url: websiteUrl ?? ''
 });
 
+export const mapScheduleRunJobToView = (job: ApiScheduleRunJob): ScheduleRunJobView => ({
+	...job,
+	id: toRouteIdString(job.id),
+	website_id: job.website_id ? toRouteIdString(job.website_id) : undefined,
+	created_at: toIsoDateString(job.created_at)
+});
+
+export const mapScheduleToView = (schedule: ApiSchedule): ScheduleView => ({
+	...schedule,
+	id: toRouteIdString(schedule.id),
+	job_id: toRouteIdString(schedule.job),
+	linked_job_id: schedule.job_id ? toRouteIdString(schedule.job_id) : undefined,
+	website_id: schedule.website_id ? toRouteIdString(schedule.website_id) : undefined,
+	created: (schedule.created ?? []).map((jobId) => toRouteIdString(jobId)),
+	created_jobs: (schedule.created_jobs ?? []).map(mapScheduleRunJobToView),
+	created_at: toIsoDateString(schedule.created_at),
+	updated_at: toIsoDateString(schedule.updated_at)
+});

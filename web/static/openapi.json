@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Hesperida Web App Scanner API",
-    "version": "0.7.0",
+    "version": "0.8.0",
     "description": "Use WEB_API_KEY in an x-api-key header, and the token from auth signin/signup in a Bearer Authentication header"
   },
   "servers": [
@@ -12,6 +12,258 @@
     }
   ],
   "paths": {
+    "/api/v1/schedule": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "List schedules",
+        "description": "Returns schedules visible to the authenticated user. Optional filters by linked website or linked job.",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "website",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "job",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleListEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "Create schedule",
+        "description": "Non-viewers only. Cron is interpreted in UTC. Frequency is limited by SCHEDULE_MIN_INTERVAL_SECONDS.",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "job",
+                  "cron"
+                ],
+                "properties": {
+                  "job": {
+                    "type": "string"
+                  },
+                  "cron": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Schedule created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/schedule/{id}": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "Get schedule",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "Update schedule",
+        "description": "Non-viewers only. Cron is interpreted in UTC. Frequency is limited by SCHEDULE_MIN_INTERVAL_SECONDS.",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "job": {
+                    "type": "string"
+                  },
+                  "cron": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Schedule updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "Delete schedule",
+        "description": "Non-viewers only.",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/v1/screenshots/{id}": {
       "get": {
         "tags": [
@@ -2005,6 +2257,104 @@
           }
         }
       },
+      "ScheduleRunJob": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "types"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "website_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "website_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "Schedule": {
+        "type": "object",
+        "required": [
+          "id",
+          "job",
+          "cron",
+          "enabled",
+          "created"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "job": {
+            "type": "string"
+          },
+          "job_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "website_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "website_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "cron": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "created": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "runs_count": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "created_jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleRunJob"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
       "NotificationTarget": {
         "type": "object",
         "required": [
@@ -2493,6 +2843,20 @@
           }
         }
       },
+      "ScheduleListData": {
+        "type": "object",
+        "required": [
+          "schedules"
+        ],
+        "properties": {
+          "schedules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Schedule"
+            }
+          }
+        }
+      },
       "JobQueueListPaginatedData": {
         "allOf": [
           {
@@ -2544,6 +2908,17 @@
         "properties": {
           "task": {
             "$ref": "#/components/schemas/JobQueueTask"
+          }
+        }
+      },
+      "ScheduleData": {
+        "type": "object",
+        "required": [
+          "schedule"
+        ],
+        "properties": {
+          "schedule": {
+            "$ref": "#/components/schemas/Schedule"
           }
         }
       },
@@ -2942,6 +3317,21 @@
           }
         ]
       },
+      "ScheduleListEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SuccessEnvelopeBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/ScheduleListData"
+              }
+            }
+          }
+        ]
+      },
       "UserEnvelope": {
         "allOf": [
           {
@@ -2997,6 +3387,21 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/JobQueueTaskData"
+              }
+            }
+          }
+        ]
+      },
+      "ScheduleEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SuccessEnvelopeBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/ScheduleData"
               }
             }
           }

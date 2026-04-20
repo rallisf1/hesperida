@@ -18,7 +18,8 @@ const LONG_BASE_TEMPLATE = `<!doctype html>
             <tr>
               <td style="padding:20px 24px;background-color:#f9fafb;border-bottom:1px solid #e5e7eb;" align="left">
                 <a href="{{public_dashboard_url}}" style="text-decoration:none;color:#111827;display:inline-flex;align-items:center;gap:10px;">
-                  <img src="{{brand_logo_url}}" alt="{{app_name}}" style="max-height:36px;display:block;" />
+                  <img src="{{brand_logo_url}}" alt="{{app_name}}" style="max-height:42px;display:block;" />
+                  <h1 style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#111827; font-size: 22px; line-height: 1.25; vertical-align:middle;">Hesperida Web Scanner</h1>
                 </a>
               </td>
             </tr>

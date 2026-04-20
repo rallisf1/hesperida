@@ -10,6 +10,7 @@
   "dependencies": {
     "@types/dockerode": "^4.0.1",
     "dockerode": "^4.0.9",
+    "node-cron": "^4.2.1",
     "surrealdb": "^2.0.2"
   }
 }

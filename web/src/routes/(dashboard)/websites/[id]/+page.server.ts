@@ -1,8 +1,14 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
-import { mapJobToView, mapUserToView, mapWebsiteToView, toRouteIdString } from '$lib/server/dashboard-mappers';
-import type { ApiJob, ApiUser, ApiWebsite } from '$lib/types/api';
+import {
+	mapJobToView,
+	mapScheduleToView,
+	mapUserToView,
+	mapWebsiteToView,
+	toRouteIdString
+} from '$lib/server/dashboard-mappers';
+import type { ApiJob, ApiSchedule, ApiUser, ApiWebsite } from '$lib/types/api';
 import { toRegistrableDomain } from 'rdapper';
 
 type WebsiteJobRow = ReturnType<typeof mapJobToView> & {
@@ -19,6 +25,10 @@ export const load: PageServerLoad = async (event) => {
 		`/api/v1/websites/${event.params.id}/members`
 	);
 	const jobsData = await callDashboardApi<{ jobs: ApiJob[] }>(event, '/api/v1/jobs');
+	const scheduleData = await callDashboardApi<{ schedules: ApiSchedule[] }>(
+		event,
+		`/api/v1/schedule?website=${event.params.id}`
+	);
 	const website = mapWebsiteToView(websiteData.website);
 	let registrableDomain = '';
 	try {
@@ -44,6 +54,7 @@ export const load: PageServerLoad = async (event) => {
 			: null,
 		memberUsers: (memberData.member_users ?? []).map(mapUserToView),
 		latestJobs,
+		schedules: (scheduleData.schedules ?? []).map(mapScheduleToView),
 		isOwner,
 		currentUserRole: event.locals.user?.role ?? null,
 		breadcrumbEntityLabel: website.url?.trim() || `Website ${websiteRouteId}`,

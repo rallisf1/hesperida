@@ -4,6 +4,7 @@
 	import GlobeIcon from "@lucide/svelte/icons/globe";
 	import BriefcaseBusinessIcon from "@lucide/svelte/icons/briefcase-business";
 	import ListTodoIcon from "@lucide/svelte/icons/list-todo";
+	import CalendarClockIcon from "@lucide/svelte/icons/calendar-clock";
 	import FileCodeIcon from "@lucide/svelte/icons/file-code";
 	import FileQuestionMarkIcon from "@lucide/svelte/icons/file-question-mark";
 	import GithubStar from "$lib/components/ui/button/github-star.svelte";
@@ -36,7 +37,8 @@
 		{ title: "Users", url: "/users", icon: UsersIcon, adminOnly: true },
 		{ title: "Websites", url: "/websites", icon: GlobeIcon },
 		{ title: "Jobs", url: "/jobs", icon: BriefcaseBusinessIcon },
-		{ title: "Job Queue", url: "/job-queue", icon: ListTodoIcon }
+		{ title: "Job Queue", url: "/job-queue", icon: ListTodoIcon },
+		{ title: "Schedule", url: "/schedule", icon: CalendarClockIcon }
 	];
 
 	const navSecondary = [
@@ -68,6 +70,7 @@
 		websites: "Websites",
 		jobs: "Jobs",
 		"job-queue": "Job Queue",
+		schedule: "Schedule",
 		new: "New",
 		edit: "Edit"
 	};

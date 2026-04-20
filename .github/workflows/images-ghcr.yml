@@ -79,8 +79,8 @@ jobs:
 
           for service in "${services[@]}"; do
             image="ghcr.io/${owner_lc}/${repo_lc}-${service}"
-            tags_json="[\"${image}:${VERSION}\",\"${image}:sha-${SHA_SHORT}\",\"${image}:latest\"]"
-            args+=(--set "${service}.tags=${tags_json}")
+            tags_csv="${image}:${VERSION},${image}:sha-${SHA_SHORT},${image}:latest"
+            args+=(--set "${service}.tags=${tags_csv}")
           done
 
           docker buildx bake "${args[@]}" "${services[@]}"

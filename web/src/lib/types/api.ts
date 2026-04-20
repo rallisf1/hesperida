@@ -83,6 +83,31 @@ export interface ApiQueueTask {
 	created_at?: ApiDateTime;
 }
 
+export interface ApiScheduleRunJob {
+	id: ApiRecordId;
+	status: ApiJob['status'];
+	types: Tool[];
+	website_id?: ApiRecordId;
+	website_url?: string;
+	created_at?: ApiDateTime;
+}
+
+export interface ApiSchedule {
+	id: ApiRecordId;
+	job: ApiRecordId;
+	job_id?: ApiRecordId;
+	job_types?: Tool[];
+	website_id?: ApiRecordId;
+	website_url?: string;
+	cron: string;
+	created: ApiRecordId[];
+	enabled: boolean;
+	runs_count?: number;
+	created_jobs?: ApiScheduleRunJob[];
+	created_at?: ApiDateTime;
+	updated_at?: ApiDateTime;
+}
+
 export interface ApiProbeGeo {
 	lat: number;
 	lon: number;

@@ -7,6 +7,17 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.8.0] - 2026-04-20
+
+### Added
+
+- Job Scheduling (cron)
+- Automatic delete of website_validations when all related websites are deleted
+
+### Changed
+
+- enhance the long notification template header
+
 ## [0.7.0] - 2026-04-19
 
 ### Added

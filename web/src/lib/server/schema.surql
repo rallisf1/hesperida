@@ -82,7 +82,12 @@ DEFINE INDEX IF NOT EXISTS owner_websites_idx ON websites FIELDS owner;
 DEFINE INDEX IF NOT EXISTS users_websites_idx ON websites FIELDS users;
 DEFINE INDEX IF NOT EXISTS verified_at_websites_idx ON websites FIELDS verified_at;
 
-DEFINE EVENT IF NOT EXISTS website_delete ON websites WHEN $event = 'DELETE' THEN { DELETE jobs WHERE website = $before.id };
+DEFINE EVENT OVERWRITE website_delete ON websites WHEN $event = 'DELETE' THEN {
+	DELETE jobs WHERE website = $before.id;
+	IF $before.verification_id != NONE AND count(SELECT * FROM websites WHERE verification_id = $before.verification_id AND id != $before.id) = 0 {
+		(DELETE website_verifications WHERE id = $before.verification_id);
+	};
+};
 
 -- ------------------------------
 -- TABLE: website_verifications
@@ -105,6 +110,32 @@ DEFINE FIELD IF NOT EXISTS verified_at ON website_verifications TYPE option<date
 DEFINE FIELD IF NOT EXISTS verification_method ON website_verifications TYPE option<string> ASSERT $value = NONE OR $value IN ['dns', 'file'];
 
 DEFINE INDEX IF NOT EXISTS website_verifications_group_domain_idx ON website_verifications FIELDS `group`, registrable_domain UNIQUE;
+
+
+-- ------------------------------
+-- TABLE: schedule
+-- ------------------------------
+
+DEFINE TABLE IF NOT EXISTS schedule TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR select WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
+		job.website.owner = $auth.id OR
+		$auth.id IN job.website.users,
+	FOR create, update, delete WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
+		($auth.role = 'editor' AND (job.website.owner = $auth.id OR $auth.id IN job.website.users));
+
+DEFINE FIELD IF NOT EXISTS created_at ON schedule TYPE datetime DEFAULT time::now() READONLY;
+DEFINE FIELD IF NOT EXISTS updated_at ON schedule TYPE datetime VALUE time::now();
+DEFINE FIELD IF NOT EXISTS job ON schedule TYPE record<jobs> ASSERT record::exists($value);
+DEFINE FIELD IF NOT EXISTS cron ON schedule TYPE string ASSERT string::len($value) > 0;
+DEFINE FIELD IF NOT EXISTS created ON schedule TYPE array<record<jobs>> DEFAULT [];
+DEFINE FIELD IF NOT EXISTS enabled ON schedule TYPE bool DEFAULT true;
+
+DEFINE INDEX IF NOT EXISTS schedule_job_idx ON schedule FIELDS job;
+DEFINE INDEX IF NOT EXISTS schedule_enabled_idx ON schedule FIELDS enabled;
 
 
 -- ------------------------------
@@ -157,6 +188,7 @@ DEFINE EVENT OVERWRITE job_deletion ON jobs WHEN $event = 'DELETE' THEN {
   IF $before.stress { (DELETE $before.stress) };
   IF type::file('screenshots', record::id($before.id) + '.png').exists() { type::file('screenshots', record::id($before.id) + '.png').delete() };
   DELETE FROM job_queue WHERE job = $before.id;
+  DELETE FROM schedule WHERE job = $before.id;
 };
 
 DEFINE EVENT IF NOT EXISTS job_completion_check ON jobs WHEN $event = 'UPDATE' AND $after.status != 'completed' THEN {

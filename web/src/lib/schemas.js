@@ -135,6 +135,40 @@
  *         status:
  *           $ref: '#/components/schemas/JobQueueStatus'
  *         created_at: { type: string, format: date-time, nullable: true }
+ *     ScheduleRunJob:
+ *       type: object
+ *       required: [id, status, types]
+ *       properties:
+ *         id: { type: string }
+ *         status:
+ *           $ref: '#/components/schemas/JobStatus'
+ *         types:
+ *           type: array
+ *           items: { type: string }
+ *         website_id: { type: string, nullable: true }
+ *         website_url: { type: string, nullable: true }
+ *         created_at: { type: string, format: date-time, nullable: true }
+ *     Schedule:
+ *       type: object
+ *       required: [id, job, cron, enabled, created]
+ *       properties:
+ *         id: { type: string }
+ *         job: { type: string }
+ *         job_id: { type: string, nullable: true }
+ *         website_id: { type: string, nullable: true }
+ *         website_url: { type: string, nullable: true }
+ *         cron: { type: string }
+ *         enabled: { type: boolean }
+ *         created:
+ *           type: array
+ *           items: { type: string }
+ *         runs_count: { type: integer, minimum: 0, nullable: true }
+ *         created_jobs:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/ScheduleRunJob'
+ *         created_at: { type: string, format: date-time, nullable: true }
+ *         updated_at: { type: string, format: date-time, nullable: true }
  *     NotificationTarget:
  *       type: object
  *       required: [id, target, enabled, created_at, updated_at]
@@ -332,6 +366,14 @@
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/JobQueueTask'
+ *     ScheduleListData:
+ *       type: object
+ *       required: [schedules]
+ *       properties:
+ *         schedules:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Schedule'
  *     JobQueueListPaginatedData:
  *       allOf:
  *         - $ref: '#/components/schemas/JobQueueListData'
@@ -360,6 +402,12 @@
  *       properties:
  *         task:
  *           $ref: '#/components/schemas/JobQueueTask'
+ *     ScheduleData:
+ *       type: object
+ *       required: [schedule]
+ *       properties:
+ *         schedule:
+ *           $ref: '#/components/schemas/Schedule'
  *     JobQueueByJobData:
  *       type: object
  *       required: [tasks]
@@ -542,6 +590,13 @@
  *               oneOf:
  *                 - $ref: '#/components/schemas/JobQueueListData'
  *                 - $ref: '#/components/schemas/JobQueueListPaginatedData'
+ *     ScheduleListEnvelope:
+ *       allOf:
+ *         - $ref: '#/components/schemas/SuccessEnvelopeBase'
+ *         - type: object
+ *           properties:
+ *             data:
+ *               $ref: '#/components/schemas/ScheduleListData'
  *     UserEnvelope:
  *       allOf:
  *         - $ref: '#/components/schemas/SuccessEnvelopeBase'
@@ -570,6 +625,13 @@
  *           properties:
  *             data:
  *               $ref: '#/components/schemas/JobQueueTaskData'
+ *     ScheduleEnvelope:
+ *       allOf:
+ *         - $ref: '#/components/schemas/SuccessEnvelopeBase'
+ *         - type: object
+ *           properties:
+ *             data:
+ *               $ref: '#/components/schemas/ScheduleData'
  *     JobQueueByJobEnvelope:
  *       allOf:
  *         - $ref: '#/components/schemas/SuccessEnvelopeBase'

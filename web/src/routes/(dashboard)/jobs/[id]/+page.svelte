@@ -34,8 +34,9 @@
 	import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   	import { type Technology } from '$lib/server/wappalyzer';
 	import Globe from '$lib/components/globe.svelte';
-	import DnsRecords from '$lib/components/dns-records.svelte';
+  	import DnsRecords from '$lib/components/dns-records.svelte';
   	import ScoreToolResults from '$lib/components/score-tool-results.svelte';
+	import ScheduleTable from '$lib/components/schedule-table.svelte';
 
 	let { data } = $props();
 	type JobViewModel = ApiJobResults & {
@@ -200,6 +201,7 @@
 
 				const link = document.createElement('a');
 				link.href = objectUrl;
+				console.log(objectUrl);
 				link.download = fileName;
 				link.style.display = 'none';
 				document.body.appendChild(link);
@@ -227,6 +229,12 @@
 				<Card.Description>
 					URL: <Button variant='link' href={website.url} target="_blank" title="Visit Website">{website.url}</Button> · Scanned: {formatDate(String(job.created_at ?? ''), true)}
 				</Card.Description>
+				{#if data.createdByScheduleId}
+					<Card.Description>
+						Created by:
+						<Button variant="link" href={`/schedule/${data.createdByScheduleId}`}>Schedule</Button>
+					</Card.Description>
+				{/if}
 			</Card.Header>
 			<Card.Content class="flex flex-col gap-2">
 				<div class="flex flex-wrap gap-1">
@@ -679,6 +687,17 @@
 		</Card.Root>
 		{/if}
 	</div>
+	{#if data.schedules.length}
+	<div class="rounded-md border">
+		<div class="border-b p-4 flex items-center justify-between gap-3">
+			<h3 class="font-semibold">Schedules</h3>
+			<Button href={`/schedule?job=${job.id}`} variant="outline" size="sm">Manage</Button>
+		</div>
+		<div class="p-4">
+			<ScheduleTable schedules={data.schedules ?? []} />
+		</div>
+	</div>
+	{/if}
 	<div class="flex justify-between">
 		<Button href="/jobs" variant="outline">
 			<ArrowLeftIcon class="size-4" />

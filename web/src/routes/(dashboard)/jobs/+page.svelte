@@ -143,6 +143,11 @@
 												<a href={`/jobs/${job.id}`} {...props}>View</a>
 											{/snippet}
 										</DropdownMenu.Item>
+										<DropdownMenu.Item>
+											{#snippet child({ props })}
+												<a href={`/schedule/new?website_id=${job.website_id}`} {...props}>Add schedule</a>
+											{/snippet}
+										</DropdownMenu.Item>
 									</DropdownMenu.Content>
 								</DropdownMenu.Root>
 							</Table.Cell>

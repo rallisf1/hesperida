@@ -29,6 +29,11 @@ const smtpPortRaw = read('SMTP_PORT');
 const parsedSmtpPort = Number.parseInt(smtpPortRaw || '0', 10);
 const gotenbergUrl = read('GOTENBERG_URL') || 'http://pdf:3000';
 const authSignupEnabled = (read('AUTH_SIGNUP_ENABLED') || 'true').toLowerCase() === 'true';
+const scheduleMinIntervalRaw = Number.parseInt(read('SCHEDULE_MIN_INTERVAL_SECONDS') || '', 10);
+const scheduleMinIntervalSeconds =
+	Number.isFinite(scheduleMinIntervalRaw) && scheduleMinIntervalRaw > 0
+		? scheduleMinIntervalRaw
+		: 3600;
 
 const surrealProtocol = read('SURREAL_PROTOCOL') || 'http';
 const wsProtocol = surrealProtocol === 'https' ? 'wss' : 'ws';
@@ -50,6 +55,7 @@ export const config = {
 	smtpFrom: read('SMTP_FROM'),
 	gotenbergUrl,
 	authSignupEnabled,
+	scheduleMinIntervalSeconds,
 	surrealUser: read('SURREAL_USER'),
 	surrealPass: read('SURREAL_PASS'),
 	surrealNamespace: read('SURREAL_NAMESPACE') || 'main',

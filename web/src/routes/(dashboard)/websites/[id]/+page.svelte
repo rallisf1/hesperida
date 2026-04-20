@@ -14,9 +14,10 @@
 	import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
 	import { formatDate } from '$lib/utils';
 	import { createToastEnhance } from '$lib/form-toast';
-    import * as Field from '$lib/components/ui/field/index.js';
+	import * as Field from '$lib/components/ui/field/index.js';
     import { Checkbox } from '$lib/components/ui/checkbox/index.js';
     import * as Popover from '$lib/components/ui/popover/index.js';
+	import ScheduleTable from '$lib/components/schedule-table.svelte';
 
 	let { data, form } = $props();
 	let inviteRole = $state<'admin' | 'editor' | 'viewer'>('viewer');
@@ -275,6 +276,18 @@
 					{/if}
 				</Table.Body>
 			</Table.Root>
+		</div>
+	</div>
+
+	<div class="rounded-md border">
+		<div class="border-b p-4 flex items-center justify-between gap-3">
+			<h3 class="font-semibold">Schedules</h3>
+			<Button href={`/schedule?website=${data.website.id}`} variant="outline" size="sm">
+				Manage
+			</Button>
+		</div>
+		<div class="p-4">
+			<ScheduleTable schedules={data.schedules ?? []} />
 		</div>
 	</div>
 

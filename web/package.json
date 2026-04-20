@@ -1,7 +1,7 @@
 {
 	"name": "hesperida-web",
 	"private": true,
-	"version": "0.7.0",
+	"version": "0.8.0",
 	"type": "module",
 	"repository": {
 		"type": "git",
@@ -68,6 +68,9 @@
 		"zod": "^4.3.6"
 	},
 	"dependencies": {
+		"cron-parser": "^5.4.0",
+		"cron-validator": "^1.4.0",
+		"cronstrue": "^3.8.0",
 		"d3-geo": "^3.1.1",
 		"mode-watcher": "^1.1.0",
 		"nodemailer": "^7.0.10",

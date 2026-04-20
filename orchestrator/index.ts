@@ -1,7 +1,8 @@
 import { setInterval, clearInterval } from 'node:timers';
 import { DateTime, RecordId, Surreal, Table, eq } from 'surrealdb';
 import Dockerode from 'dockerode';
-import type { Job, Queue, Tool, Website } from './types';
+import cron from 'node-cron';
+import type { Job, Queue, Schedule, Tool, Website } from './types';
 import { slowTools, tools } from './constants';
 import { readdir } from "node:fs/promises";
 import { PassThrough } from 'node:stream';
@@ -93,12 +94,125 @@ const queue = new Table('job_queue');
 
 const newJobs = await db.live(new Table('jobs')).fields('website','types','status','options').where(eq('status', 'pending'));
 const newTasks = await db.live(queue).where(eq('status', 'pending'));
+const scheduleLive = await db.live(new Table('schedule'));
+
+const normalizeCronExpression = (value: string): string => value.trim().split(/\s+/).join(' ');
+
+const scheduleTasks = new Map<string, ReturnType<typeof cron.schedule>>();
+
+const stopScheduledTask = (scheduleId: string): void => {
+	const task = scheduleTasks.get(scheduleId);
+	if (!task) return;
+	try {
+		task.stop();
+		task.destroy();
+	} catch {
+		// ignore scheduler cleanup errors
+	}
+	scheduleTasks.delete(scheduleId);
+};
+
+const disableSchedule = async (scheduleId: RecordId): Promise<void> => {
+	const id = scheduleId.id.toString()
+	if (!id.length) return;
+	stopScheduledTask(id);
+	try {
+		await db.update<Schedule>(scheduleId).merge({
+			enabled: false,
+			updated_at: new DateTime(new Date().toISOString())
+		});
+	} catch (error) {
+		console.error(`Failed to disable schedule ${id}:`, error);
+	}
+};
+
+const appendScheduleRun = async (scheduleId: RecordId, jobId: RecordId): Promise<void> => {
+	await db.query(
+		'UPDATE $id SET created = array::slice(array::prepend(created ?? [], $job), 0, 365), updated_at = time::now();',
+		{
+			id: scheduleId,
+			job: jobId
+		}
+	).collect();
+};
+
+const triggerSchedule = async (scheduleId: RecordId, sourceJobId: RecordId): Promise<void> => {
+	const [rows] = await db
+		.query<[{ id?: RecordId<'jobs'>; website?: RecordId<'websites'>; types?: Tool[]; options?: Record<string, unknown> }[]]>(
+			'SELECT id, website, types, options FROM jobs WHERE id = $id LIMIT 1;',
+			{ id: sourceJobId }
+		)
+		.collect();
+	const source = rows?.[0];
+	if (!source?.id || !source.website || !Array.isArray(source.types) || !source.types.length) {
+		await disableSchedule(scheduleId);
+		return;
+	}
+
+	const website = await db.select<Website>(source.website);
+	if (!website?.id) {
+		await disableSchedule(scheduleId);
+		return;
+	}
+
+	const createdRows = await db
+		.create<Job>(new Table('jobs'))
+		.content({
+			website: source.website,
+			types: source.types,
+			options: source.options ?? {},
+			status: 'pending'
+		});
+	const created = Array.isArray(createdRows) ? createdRows[0] : createdRows;
+	if (!created?.id) return;
+
+	await appendScheduleRun(scheduleId, created.id);
+};
+
+const reconcileSchedule = (schedule: Partial<Schedule> | null | undefined): void => {
+	if (!schedule?.id) return;
+    const scheduleId = schedule.id.id.toString();
+	stopScheduledTask(scheduleId);
+
+	if (!schedule.enabled) return;
+	if (!schedule.job) return;
+
+	const cronExpression = normalizeCronExpression(String(schedule.cron ?? ''));
+	if (!cron.validate(cronExpression)) {
+		void disableSchedule(schedule.id);
+		return;
+	}
+
+	const task = cron.schedule(
+		cronExpression,
+		() => {
+			void triggerSchedule(schedule.id!, schedule.job!);
+		},
+		{ timezone: 'UTC' }
+	);
+	scheduleTasks.set(scheduleId, task);
+};
+
+const bootstrapSchedules = async (): Promise<void> => {
+	const [rows] = await db
+		.query<[(Partial<Schedule>)[]]>('SELECT id, job, cron, enabled FROM schedule WHERE enabled = true;')
+		.collect();
+	for (const row of rows ?? []) {
+		reconcileSchedule(row);
+	}
+};
+
+await bootstrapSchedules();
 
 process.on("beforeExit", async () => {
     console.log('Hesperida Orchestrator exiting gracefully...');
     clearInterval(waitingInterval);
+    for (const scheduleId of scheduleTasks.keys()) {
+        stopScheduledTask(scheduleId);
+    }
     await newJobs.kill();
     await newTasks.kill();
+    await scheduleLive.kill();
     await db.close();
 });
 
@@ -282,6 +396,19 @@ newTasks.subscribe(async ({action, value, recordId}) => {
     } else {
         console.warn(`${action} triggered for status ${value.status} on ${recordId}. This shouldn't happen!`);
     }
+});
+
+if(DEBUG) console.debug('Listening for schedules...');
+scheduleLive.subscribe(({ action, value, recordId }) => {
+	if (action === 'DELETE') {
+		stopScheduledTask(recordId.id.toString());
+		return;
+	}
+
+	reconcileSchedule({
+		...(value as Partial<Schedule>),
+		id: recordId as RecordId<'schedule'>
+	});
 });
 
 if(DEBUG) console.debug('Listening for new Jobs...');

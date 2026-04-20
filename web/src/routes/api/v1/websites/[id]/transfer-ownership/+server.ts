@@ -157,7 +157,7 @@ export const POST: RequestHandler = async (event) => {
 		);
 		createdUserId = user?.id ?? null;
 	} else {
-		if (user.group !== ownerUser.group) {
+		if (user.group !== ownerUser.group && !isSuperuser(auth.user)) {
 			return jsonError(
 				event,
 				409,

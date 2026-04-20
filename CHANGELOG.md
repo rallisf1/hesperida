@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.8.0] - 2026-04-20
+
+### Added
+
+- Job Scheduling (cron)
+- Automatic delete of website_validations when all related websites are deleted
+
+### Changed
+
+- enhance the long notification template header
+
 ## [0.7.0] - 2026-04-19
 
 ### Added

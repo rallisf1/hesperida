@@ -395,6 +395,7 @@
 				</Card.Content>
 			</Card.Root>
 		</div>
+
 		<DataTable rows={tasks} enableRowDrag={false} enableRowSelect={false} onCancelTask={cancelTask} />
 	</div>
 </div>
