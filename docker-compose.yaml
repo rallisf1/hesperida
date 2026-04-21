@@ -246,7 +246,7 @@ services:
     healthcheck:
         test: ["CMD", "/surreal", "is-ready"]
         interval: 5s
-        timeout: 5ss
+        timeout: 5s
         retries: 5
 
   # TODO add a reverse proxy
