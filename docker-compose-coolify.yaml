@@ -1,0 +1,252 @@
+# documentation: https://rallisf1.github.io/hesperida/
+# slogan: Hesperida is a self-hosted SEO, WCAG, & vulnerability web scanner.
+# category: development
+# tags: seo, whois, wcag, vulnerability-detection, website-audit
+# logo: assets/hesperida-icon.svg
+# port: 3000
+
+services:
+  probe:
+    image: ghcr.io/rallisf1/hesperida-probe:latest
+    restart: never
+    profiles: [tools]
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+      - "APPRISE_URL=${APPRISE_URL:-http://apprise:8000}"
+      - "APPRISE_API_KEY=${APPRISE_API_KEY:-}"
+      - "MAX_ATTEMPTS=${MAX_ATTEMPTS:-4}"
+      - "WCAG_RUN_ONLY=${WCAG_RUN_ONLY:-}"
+      - "WCAG_EXCLUDE_RULES=${WCAG_EXCLUDE_RULES:-}"
+  
+  whois:
+    image: ghcr.io/rallisf1/hesperida-whois:latest
+    restart: never
+    profiles: [tools]
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+
+  ssl:
+    image: ghcr.io/rallisf1/hesperida-ssl:latest
+    restart: never
+    profiles: [tools]
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+
+  domain:
+    image: ghcr.io/rallisf1/hesperida-domain:latest
+    restart: never
+    profiles: [tools]
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+
+  seo:
+    image: ghcr.io/rallisf1/hesperida-seo:latest
+    restart: never
+    profiles: [tools]
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+
+  wcag:
+    image: ghcr.io/rallisf1/hesperida-wcag:latest
+    restart: never
+    profiles: [tools]
+    ipc: host
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+
+  security:
+    image: ghcr.io/rallisf1/hesperida-security:latest
+    restart: never
+    profiles: [tools]
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+      - "SECURITY_NUCLEI_TEMPLATES=${SECURITY_NUCLEI_TEMPLATES:-}"
+      - "SECURITY_NIKTO_TIMEOUT=${SECURITY_NIKTO_TIMEOUT:-900}"
+      - "SECURITY_SCORE_THRESHOLD=${SECURITY_SCORE_THRESHOLD:-400}"
+
+  stress:
+    image: ghcr.io/rallisf1/hesperida-stress:latest
+    restart: never
+    profiles: [tools]
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+      - "STRESS_RATE=${STRESS_RATE:-10}"
+      - "STRESS_DURATION=${STRESS_DURATION:-30s}"
+      - "STRESS_METHOD=${STRESS_METHOD:-GET}"
+      - "STRESS_TIMEOUT=${STRESS_TIMEOUT:-10s}"
+      - "STRESS_WORKERS=${STRESS_WORKERS:-10}"
+      - "STRESS_MAX_WORKERS=${STRESS_MAX_WORKERS:-100}"
+      - "STRESS_HEADERS=${STRESS_HEADERS:-{}}"
+      - "STRESS_BODY=${STRESS_BODY:-}"
+      - "STRESS_LATENCY_WARN_MS=${STRESS_LATENCY_WARN_MS:-500}"
+
+  orchestrator:
+    image: ghcr.io/rallisf1/hesperida-orchestrator:latest
+    restart: always
+    profiles: ["backend", "aio"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "APPRISE_URL=${APPRISE_URL:-http://apprise:8000}"
+      - "APPRISE_API_KEY=${APPRISE_API_KEY:-}"
+      - "DASHBOARD_URL=${SERVICE_URL_HESPERIDA}"
+      - "DEBUG=${DEBUG:-false}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  web:
+    image: ghcr.io/rallisf1/hesperida-web:latest
+    restart: always
+    profiles: ["backend", "aio"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - SERVICE_URL_HESPERIDA_3000
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "APP_MODE=${APP_MODE:-both}"
+      - "API_URL=${API_URL:-}"
+      - "API_KEY=${API_KEY:-}"
+      - "WEB_API_KEY=${WEB_API_KEY:-changeme}"
+      - "APPRISE_URL=${APPRISE_URL:-http://apprise:8000}"
+      - "APPRISE_API_KEY=${APPRISE_API_KEY:-}"
+      - "WP_PATH=${APPRISE_API_KEY:-/app/wappalyzer.db}"
+      - "NOTIFICATION_BRAND_LOGO_URL=${NOTIFICATION_BRAND_LOGO_URL:-https://example.com/logo.png}"
+      - "DASHBOARD_URL=${SERVICE_URL_HESPERIDA}"
+      - "SMTP_HOST=${SMTP_HOST:-}"
+      - "SMTP_PORT=${SMTP_PORT:-587}"
+      - "SMTP_USER=${SMTP_USER:-}"
+      - "SMTP_PASS=${SMTP_PASS:-}"
+      - "SMTP_SECURE=${SMTP_SECURE:-false}"
+      - "SMTP_FROM=${SMTP_FROM:-}"
+      - "SESSION_COOKIE_NAME=${SESSION_COOKIE_NAME:-hesperida_session}"
+      - "SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-false}"
+      - "SESSION_COOKIE_MAX_AGE=${SESSION_COOKIE_MAX_AGE:-3600}"
+      - "GOTENBERG_URL=${GOTENBERG_URL:-http://pdf:3000}"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:3000/health >/dev/null || exit 1",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  apprise:
+    restart: always
+    image: caronc/apprise:latest
+    profiles: ["backend", "aio"]
+    environment:
+      - APPRISE_STATEFUL_MODE=disabled
+      - APPRISE_API_ONLY=yes
+      - APPRISE_WORKER_COUNT=${APPRISE_WORKER_COUNT:-1}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:8000/status >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+  
+  pdf:
+    restart: always
+    image: 'gotenberg/gotenberg:latest'
+    profiles: ["backend", "aio"]
+    healthcheck:
+      interval: 60s
+      test:
+        - CMD
+        - curl
+        - '-f'
+        - 'http://gotenberg:3000/health'
+      timeout: 10s
+
+  db:
+    restart: always
+    image: surrealdb/surrealdb:latest
+    profiles: ["database", "aio"]
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_DEFAULT_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DEFAULT_DATABASE=${SURREAL_DATABASE:-main}"
+      - SURREAL_CAPS_ALLOW_EXPERIMENTAL=files
+      - SURREAL_BUCKET_FOLDER_ALLOWLIST=/mydata/screenshots
+      - SURREAL_HIDE_WELCOME=true
+      - SURREAL_NO_BANNER=true
+      - SURREAL_PATH=rocksdb:/mydata/mydatabase.db
+      - "TZ=${TZ:-Europe/Athens}"
+      - "DEBUG=${DEBUG:-false}"
+    command: start
+    volumes:
+      - hesperida-db-data:/mydata
+    healthcheck:
+        test: ["CMD", "/surreal", "is-ready"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
