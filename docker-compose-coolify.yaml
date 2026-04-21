@@ -243,6 +243,7 @@ services:
       - "TZ=${TZ:-Europe/Athens}"
       - "DEBUG=${DEBUG:-false}"
     command: start
+    user: root
     volumes:
       - hesperida-db-data:/mydata
     healthcheck:
