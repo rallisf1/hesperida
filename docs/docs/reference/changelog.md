@@ -7,6 +7,12 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.9.1] - 2026-04-21
+
+### Fixed
+
+- derived state in notification pages
+
 ## [0.9.0] - 2026-04-21
 
 ### Added

@@ -10,20 +10,20 @@
 
 	let { data, form } = $props();
 
-	let website = $state(data.link.website_id);
-	let notificationChannel = $state(data.link.notification_channel_id);
-	let jobCompleted = $state(Boolean(data.link.events.JOB_COMPLETED));
-	let jobFailed = $state(Boolean(data.link.events.JOB_FAILED));
-	let seoScoreBelow = $state(
+	let website = $derived(data.link.website_id);
+	let notificationChannel = $derived(data.link.notification_channel_id);
+	let jobCompleted = $derived(Boolean(data.link.events.JOB_COMPLETED));
+	let jobFailed = $derived(Boolean(data.link.events.JOB_FAILED));
+	let seoScoreBelow = $derived(
 		data.link.events.SEO_SCORE_BELOW === null ? '' : String(data.link.events.SEO_SCORE_BELOW)
 	);
-	let stressScoreBelow = $state(
+	let stressScoreBelow = $derived(
 		data.link.events.STRESS_SCORE_BELOW === null ? '' : String(data.link.events.STRESS_SCORE_BELOW)
 	);
-	let wcagScoreBelow = $state(
+	let wcagScoreBelow = $derived(
 		data.link.events.WCAG_SCORE_BELOW === null ? '' : String(data.link.events.WCAG_SCORE_BELOW)
 	);
-	let securityScoreBelow = $state(
+	let securityScoreBelow = $derived(
 		data.link.events.SECURITY_SCORE_BELOW === null ? '' : String(data.link.events.SECURITY_SCORE_BELOW)
 	);
 </script>

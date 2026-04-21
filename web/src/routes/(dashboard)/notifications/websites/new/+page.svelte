@@ -10,10 +10,10 @@
 
 	let { data, form } = $props();
 
-	let website = $state(data.websitePreset || data.websites?.[0]?.id || '');
-	let notificationChannel = $state(data.channels?.[0]?.id || '');
-	let jobCompleted = $state(Boolean(data.defaultEvents.JOB_COMPLETED));
-	let jobFailed = $state(Boolean(data.defaultEvents.JOB_FAILED));
+	let website = $derived(data.websitePreset || data.websites?.[0]?.id || '');
+	let notificationChannel = $derived(data.channels?.[0]?.id || '');
+	let jobCompleted = $derived(Boolean(data.defaultEvents.JOB_COMPLETED));
+	let jobFailed = $derived(Boolean(data.defaultEvents.JOB_FAILED));
 	let seoScoreBelow = $state('');
 	let stressScoreBelow = $state('');
 	let wcagScoreBelow = $state('');
