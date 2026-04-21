@@ -13,6 +13,8 @@ services:
       - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "DEBUG=${DEBUG:-false}"
+      - "APPRISE_URL=${APPRISE_URL:-http://apprise:8000}"
+      - "APPRISE_API_KEY=${APPRISE_API_KEY:-}"
       - "MAX_ATTEMPTS=${MAX_ATTEMPTS:-4}"
       - "WCAG_RUN_ONLY=${WCAG_RUN_ONLY:-}"
       - "WCAG_EXCLUDE_RULES=${WCAG_EXCLUDE_RULES:-}"
@@ -160,6 +162,9 @@ services:
       - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
       - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "APPRISE_URL=${APPRISE_URL:-http://apprise:8000}"
+      - "APPRISE_API_KEY=${APPRISE_API_KEY:-}"
+      - "DASHBOARD_URL=${DASHBOARD_URL:-http://localhost:3000}"
       - "DEBUG=${DEBUG:-false}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

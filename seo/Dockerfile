@@ -12,7 +12,7 @@ RUN rm -rf /var/lib/apt/lists/*
 
 # prewarm browser
 RUN find /ms-playwright -name chrome -type f -exec {} \
-    --headless --no-sandbox --disable-gpu --dump-dom about:blank \; \
+    --headless --no-sandbox --disable-gpu --dump-dom about:blank \; 2>/dev/null \
  || true
 
 WORKDIR /app
@@ -23,7 +23,7 @@ RUN git clone https://github.com/seo-skills/seo-audit-skill.git seomator
 
 WORKDIR /app/seomator
 
-RUN npm install && npm run build
+RUN npm install --include=dev && npm run build
 
 WORKDIR /app
 

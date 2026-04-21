@@ -63,7 +63,7 @@
 <div class="p-4 lg:p-6 space-y-4">
 	<div class="flex items-center justify-between">
 		<h2 class="text-xl font-semibold">Jobs</h2>
-		<Button href="/jobs/new">
+		<Button href="/jobs/new" size="lg">
 			<PlusIcon class="size-4" />
 			New Job
 		</Button>

@@ -2,11 +2,19 @@ import { setInterval, clearInterval } from 'node:timers';
 import { DateTime, RecordId, Surreal, Table, eq } from 'surrealdb';
 import Dockerode from 'dockerode';
 import cron from 'node-cron';
-import type { Job, Queue, Schedule, Tool, Website } from './types';
+import type {
+	Job,
+	Queue,
+	Schedule,
+	Tool,
+	Website,
+	WebsiteNotificationEvents
+} from './types';
 import { slowTools, tools } from './constants';
 import { readdir } from "node:fs/promises";
 import { PassThrough } from 'node:stream';
 import { hostname } from 'node:os';
+import { sendAppriseNotification } from '../notifications/apprise';
 
 const DEBUG = Bun.env.DEBUG == "true";
 let RUNNERS = 0;
@@ -15,6 +23,9 @@ const REBUILD = Bun.argv[2] == "--rebuild"
 const configuredAttempts = Number.parseInt(Bun.env.MAX_ATTEMPTS ?? '4', 10);
 const MAX_ATTEMPTS = Number.isFinite(configuredAttempts) ? Math.max(1, configuredAttempts) : 4;
 const RETRY_BACKOFF_MS = [5_000, 15_000, 45_000];
+const APPRISE_URL = Bun.env.APPRISE_URL?.trim() ?? '';
+const APPRISE_API_KEY = Bun.env.APPRISE_API_KEY?.trim() ?? '';
+const DASHBOARD_URL = Bun.env.DASHBOARD_URL?.trim() ?? '';
 const ENV = [`SURREAL_USER=${Bun.env.SURREAL_USER}`, `SURREAL_PASS=${Bun.env.SURREAL_PASS}`, `SURREAL_NAMESPACE=${Bun.env.SURREAL_NAMESPACE}`, `SURREAL_DATABASE=${Bun.env.SURREAL_DATABASE}`, `SURREAL_ADDRESS=${Bun.env.SURREAL_ADDRESS}`, `SURREAL_PROTOCOL=${Bun.env.SURREAL_PROTOCOL}`, `DEBUG=${Bun.env.DEBUG}`];
 
 console.log('Hesperida Orchestrator starting...');
@@ -95,6 +106,251 @@ const queue = new Table('job_queue');
 const newJobs = await db.live(new Table('jobs')).fields('website','types','status','options').where(eq('status', 'pending'));
 const newTasks = await db.live(queue).where(eq('status', 'pending'));
 const scheduleLive = await db.live(new Table('schedule'));
+const jobStatusLive = await db.live(new Table('jobs')).fields('status');
+
+type JobStatus = Job['status'];
+type NotificationLinkRow = {
+	id?: RecordId<'website_notifications'>;
+	website_url?: string;
+	channel_url?: string;
+	channel_id?: RecordId<'notification_channels'>;
+	events?: Partial<WebsiteNotificationEvents> | null;
+};
+
+type JobNotificationPayload = {
+	id?: RecordId<'jobs'>;
+	status?: JobStatus;
+	created_at?: DateTime | string;
+	website?: { id?: RecordId<'websites'>; url?: string } | RecordId<'websites'>;
+	seo?: { score?: number | null } | RecordId<'seo_results'> | null;
+	stress?: { score?: number | null } | RecordId<'stress_results'> | null;
+	security?: { score?: number | null } | RecordId<'security_results'> | null;
+	wcag?: Array<{ score?: number | null } | RecordId<'wcag_results'>> | null;
+};
+
+const DEFAULT_NOTIFICATION_EVENTS: WebsiteNotificationEvents = {
+	JOB_COMPLETED: false,
+	JOB_FAILED: true,
+	SEO_SCORE_BELOW: null,
+	STRESS_SCORE_BELOW: null,
+	WCAG_SCORE_BELOW: null,
+	SECURITY_SCORE_BELOW: null
+};
+
+const jobStatusById = new Map<string, JobStatus>();
+
+const isAppriseConfigured = (): boolean => APPRISE_URL.length > 0;
+
+const normalizeNotificationEvents = (
+	value: Partial<WebsiteNotificationEvents> | null | undefined
+): WebsiteNotificationEvents => ({
+	JOB_COMPLETED: value?.JOB_COMPLETED === true,
+	JOB_FAILED: value?.JOB_FAILED !== false,
+	SEO_SCORE_BELOW:
+		typeof value?.SEO_SCORE_BELOW === 'number' && Number.isFinite(value.SEO_SCORE_BELOW)
+			? value.SEO_SCORE_BELOW
+			: null,
+	STRESS_SCORE_BELOW:
+		typeof value?.STRESS_SCORE_BELOW === 'number' && Number.isFinite(value.STRESS_SCORE_BELOW)
+			? value.STRESS_SCORE_BELOW
+			: null,
+	WCAG_SCORE_BELOW:
+		typeof value?.WCAG_SCORE_BELOW === 'number' && Number.isFinite(value.WCAG_SCORE_BELOW)
+			? value.WCAG_SCORE_BELOW
+			: null,
+	SECURITY_SCORE_BELOW:
+		typeof value?.SECURITY_SCORE_BELOW === 'number' && Number.isFinite(value.SECURITY_SCORE_BELOW)
+			? value.SECURITY_SCORE_BELOW
+			: null
+});
+
+const toScore = (value: unknown): number | null =>
+	typeof value === 'number' && Number.isFinite(value) ? value : null;
+
+const resolveWorstWcagScore = (wcag: JobNotificationPayload['wcag']): number | null => {
+	if (!Array.isArray(wcag) || !wcag.length) return null;
+	let min: number | null = null;
+	for (const entry of wcag) {
+		if (!entry || typeof entry !== 'object') continue;
+		const score = toScore((entry as { score?: unknown }).score);
+		if (score === null) continue;
+		min = min === null ? score : Math.min(min, score);
+	}
+	return min;
+};
+
+const buildJobUrl = (jobId: string): string => `${DASHBOARD_URL}/jobs/${jobId}`;
+
+const sendChannelNotification = async (channelUrl: string, title: string, body: string): Promise<void> => {
+	await sendAppriseNotification(
+		{
+			baseUrl: APPRISE_URL,
+			apiKey: APPRISE_API_KEY
+		},
+		{
+			targets: [channelUrl],
+			title,
+			body,
+			format: 'markdown'
+		}
+	);
+};
+
+const listWebsiteNotificationLinks = async (websiteId: RecordId<'websites'>): Promise<NotificationLinkRow[]> => {
+	const [rows] = await db
+		.query<[NotificationLinkRow[]]>(
+			`SELECT id, events,
+				website.url AS website_url,
+				notification_channel.id AS channel_id,
+				notification_channel.apprise_url AS channel_url
+			 FROM website_notifications
+			 WHERE website = $website;`,
+			{ website: websiteId }
+		)
+		.collect();
+	return rows ?? [];
+};
+
+const loadJobNotificationPayload = async (jobId: RecordId<'jobs'>): Promise<JobNotificationPayload | null> => {
+	const [rows] = await db
+		.query<[JobNotificationPayload[]]>(
+			`SELECT id, status, created_at, website, seo, stress, security, wcag
+			 FROM jobs
+			 WHERE id = $id
+			 LIMIT 1
+			 FETCH website, seo, stress, security, wcag;`,
+			{ id: jobId }
+		)
+		.collect();
+	return rows?.[0] ?? null;
+};
+
+const sendCompletedNotifications = async (
+	jobId: string,
+	job: JobNotificationPayload,
+	links: NotificationLinkRow[]
+): Promise<void> => {
+	const websiteUrl =
+		typeof job.website === 'object' && job.website && 'url' in job.website
+			? String(job.website.url ?? '')
+			: '';
+	const seoScore =
+		job.seo && typeof job.seo === 'object' && !('tb' in job.seo)
+			? toScore((job.seo as { score?: unknown }).score)
+			: null;
+	const stressScore =
+		job.stress && typeof job.stress === 'object' && !('tb' in job.stress)
+			? toScore((job.stress as { score?: unknown }).score)
+			: null;
+	const securityScore =
+		job.security && typeof job.security === 'object' && !('tb' in job.security)
+			? toScore((job.security as { score?: unknown }).score)
+			: null;
+	const wcagScore = resolveWorstWcagScore(job.wcag);
+
+	for (const link of links) {
+		const events = normalizeNotificationEvents(link.events);
+		const triggered: string[] = [];
+		if (events.JOB_COMPLETED) triggered.push('job completed');
+		if (events.JOB_COMPLETED) {
+			if (events.SEO_SCORE_BELOW !== null && seoScore !== null && seoScore < events.SEO_SCORE_BELOW) {
+				triggered.push(`SEO score ${seoScore.toFixed(1)} < ${events.SEO_SCORE_BELOW}`);
+			}
+			if (
+				events.STRESS_SCORE_BELOW !== null &&
+				stressScore !== null &&
+				stressScore < events.STRESS_SCORE_BELOW
+			) {
+				triggered.push(`Stress score ${stressScore.toFixed(1)} < ${events.STRESS_SCORE_BELOW}`);
+			}
+			if (events.WCAG_SCORE_BELOW !== null && wcagScore !== null && wcagScore < events.WCAG_SCORE_BELOW) {
+				triggered.push(`WCAG score ${wcagScore.toFixed(1)} < ${events.WCAG_SCORE_BELOW}`);
+			}
+			if (
+				events.SECURITY_SCORE_BELOW !== null &&
+				securityScore !== null &&
+				securityScore < events.SECURITY_SCORE_BELOW
+			) {
+				triggered.push(`Security score ${securityScore.toFixed(1)} < ${events.SECURITY_SCORE_BELOW}`);
+			}
+		}
+
+		if (!triggered.length || !link.channel_url) continue;
+		const title = `Hesperida: Job ${job.status}`;
+		const body = [
+			`Website: ${websiteUrl || link.website_url || 'Unknown website'}`,
+			`Job: ${buildJobUrl(jobId)}`,
+			`Triggered events:`,
+			...triggered.map((line) => `- ${line}`)
+		].join('\n');
+
+		try {
+			await sendChannelNotification(link.channel_url, title, body);
+		} catch (error) {
+			console.error(
+				`Notification send failed for job ${jobId} (link ${link.id?.id.toString() ?? 'unknown'}):`,
+				error
+			);
+		}
+	}
+};
+
+const sendFailedNotifications = async (
+	jobId: string,
+	job: JobNotificationPayload,
+	links: NotificationLinkRow[]
+): Promise<void> => {
+	const websiteUrl =
+		typeof job.website === 'object' && job.website && 'url' in job.website
+			? String(job.website.url ?? '')
+			: '';
+	for (const link of links) {
+		const events = normalizeNotificationEvents(link.events);
+		if (!events.JOB_FAILED || !link.channel_url) continue;
+		try {
+			await sendChannelNotification(
+				link.channel_url,
+				`Hesperida: Job ${jobId} failed`,
+				[`Website: ${websiteUrl || link.website_url || 'Unknown website'}`, `Job: ${buildJobUrl(jobId)}`].join(
+					'\n'
+				)
+			);
+		} catch (error) {
+			console.error(
+				`Notification send failed for job ${jobId} (link ${link.id?.id.toString() ?? 'unknown'}):`,
+				error
+			);
+		}
+	}
+};
+
+const emitJobNotifications = async (jobId: RecordId<'jobs'>, status: JobStatus): Promise<void> => {
+	if (!isAppriseConfigured()) return;
+	if (status !== 'completed' && status !== 'failed') return;
+
+	const job = await loadJobNotificationPayload(jobId);
+	if (!job?.id || !job.website || typeof job.website !== 'object' || !('id' in job.website)) return;
+	const websiteId = job.website.id as RecordId<'websites'>;
+	const links = await listWebsiteNotificationLinks(websiteId);
+	if (!links.length) return;
+
+	const routeJobId = job.id.id.toString();
+	if (status === 'completed') {
+		await sendCompletedNotifications(routeJobId, job, links);
+		return;
+	}
+	await sendFailedNotifications(routeJobId, job, links);
+};
+
+const bootstrapJobStatuses = async (): Promise<void> => {
+	const [rows] = await db.query<[{ id?: RecordId<'jobs'>; status?: JobStatus }[]]>(
+		'SELECT id, status FROM jobs;'
+	).collect();
+	for (const row of rows ?? []) {
+		if (!row?.id || !row.status) continue;
+		jobStatusById.set(row.id.id.toString(), row.status);
+	}
+};
 
 const normalizeCronExpression = (value: string): string => value.trim().split(/\s+/).join(' ');
 
@@ -203,6 +459,7 @@ const bootstrapSchedules = async (): Promise<void> => {
 };
 
 await bootstrapSchedules();
+await bootstrapJobStatuses();
 
 process.on("beforeExit", async () => {
     console.log('Hesperida Orchestrator exiting gracefully...');
@@ -213,6 +470,7 @@ process.on("beforeExit", async () => {
     await newJobs.kill();
     await newTasks.kill();
     await scheduleLive.kill();
+    await jobStatusLive.kill();
     await db.close();
 });
 
@@ -409,6 +667,25 @@ scheduleLive.subscribe(({ action, value, recordId }) => {
 		...(value as Partial<Schedule>),
 		id: recordId as RecordId<'schedule'>
 	});
+});
+
+if(DEBUG) console.debug('Listening for job status transitions...');
+jobStatusLive.subscribe(({ action, value, recordId }) => {
+	const jobId = recordId.id.toString();
+	if (!jobId.length) return;
+	if (action === 'DELETE') {
+		jobStatusById.delete(jobId);
+		return;
+	}
+
+	const nextStatus = (value?.status as JobStatus | undefined) ?? undefined;
+	if (!nextStatus) return;
+	const previousStatus = jobStatusById.get(jobId);
+	jobStatusById.set(jobId, nextStatus);
+	if (previousStatus === nextStatus) return;
+	if (nextStatus !== 'completed' && nextStatus !== 'failed') return;
+
+	void emitJobNotifications(recordId as RecordId<'jobs'>, nextStatus);
 });
 
 if(DEBUG) console.debug('Listening for new Jobs...');

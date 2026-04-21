@@ -2,6 +2,8 @@ import { toRouteId } from './record-id';
 import type {
 	ApiDateTime,
 	ApiJob,
+	ApiNotificationChannel,
+	ApiWebsiteNotification,
 	ApiSchedule,
 	ApiScheduleRunJob,
 	ApiQueueTask,
@@ -10,10 +12,12 @@ import type {
 } from '$lib/types/api';
 import type {
 	JobView,
+	NotificationChannelView,
 	QueueTaskView,
 	ScheduleRunJobView,
 	ScheduleView,
 	UserView,
+	WebsiteNotificationView,
 	WebsiteView
 } from '$lib/types/view';
 
@@ -41,6 +45,24 @@ export const mapWebsiteToView = (website: ApiWebsite): WebsiteView => ({
 export const mapUserToView = (user: ApiUser): UserView => ({
 	...user,
 	id: toRouteIdString(user.id)
+});
+
+export const mapNotificationChannelToView = (
+	channel: ApiNotificationChannel
+): NotificationChannelView => ({
+	...channel,
+	id: toRouteIdString(channel.id),
+	user_id: toRouteIdString(channel.user)
+});
+
+export const mapWebsiteNotificationToView = (
+	link: ApiWebsiteNotification
+): WebsiteNotificationView => ({
+	...link,
+	id: toRouteIdString(link.id),
+	website_id: toRouteIdString(link.website),
+	notification_channel_id: toRouteIdString(link.notification_channel),
+	channel_user_id: link.channel_user ? toRouteIdString(link.channel_user) : undefined
 });
 
 export const mapJobToView = (job: ApiJob): JobView => ({

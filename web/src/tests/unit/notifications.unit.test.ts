@@ -7,12 +7,14 @@ describe('Notifications helpers', () => {
 		const long = renderTemplate('forgot', 'long', {
 			app_name: 'Hesperida',
 			brand_logo_url: 'https://example.test/logo.png',
+			public_dashboard_url: 'https://dashboard.example.test',
 			recipient_email: 'user@example.test',
 			forgot_token: 'token-123'
 		});
 		const short = renderTemplate('forgot', 'short', {
 			app_name: 'Hesperida',
 			brand_logo_url: 'https://example.test/logo.png',
+			public_dashboard_url: 'https://dashboard.example.test',
 			recipient_email: 'user@example.test',
 			forgot_token: 'token-123'
 		});

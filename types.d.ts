@@ -3,13 +3,31 @@ import {type DateTime, RecordId} from 'surrealdb'; // it will be imported where 
 
 export type Tool = 'probe' | 'seo' | 'ssl' | 'wcag' | 'whois' | 'domain' | 'security' | 'stress';
 
-export interface NotificationTarget {
-    id: string;
-    target: string;
-    label?: string | null;
-    enabled: boolean;
-    created_at: DateTime;
-    updated_at: DateTime;
+export interface WebsiteNotificationEvents {
+	JOB_COMPLETED: boolean;
+	JOB_FAILED: boolean;
+	SEO_SCORE_BELOW: number | null;
+	STRESS_SCORE_BELOW: number | null;
+	WCAG_SCORE_BELOW: number | null;
+	SECURITY_SCORE_BELOW: number | null;
+}
+
+export interface NotificationChannel {
+	id?: RecordId<'notification_channels'>;
+	user: RecordId<'users'>;
+	name: string;
+	apprise_url: string;
+	created_at?: DateTime;
+	updated_at?: DateTime;
+}
+
+export interface WebsiteNotification {
+	id?: RecordId<'website_notifications'>;
+	website: RecordId<'websites'>;
+	notification_channel: RecordId<'notification_channels'>;
+	events: WebsiteNotificationEvents;
+	created_at?: DateTime;
+	updated_at?: DateTime;
 }
 
 export interface User {
@@ -21,7 +39,6 @@ export interface User {
     is_superuser: boolean;
     role: 'admin' | 'editor' | 'viewer';
     forgot_token?: string | null;
-    notification_targets?: NotificationTarget[];
     created_at?: DateTime;
 }
 

@@ -1,7 +1,4 @@
 import { sendAppriseNotification } from './apprise';
-import { renderTemplate } from './render';
-
-import { config } from '$lib/server/config';
 
 type SendToTargetContext = {
 	target: string;
@@ -9,8 +6,6 @@ type SendToTargetContext = {
 	longBody: string;
 	shortBody: string;
 };
-
-const APP_NAME = 'Hesperida';
 
 const SHORT_SCHEMES = new Set([
 	'sms',
@@ -50,17 +45,11 @@ const sendToTarget = async (context: SendToTargetContext): Promise<void> => {
 };
 
 export const sendTestNotificationToTarget = async (target: string): Promise<void> => {
-	const variables = {
-		app_name: APP_NAME,
-		brand_logo_url: config.notificationBrandLogoUrl,
-		recipient_email: 'test@example.com',
-		forgot_token: 'TEST-TOKEN-123'
-	};
-
 	await sendToTarget({
 		target,
 		title: 'Hesperida Notification Test',
-		longBody: renderTemplate('forgot', 'long', variables),
-		shortBody: `${renderTemplate('forgot', 'short', variables)} [test]`
+		longBody:
+			'<p>This is a test notification from Hesperida.</p><p>If you received it, this Apprise URL works.</p>',
+		shortBody: 'This is a test notification from Hesperida.'
 	});
 };

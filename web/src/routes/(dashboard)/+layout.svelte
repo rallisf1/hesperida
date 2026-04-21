@@ -5,6 +5,7 @@
 	import BriefcaseBusinessIcon from "@lucide/svelte/icons/briefcase-business";
 	import ListTodoIcon from "@lucide/svelte/icons/list-todo";
 	import CalendarClockIcon from "@lucide/svelte/icons/calendar-clock";
+	import BellIcon from "@lucide/svelte/icons/bell";
 	import FileCodeIcon from "@lucide/svelte/icons/file-code";
 	import FileQuestionMarkIcon from "@lucide/svelte/icons/file-question-mark";
 	import GithubStar from "$lib/components/ui/button/github-star.svelte";
@@ -38,6 +39,15 @@
 		{ title: "Websites", url: "/websites", icon: GlobeIcon },
 		{ title: "Jobs", url: "/jobs", icon: BriefcaseBusinessIcon },
 		{ title: "Job Queue", url: "/job-queue", icon: ListTodoIcon },
+		{
+			title: "Notifications",
+			url: "/notifications",
+			icon: BellIcon,
+			children: [
+				{ title: "Channels", url: "/notifications/channels" },
+				{ title: "Websites", url: "/notifications/websites" }
+			]
+		},
 		{ title: "Schedule", url: "/schedule", icon: CalendarClockIcon }
 	];
 
@@ -70,6 +80,8 @@
 		websites: "Websites",
 		jobs: "Jobs",
 		"job-queue": "Job Queue",
+		notifications: "Notifications",
+		channels: "Channels",
 		schedule: "Schedule",
 		new: "New",
 		edit: "Edit"

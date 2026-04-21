@@ -169,14 +169,41 @@
  *             $ref: '#/components/schemas/ScheduleRunJob'
  *         created_at: { type: string, format: date-time, nullable: true }
  *         updated_at: { type: string, format: date-time, nullable: true }
- *     NotificationTarget:
+ *     NotificationChannel:
  *       type: object
- *       required: [id, target, enabled, created_at, updated_at]
+ *       required: [id, user, name, apprise_url, created_at, updated_at]
  *       properties:
  *         id: { type: string }
- *         target: { type: string }
- *         label: { type: string, nullable: true }
- *         enabled: { type: boolean }
+ *         user: { type: string }
+ *         name: { type: string }
+ *         apprise_url: { type: string }
+ *         user_name: { type: string, nullable: true }
+ *         user_email: { type: string, nullable: true }
+ *         created_at: { type: string, format: date-time }
+ *         updated_at: { type: string, format: date-time }
+ *     WebsiteNotificationEvents:
+ *       type: object
+ *       required: [JOB_COMPLETED, JOB_FAILED, SEO_SCORE_BELOW, STRESS_SCORE_BELOW, WCAG_SCORE_BELOW, SECURITY_SCORE_BELOW]
+ *       properties:
+ *         JOB_COMPLETED: { type: boolean }
+ *         JOB_FAILED: { type: boolean }
+ *         SEO_SCORE_BELOW: { type: number, nullable: true }
+ *         STRESS_SCORE_BELOW: { type: number, nullable: true }
+ *         WCAG_SCORE_BELOW: { type: number, nullable: true }
+ *         SECURITY_SCORE_BELOW: { type: number, nullable: true }
+ *     WebsiteNotification:
+ *       type: object
+ *       required: [id, website, notification_channel, events, created_at, updated_at]
+ *       properties:
+ *         id: { type: string }
+ *         website: { type: string }
+ *         notification_channel: { type: string }
+ *         website_url: { type: string, nullable: true }
+ *         channel_name: { type: string, nullable: true }
+ *         channel_apprise_url: { type: string, nullable: true }
+ *         channel_user: { type: string, nullable: true }
+ *         events:
+ *           $ref: '#/components/schemas/WebsiteNotificationEvents'
  *         created_at: { type: string, format: date-time }
  *         updated_at: { type: string, format: date-time }
  *     ProbeGeo:
@@ -416,33 +443,34 @@
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/JobQueueTask'
- *     NotificationTargetsData:
+ *     NotificationChannelsData:
  *       type: object
- *       required: [targets]
+ *       required: [channels]
  *       properties:
- *         targets:
+ *         channels:
  *           type: array
  *           items:
- *             $ref: '#/components/schemas/NotificationTarget'
- *     NotificationTargetAndTargetsData:
+ *             $ref: '#/components/schemas/NotificationChannel'
+ *     NotificationChannelData:
  *       type: object
- *       required: [target, targets]
+ *       required: [channel]
  *       properties:
- *         target:
- *           $ref: '#/components/schemas/NotificationTarget'
- *         targets:
+ *         channel:
+ *           $ref: '#/components/schemas/NotificationChannel'
+ *     WebsiteNotificationsData:
+ *       type: object
+ *       required: [links]
+ *       properties:
+ *         links:
  *           type: array
  *           items:
- *             $ref: '#/components/schemas/NotificationTarget'
- *     NotificationTargetsDeleteData:
+ *             $ref: '#/components/schemas/WebsiteNotification'
+ *     WebsiteNotificationData:
  *       type: object
- *       required: [deleted, targets]
+ *       required: [link]
  *       properties:
- *         deleted: { type: boolean, enum: [true] }
- *         targets:
- *           type: array
- *           items:
- *             $ref: '#/components/schemas/NotificationTarget'
+ *         link:
+ *           $ref: '#/components/schemas/WebsiteNotification'
  *     WebsiteMembersData:
  *       type: object
  *       required: [owner_user, member_users]
@@ -639,27 +667,34 @@
  *           properties:
  *             data:
  *               $ref: '#/components/schemas/JobQueueByJobData'
- *     NotificationTargetsEnvelope:
+ *     NotificationChannelsEnvelope:
  *       allOf:
  *         - $ref: '#/components/schemas/SuccessEnvelopeBase'
  *         - type: object
  *           properties:
  *             data:
- *               $ref: '#/components/schemas/NotificationTargetsData'
- *     NotificationTargetAndTargetsEnvelope:
+ *               $ref: '#/components/schemas/NotificationChannelsData'
+ *     NotificationChannelEnvelope:
  *       allOf:
  *         - $ref: '#/components/schemas/SuccessEnvelopeBase'
  *         - type: object
  *           properties:
  *             data:
- *               $ref: '#/components/schemas/NotificationTargetAndTargetsData'
- *     NotificationTargetsDeleteEnvelope:
+ *               $ref: '#/components/schemas/NotificationChannelData'
+ *     WebsiteNotificationsEnvelope:
  *       allOf:
  *         - $ref: '#/components/schemas/SuccessEnvelopeBase'
  *         - type: object
  *           properties:
  *             data:
- *               $ref: '#/components/schemas/NotificationTargetsDeleteData'
+ *               $ref: '#/components/schemas/WebsiteNotificationsData'
+ *     WebsiteNotificationEnvelope:
+ *       allOf:
+ *         - $ref: '#/components/schemas/SuccessEnvelopeBase'
+ *         - type: object
+ *           properties:
+ *             data:
+ *               $ref: '#/components/schemas/WebsiteNotificationData'
  *     WebsiteMembersEnvelope:
  *       allOf:
  *         - $ref: '#/components/schemas/SuccessEnvelopeBase'

@@ -26,9 +26,11 @@ import * as scheduleById from '../../routes/api/v1/schedule/[id]/+server';
 import * as resultsByJob from '../../routes/api/v1/results/jobs/[id]/+server';
 import * as resultsByTool from '../../routes/api/v1/results/jobs/[id]/[tool]/+server';
 import * as userMe from '../../routes/api/v1/users/me/+server';
-import * as notificationTargets from '../../routes/api/v1/users/me/notification-targets/+server';
-import * as notificationTargetById from '../../routes/api/v1/users/me/notification-targets/[id]/+server';
-import * as notificationTargetTest from '../../routes/api/v1/users/me/notification-targets/[id]/test/+server';
+import * as notificationChannels from '../../routes/api/v1/notification-channels/+server';
+import * as notificationChannelById from '../../routes/api/v1/notification-channels/[id]/+server';
+import * as notificationChannelTest from '../../routes/api/v1/notification-channels/[id]/test/+server';
+import * as websiteNotifications from '../../routes/api/v1/website-notifications/+server';
+import * as websiteNotificationById from '../../routes/api/v1/website-notifications/[id]/+server';
 
 type HandlerModule = {
 	GET?: (event: any) => Response | Promise<Response>;
@@ -49,9 +51,11 @@ const routes: RouteEntry[] = [
 	{ regex: /^\/api\/v1\/auth\/me$/, module: authMe },
 	{ regex: /^\/api\/v1\/auth\/forgot$/, module: authForgot },
 	{ regex: /^\/api\/v1\/users\/me$/, module: userMe },
-	{ regex: /^\/api\/v1\/users\/me\/notification-targets$/, module: notificationTargets },
-	{ regex: /^\/api\/v1\/users\/me\/notification-targets\/(?<id>[^/]+)\/test$/, module: notificationTargetTest },
-	{ regex: /^\/api\/v1\/users\/me\/notification-targets\/(?<id>[^/]+)$/, module: notificationTargetById },
+	{ regex: /^\/api\/v1\/notification-channels$/, module: notificationChannels },
+	{ regex: /^\/api\/v1\/notification-channels\/(?<id>[^/]+)\/test$/, module: notificationChannelTest },
+	{ regex: /^\/api\/v1\/notification-channels\/(?<id>[^/]+)$/, module: notificationChannelById },
+	{ regex: /^\/api\/v1\/website-notifications$/, module: websiteNotifications },
+	{ regex: /^\/api\/v1\/website-notifications\/(?<id>[^/]+)$/, module: websiteNotificationById },
 	{ regex: /^\/api\/v1\/websites$/, module: websites },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/members$/, module: websiteMembers },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/invite$/, module: websiteInvite },

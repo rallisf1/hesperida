@@ -11,6 +11,9 @@ sidebar_position: 2
 - `websites`
 - `jobs`
 - `job_queue`
+- `schedule`
+- `notification_channels`
+- `website_notifications`
 
 ## Result Tables
 
@@ -29,6 +32,9 @@ sidebar_position: 2
 - `websites.users`: member list (`array<record<users>>`)
 - `jobs.website`: website reference
 - `job_queue.job`: job reference
+- `notification_channels.user`: channel owner
+- `website_notifications.website`: linked website
+- `website_notifications.notification_channel`: linked channel
 
 ## User ACL Fields
 

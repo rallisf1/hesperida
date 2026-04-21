@@ -38,7 +38,8 @@ This page lists the most important environment variables.
 
 | Variable | Purpose |
 | --- | --- |
-| `APPRISE_URL` | Apprise API endpoint for user notification targets |
+| `APPRISE_URL` | Apprise API endpoint used for notification channel tests (web) and job-triggered delivery (orchestrator) |
+| `APPRISE_API_KEY` | optional Apprise API key attached to notification requests |
 | `NOTIFICATION_BRAND_LOGO_URL` | logo used in long-form notification templates |
 
 ## System Email (SMTP)

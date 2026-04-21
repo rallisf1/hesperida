@@ -12,6 +12,9 @@ export const load: PageServerLoad = async (event) => {
 	]);
 
 	const schedule = mapScheduleToView(scheduleData.schedule);
+	const scheduleLabel =
+		`${schedule.website_url?.trim() ?? ''} [${schedule.cron}]`.trim().replace(/^:\s*/, '') ||
+		`Schedule ${schedule.id}`;
 
 	const websitesById = new Map<string, string>(
 		(websitesData.websites ?? []).map((website) => [
@@ -32,7 +35,7 @@ export const load: PageServerLoad = async (event) => {
 		jobs: eligibleJobs,
 		initialWebsiteId: schedule.website_id ?? '',
 		canManage: event.locals.user?.role !== 'viewer',
-		breadcrumbEntityLabel: `Schedule ${schedule.id}`,
+		breadcrumbEntityLabel: scheduleLabel,
 		breadcrumbEntityHref: `/schedule/${schedule.id}`
 	};
 };

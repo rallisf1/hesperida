@@ -32,6 +32,14 @@ Each user has:
 - Viewers cannot own websites.
 - Role downgrade to viewer is blocked when user owns websites.
 
+## Notification ACL
+
+- `notification_channels`: owner CRUD, superuser global CRUD.
+- `website_notifications`:
+  - requires website access
+  - non-superusers can only link channels they own
+  - superuser can link any channel/website combination
+
 ## Signup Policy
 
 - `AUTH_SIGNUP_ENABLED=true`: signup allowed

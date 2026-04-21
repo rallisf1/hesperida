@@ -179,12 +179,13 @@ Behavior:
 - If SMTP missing: route returns `503 smtp_not_configured`
 - If send fails: route returns `502 notification_failed` and preserves rollback semantics
 
-### 2) User notification targets (Apprise)
-Handled under `web/src/lib/server/notifications/*`.
+### 2) User notifications (Apprise)
+Handled under `notifications/apprise.ts`.
 
 Used for:
-- User-managed notification targets and send/test operations
-- Stored in `users.notification_targets`
+- User-managed Apprise channels and website event links
+- Stored in `notification_channels` and `website_notifications`
+- Delivered by orchestrator on job status transitions and score thresholds
 
 ---
 

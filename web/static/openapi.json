@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Hesperida Web App Scanner API",
-    "version": "0.8.0",
+    "version": "0.9.0",
     "description": "Use WEB_API_KEY in an x-api-key header, and the token from auth signin/signup in a Bearer Authentication header"
   },
   "servers": [
@@ -12,6 +12,476 @@
     }
   ],
   "paths": {
+    "/api/v1/website-notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "List website notification links",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "website",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "channel",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Website notification links",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsiteNotificationsEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Create website notification link",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "website",
+                  "notification_channel"
+                ],
+                "properties": {
+                  "website": {
+                    "type": "string"
+                  },
+                  "notification_channel": {
+                    "type": "string"
+                  },
+                  "events": {
+                    "$ref": "#/components/schemas/WebsiteNotificationEvents"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Link created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsiteNotificationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/website-notifications/{id}": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Get website notification link",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Link details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsiteNotificationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Update website notification link",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "website": {
+                    "type": "string"
+                  },
+                  "notification_channel": {
+                    "type": "string"
+                  },
+                  "events": {
+                    "$ref": "#/components/schemas/WebsiteNotificationEvents"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Link updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsiteNotificationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Delete website notification link",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Link deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notification-channels": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "List notification channels",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "user",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Superuser only."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification channels",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationChannelsEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Create notification channel",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "apprise_url"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "apprise_url": {
+                    "type": "string"
+                  },
+                  "user": {
+                    "type": "string",
+                    "description": "Superuser only."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Channel created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationChannelEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notification-channels/{id}": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Get notification channel",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Channel details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationChannelEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Update notification channel",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "apprise_url": {
+                    "type": "string"
+                  },
+                  "user": {
+                    "type": "string",
+                    "description": "Superuser only."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Channel updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationChannelEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Delete notification channel",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Channel deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notification-channels/{id}/test": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Send channel test notification",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Test sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Notification test failed"
+          }
+        }
+      }
+    },
     "/api/v1/schedule": {
       "get": {
         "tags": [
@@ -1110,200 +1580,6 @@
         }
       }
     },
-    "/api/v1/users/me/notification-targets": {
-      "get": {
-        "tags": [
-          "Users"
-        ],
-        "summary": "List notification targets",
-        "security": [
-          {
-            "apiKeyAuth": [],
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Notification targets",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotificationTargetsEnvelope"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Users"
-        ],
-        "summary": "Create notification",
-        "description": "Requires a successful send test.",
-        "security": [
-          {
-            "apiKeyAuth": [],
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "target"
-                ],
-                "properties": {
-                  "target": {
-                    "type": "string"
-                  },
-                  "label": {
-                    "type": "string"
-                  },
-                  "enabled": {
-                    "type": "boolean"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Notification target created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotificationTargetAndTargetsEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "502": {
-            "description": "Target test failed"
-          }
-        }
-      }
-    },
-    "/api/v1/users/me/notification-targets/{id}": {
-      "patch": {
-        "tags": [
-          "Users"
-        ],
-        "summary": "Update notification target",
-        "description": "Requires a successful send test.",
-        "security": [
-          {
-            "apiKeyAuth": [],
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Notification target updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotificationTargetAndTargetsEnvelope"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Users"
-        ],
-        "summary": "Delete notification target",
-        "security": [
-          {
-            "apiKeyAuth": [],
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Notification target deleted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotificationTargetsDeleteEnvelope"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/users/me/notification-targets/{id}/test": {
-      "post": {
-        "tags": [
-          "Users"
-        ],
-        "summary": "Test notification",
-        "security": [
-          {
-            "apiKeyAuth": [],
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Test sent",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "502": {
-            "description": "Test failed"
-          }
-        }
-      }
-    },
     "/api/v1/results/jobs/{id}": {
       "get": {
         "tags": [
@@ -2355,12 +2631,13 @@
           }
         }
       },
-      "NotificationTarget": {
+      "NotificationChannel": {
         "type": "object",
         "required": [
           "id",
-          "target",
-          "enabled",
+          "user",
+          "name",
+          "apprise_url",
           "created_at",
           "updated_at"
         ],
@@ -2368,15 +2645,106 @@
           "id": {
             "type": "string"
           },
-          "target": {
+          "user": {
             "type": "string"
           },
-          "label": {
+          "name": {
+            "type": "string"
+          },
+          "apprise_url": {
+            "type": "string"
+          },
+          "user_name": {
             "type": "string",
             "nullable": true
           },
-          "enabled": {
+          "user_email": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WebsiteNotificationEvents": {
+        "type": "object",
+        "required": [
+          "JOB_COMPLETED",
+          "JOB_FAILED",
+          "SEO_SCORE_BELOW",
+          "STRESS_SCORE_BELOW",
+          "WCAG_SCORE_BELOW",
+          "SECURITY_SCORE_BELOW"
+        ],
+        "properties": {
+          "JOB_COMPLETED": {
             "type": "boolean"
+          },
+          "JOB_FAILED": {
+            "type": "boolean"
+          },
+          "SEO_SCORE_BELOW": {
+            "type": "number",
+            "nullable": true
+          },
+          "STRESS_SCORE_BELOW": {
+            "type": "number",
+            "nullable": true
+          },
+          "WCAG_SCORE_BELOW": {
+            "type": "number",
+            "nullable": true
+          },
+          "SECURITY_SCORE_BELOW": {
+            "type": "number",
+            "nullable": true
+          }
+        }
+      },
+      "WebsiteNotification": {
+        "type": "object",
+        "required": [
+          "id",
+          "website",
+          "notification_channel",
+          "events",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          },
+          "notification_channel": {
+            "type": "string"
+          },
+          "website_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "channel_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "channel_apprise_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "channel_user": {
+            "type": "string",
+            "nullable": true
+          },
+          "events": {
+            "$ref": "#/components/schemas/WebsiteNotificationEvents"
           },
           "created_at": {
             "type": "string",
@@ -2936,56 +3304,53 @@
           }
         }
       },
-      "NotificationTargetsData": {
+      "NotificationChannelsData": {
         "type": "object",
         "required": [
-          "targets"
+          "channels"
         ],
         "properties": {
-          "targets": {
+          "channels": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/NotificationTarget"
+              "$ref": "#/components/schemas/NotificationChannel"
             }
           }
         }
       },
-      "NotificationTargetAndTargetsData": {
+      "NotificationChannelData": {
         "type": "object",
         "required": [
-          "target",
-          "targets"
+          "channel"
         ],
         "properties": {
-          "target": {
-            "$ref": "#/components/schemas/NotificationTarget"
-          },
-          "targets": {
+          "channel": {
+            "$ref": "#/components/schemas/NotificationChannel"
+          }
+        }
+      },
+      "WebsiteNotificationsData": {
+        "type": "object",
+        "required": [
+          "links"
+        ],
+        "properties": {
+          "links": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/NotificationTarget"
+              "$ref": "#/components/schemas/WebsiteNotification"
             }
           }
         }
       },
-      "NotificationTargetsDeleteData": {
+      "WebsiteNotificationData": {
         "type": "object",
         "required": [
-          "deleted",
-          "targets"
+          "link"
         ],
         "properties": {
-          "deleted": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
-          },
-          "targets": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NotificationTarget"
-            }
+          "link": {
+            "$ref": "#/components/schemas/WebsiteNotification"
           }
         }
       },
@@ -3422,7 +3787,7 @@
           }
         ]
       },
-      "NotificationTargetsEnvelope": {
+      "NotificationChannelsEnvelope": {
         "allOf": [
           {
             "$ref": "#/components/schemas/SuccessEnvelopeBase"
@@ -3431,13 +3796,13 @@
             "type": "object",
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/NotificationTargetsData"
+                "$ref": "#/components/schemas/NotificationChannelsData"
               }
             }
           }
         ]
       },
-      "NotificationTargetAndTargetsEnvelope": {
+      "NotificationChannelEnvelope": {
         "allOf": [
           {
             "$ref": "#/components/schemas/SuccessEnvelopeBase"
@@ -3446,13 +3811,13 @@
             "type": "object",
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/NotificationTargetAndTargetsData"
+                "$ref": "#/components/schemas/NotificationChannelData"
               }
             }
           }
         ]
       },
-      "NotificationTargetsDeleteEnvelope": {
+      "WebsiteNotificationsEnvelope": {
         "allOf": [
           {
             "$ref": "#/components/schemas/SuccessEnvelopeBase"
@@ -3461,7 +3826,22 @@
             "type": "object",
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/NotificationTargetsDeleteData"
+                "$ref": "#/components/schemas/WebsiteNotificationsData"
+              }
+            }
+          }
+        ]
+      },
+      "WebsiteNotificationEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SuccessEnvelopeBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/WebsiteNotificationData"
               }
             }
           }

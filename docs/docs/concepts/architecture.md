@@ -128,11 +128,11 @@ System emails:
 - missing SMTP -> `503 smtp_not_configured`
 - send failure -> `502 notification_failed` + rollback semantics
 
-User notification targets:
+User notifications:
 
 - Apprise-backed
-- stored in `users.notification_targets`
-- used by notification target endpoints and test sends
+- stored in `notification_channels` and `website_notifications`
+- configured in dashboard/API and delivered by orchestrator on job transitions/scores
 
 ## Reporting / PDF
 

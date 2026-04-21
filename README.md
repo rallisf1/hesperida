@@ -35,7 +35,7 @@ All the dashboard functionality is available through [OpenAPI](https://rallisf1.
 
 [Apprise](https://github.com/caronc/apprise) is integrated for user-managed notification targets.
 System emails (forgot password, invite, onboarding) are sent via SMTP (`SMTP_*` env vars).
-User-level notification targets are stored in `users.notification_targets` for in-app managed channels (WIP).
+User notifications are configured via `notification_channels` + `website_notifications` and delivered by the orchestrator on job transitions/scores.
 
 ## Tech Stack
 

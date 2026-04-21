@@ -1,5 +1,7 @@
 import type {
 	ApiJob,
+	ApiNotificationChannel,
+	ApiWebsiteNotification,
 	ApiSchedule,
 	ApiScheduleRunJob,
 	ApiQueueTask,
@@ -15,6 +17,19 @@ export interface WebsiteView extends Omit<ApiWebsite, 'id' | 'owner' | 'users'> 
 
 export interface UserView extends Omit<ApiUser, 'id'> {
 	id: string;
+}
+
+export interface NotificationChannelView extends Omit<ApiNotificationChannel, 'id' | 'user'> {
+	id: string;
+	user_id: string;
+}
+
+export interface WebsiteNotificationView
+	extends Omit<ApiWebsiteNotification, 'id' | 'website' | 'notification_channel' | 'channel_user'> {
+	id: string;
+	website_id: string;
+	notification_channel_id: string;
+	channel_user_id?: string;
 }
 
 export interface JobView extends Omit<ApiJob, 'id' | 'website'> {

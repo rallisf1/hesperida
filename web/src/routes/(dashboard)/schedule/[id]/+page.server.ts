@@ -11,6 +11,9 @@ export const load: PageServerLoad = async (event) => {
 	);
 
 	const schedule = mapScheduleToView(scheduleData.schedule);
+	const scheduleLabel =
+		`${schedule.website_url?.trim() ?? ''} [${schedule.cron}]`.trim().replace(/^:\s*/, '') ||
+		`Schedule ${schedule.id}`;
 	let linkedJob = null;
 
 	try {
@@ -27,7 +30,7 @@ export const load: PageServerLoad = async (event) => {
 		schedule,
 		linkedJob,
 		canManage: event.locals.user?.role !== 'viewer',
-		breadcrumbEntityLabel: `Schedule ${schedule.id}`,
+		breadcrumbEntityLabel: scheduleLabel,
 		breadcrumbEntityHref: `/schedule/${schedule.id}`
 	};
 };

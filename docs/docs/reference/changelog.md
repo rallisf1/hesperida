@@ -7,6 +7,16 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.9.0] - 2026-04-21
+
+### Added
+
+- Apprise Notifications
+
+### Fixed
+
+- tools development builds
+
 ## [0.8.0] - 2026-04-20
 
 ### Added

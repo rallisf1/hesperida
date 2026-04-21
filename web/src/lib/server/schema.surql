@@ -26,14 +26,6 @@ DEFINE FIELD IF NOT EXISTS forgot_token ON users TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS `group` ON users TYPE string ASSERT string::len($value) > 0;
 DEFINE FIELD IF NOT EXISTS is_superuser ON users TYPE bool DEFAULT false;
 DEFINE FIELD IF NOT EXISTS name ON users TYPE string;
-DEFINE FIELD IF NOT EXISTS notification_targets ON users TYPE option<array<object>> DEFAULT [];
-DEFINE FIELD IF NOT EXISTS notification_targets.* ON users TYPE object;
-DEFINE FIELD IF NOT EXISTS notification_targets.*.id ON users TYPE string;
-DEFINE FIELD IF NOT EXISTS notification_targets.*.target ON users TYPE string;
-DEFINE FIELD IF NOT EXISTS notification_targets.*.label ON users TYPE option<string>;
-DEFINE FIELD IF NOT EXISTS notification_targets.*.enabled ON users TYPE bool DEFAULT true;
-DEFINE FIELD IF NOT EXISTS notification_targets.*.created_at ON users TYPE datetime;
-DEFINE FIELD IF NOT EXISTS notification_targets.*.updated_at ON users TYPE datetime;
 DEFINE FIELD IF NOT EXISTS password ON users TYPE string;
 DEFINE FIELD IF NOT EXISTS role ON users TYPE string DEFAULT 'editor' ASSERT ['admin', 'editor', 'viewer'].includes($value);
 
@@ -84,6 +76,7 @@ DEFINE INDEX IF NOT EXISTS verified_at_websites_idx ON websites FIELDS verified_
 
 DEFINE EVENT OVERWRITE website_delete ON websites WHEN $event = 'DELETE' THEN {
 	DELETE jobs WHERE website = $before.id;
+	DELETE website_notifications WHERE website = $before.id;
 	IF $before.verification_id != NONE AND count(SELECT * FROM websites WHERE verification_id = $before.verification_id AND id != $before.id) = 0 {
 		(DELETE website_verifications WHERE id = $before.verification_id);
 	};
@@ -110,6 +103,75 @@ DEFINE FIELD IF NOT EXISTS verified_at ON website_verifications TYPE option<date
 DEFINE FIELD IF NOT EXISTS verification_method ON website_verifications TYPE option<string> ASSERT $value = NONE OR $value IN ['dns', 'file'];
 
 DEFINE INDEX IF NOT EXISTS website_verifications_group_domain_idx ON website_verifications FIELDS `group`, registrable_domain UNIQUE;
+
+
+-- ------------------------------
+-- TABLE: notification_channels
+-- ------------------------------
+
+DEFINE TABLE IF NOT EXISTS notification_channels TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR select, update, delete WHERE
+		$auth.is_superuser = true OR
+		user = $auth.id,
+	FOR create WHERE
+		$auth.is_superuser = true OR
+		user = $auth.id;
+
+DEFINE FIELD IF NOT EXISTS created_at ON notification_channels TYPE datetime DEFAULT time::now() READONLY;
+DEFINE FIELD IF NOT EXISTS updated_at ON notification_channels TYPE datetime VALUE time::now();
+DEFINE FIELD IF NOT EXISTS user ON notification_channels TYPE record<users> ASSERT record::exists($value);
+DEFINE FIELD IF NOT EXISTS name ON notification_channels TYPE string ASSERT string::len(string::trim($value)) > 0;
+DEFINE FIELD IF NOT EXISTS apprise_url ON notification_channels TYPE string ASSERT string::len($value) > 0;
+
+DEFINE INDEX IF NOT EXISTS notification_channels_user_url_idx ON notification_channels FIELDS user, apprise_url UNIQUE;
+DEFINE INDEX IF NOT EXISTS notification_channels_user_idx ON notification_channels FIELDS user;
+
+DEFINE EVENT IF NOT EXISTS notification_channel_delete ON notification_channels WHEN $event = 'DELETE' THEN {
+	DELETE website_notifications WHERE notification_channel = $before.id;
+};
+
+
+-- ------------------------------
+-- TABLE: website_notifications
+-- ------------------------------
+
+DEFINE TABLE IF NOT EXISTS website_notifications TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR select, update, delete WHERE
+		$auth.is_superuser = true OR
+		(
+			notification_channel.user = $auth.id AND
+			(
+				($auth.role = 'admin' AND website.owner.group = $auth.group) OR
+				website.owner = $auth.id OR
+				$auth.id IN website.users
+			)
+		),
+	FOR create WHERE
+		$auth.is_superuser = true OR
+		(
+			notification_channel.user = $auth.id AND
+			(
+				($auth.role = 'admin' AND website.owner.group = $auth.group) OR
+				website.owner = $auth.id OR
+				$auth.id IN website.users
+			)
+		);
+
+DEFINE FIELD IF NOT EXISTS created_at ON website_notifications TYPE datetime DEFAULT time::now() READONLY;
+DEFINE FIELD IF NOT EXISTS updated_at ON website_notifications TYPE datetime VALUE time::now();
+DEFINE FIELD IF NOT EXISTS website ON website_notifications TYPE record<websites> ASSERT record::exists($value);
+DEFINE FIELD IF NOT EXISTS notification_channel ON website_notifications TYPE record<notification_channels> ASSERT record::exists($value);
+DEFINE FIELD IF NOT EXISTS events ON website_notifications TYPE object;
+DEFINE FIELD IF NOT EXISTS events.JOB_COMPLETED ON website_notifications TYPE bool DEFAULT false;
+DEFINE FIELD IF NOT EXISTS events.JOB_FAILED ON website_notifications TYPE bool DEFAULT true;
+DEFINE FIELD IF NOT EXISTS events.SEO_SCORE_BELOW ON website_notifications TYPE number | NULL DEFAULT NONE;
+DEFINE FIELD IF NOT EXISTS events.STRESS_SCORE_BELOW ON website_notifications TYPE number | NULL DEFAULT NONE;
+DEFINE FIELD IF NOT EXISTS events.WCAG_SCORE_BELOW ON website_notifications TYPE number | NULL DEFAULT NONE;
+DEFINE FIELD IF NOT EXISTS events.SECURITY_SCORE_BELOW ON website_notifications TYPE number | NULL DEFAULT NONE;
+
+DEFINE INDEX IF NOT EXISTS website_notifications_unique_idx ON website_notifications FIELDS website, notification_channel UNIQUE;
+DEFINE INDEX IF NOT EXISTS website_notifications_website_idx ON website_notifications FIELDS website;
+DEFINE INDEX IF NOT EXISTS website_notifications_channel_idx ON website_notifications FIELDS notification_channel;
 
 
 -- ------------------------------

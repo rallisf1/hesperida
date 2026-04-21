@@ -71,6 +71,8 @@ export const resetData = async (): Promise<void> => {
 		await db
 			.query(`
 				DELETE website_verifications;
+				DELETE website_notifications;
+				DELETE notification_channels;
 				DELETE job_queue;
 				DELETE jobs;
 				DELETE websites;
@@ -103,7 +105,6 @@ export const createUser = async (input: {
 	role?: 'admin' | 'editor' | 'viewer';
 	group?: string;
 	isSuperuser?: boolean;
-	notificationTargets?: unknown[];
 }) => {
 	return adminOne<{
 		id: string;
@@ -119,15 +120,13 @@ export const createUser = async (input: {
 			password: crypto::argon2::generate($password),
 			role: $role,
 			\`group\`: $group,
-			is_superuser: $isSuperuser,
-			notification_targets: $notificationTargets
+			is_superuser: $isSuperuser
 		} RETURN AFTER;`,
 		{
 			...input,
 			role: input.role ?? 'editor',
 			group: input.group ?? crypto.randomUUID(),
-			isSuperuser: input.isSuperuser ?? false,
-			notificationTargets: input.notificationTargets ?? []
+			isSuperuser: input.isSuperuser ?? false
 		}
 	);
 };

@@ -1,4 +1,5 @@
 import { config } from '$lib/server/config';
+import { sendAppriseNotification as sendSharedAppriseNotification } from '../../../../../notifications/apprise';
 
 export type AppriseNotifyInput = {
 	targets: string[];
@@ -7,48 +8,12 @@ export type AppriseNotifyInput = {
 	format: 'text' | 'markdown' | 'html';
 };
 
-const APPRISE_STATUS_OK = new Set(['ok', 'success', 'queued']);
-
 export const sendAppriseNotification = async (input: AppriseNotifyInput): Promise<void> => {
-	if (!config.appriseUrl) {
-		throw new Error('APPRISE_URL is not configured.');
-	}
-
-	const endpoint = `${config.appriseUrl.replace(/\/+$/, '')}/notify`;
-	const headers = new Headers({
-		'content-type': 'application/json',
-		accept: 'application/json'
-	});
-
-	if (config.appriseApiKey) {
-		headers.set('x-api-key', config.appriseApiKey);
-	}
-
-	const response = await fetch(endpoint, {
-		method: 'POST',
-		headers,
-		body: JSON.stringify({
-			title: input.title,
-			body: input.body,
-			urls: input.targets,
-			format: input.format,
-			type: 'info'
-		})
-	});
-
-	if (response.status >= 300) {
-		throw new Error(`Apprise returned HTTP ${response.status}`);
-	}
-
-	let payload: Record<string, unknown> | null = null;
-	try {
-		payload = (await response.json()) as Record<string, unknown>;
-	} catch {
-		payload = null;
-	}
-
-	const status = String(payload?.status ?? '').toLowerCase();
-	if (status && !APPRISE_STATUS_OK.has(status)) {
-		throw new Error(`Apprise notify failed with status: ${status}`);
-	}
+	await sendSharedAppriseNotification(
+		{
+			baseUrl: config.appriseUrl,
+			apiKey: config.appriseApiKey
+		},
+		input
+	);
 };

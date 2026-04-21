@@ -21,13 +21,37 @@ export type ApiEnvelope<T = unknown> =
 			error?: ApiError;
 	  };
 
-export interface ApiNotificationTarget {
-	id: string;
-	target: string;
-	label?: string | null;
-	enabled: boolean;
-	created_at: ApiDateTime;
-	updated_at: ApiDateTime;
+export interface ApiWebsiteNotificationEvents {
+	JOB_COMPLETED: boolean;
+	JOB_FAILED: boolean;
+	SEO_SCORE_BELOW: number | null;
+	STRESS_SCORE_BELOW: number | null;
+	WCAG_SCORE_BELOW: number | null;
+	SECURITY_SCORE_BELOW: number | null;
+}
+
+export interface ApiNotificationChannel {
+	id: ApiRecordId;
+	user: ApiRecordId;
+	name: string;
+	apprise_url: string;
+	user_name?: string;
+	user_email?: string;
+	created_at?: ApiDateTime;
+	updated_at?: ApiDateTime;
+}
+
+export interface ApiWebsiteNotification {
+	id: ApiRecordId;
+	website: ApiRecordId;
+	notification_channel: ApiRecordId;
+	website_url?: string;
+	channel_name?: string;
+	channel_apprise_url?: string;
+	channel_user?: ApiRecordId;
+	events: ApiWebsiteNotificationEvents;
+	created_at?: ApiDateTime;
+	updated_at?: ApiDateTime;
 }
 
 export interface ApiUser {
@@ -38,7 +62,6 @@ export interface ApiUser {
 	is_superuser: boolean;
 	role: 'admin' | 'editor' | 'viewer';
 	forgot_token?: string | null;
-	notification_targets?: ApiNotificationTarget[];
 	created_at?: ApiDateTime;
 }
 
