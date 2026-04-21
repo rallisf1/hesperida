@@ -239,7 +239,6 @@ services:
       - "TZ=${TZ:-Europe/Athens}"
       - "DEBUG=${DEBUG:-false}"
     command: start
-    user: "1000"
     ports:
       - 127.0.0.1:${DB_PORT:-8000}:8000 # remove "127.0.0.1:" to make it publically available, not recommended; better use a reverse proxy
     volumes:
@@ -247,7 +246,7 @@ services:
     healthcheck:
         test: ["CMD", "/surreal", "is-ready"]
         interval: 5s
-        timeout: 5s
+        timeout: 5ss
         retries: 5
 
   # TODO add a reverse proxy
