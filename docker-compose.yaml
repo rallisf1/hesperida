@@ -177,8 +177,6 @@ services:
       - "GOTENBERG_URL=${GOTENBERG_URL:-http://pdf:3000}"
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
-    volumes:
-      - ./data/wappalyzer/db.sqlite:/app/wappalyzer.db:ro
     healthcheck:
       test:
         [
