@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import { collectMailIssues } from '$lib/mail-issue-normalization';
 	import type { Tool } from '$lib/types';
     import * as Select from './ui/select';
 
@@ -273,8 +274,11 @@
 	};
 
 	const normalizeMail = (raw: unknown): NormalizedRow[] => {
-		// TODO implement this
-	}
+		return collectMailIssues(raw).map((row) => ({
+			...row,
+			tool: 'mail'
+		}));
+	};
 
 	const normalizeStress = (raw: unknown): NormalizedRow[] => {
 		const source = asRecord(raw);

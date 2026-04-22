@@ -1,12 +1,9 @@
 FROM node:22-trixie-slim AS wraps-builder
 
-ARG NODE_ENV=production
-ENV NODE_ENV=$NODE_ENV
-
-RUN apt install -y git
-RUN npm install -g pnpm@latest-10
-
 WORKDIR /builder
+
+RUN apt update && apt install -y git
+RUN npm install -g pnpm@latest-10
 
 ARG CACHE_BUST
 
@@ -14,7 +11,7 @@ RUN git clone https://github.com/wraps-team/wraps.git wraps
 
 WORKDIR /builder/wraps
 
-RUN pnpm install --frozen-lockfile --include=dev
+RUN pnpm install --frozen-lockfile --prod=false
 RUN pnpm --filter @wraps/core build
 RUN pnpm --filter @wraps/email-check build
 
@@ -28,6 +25,8 @@ WORKDIR /app
 
 COPY ./mail /app
 COPY ./types.d.ts /app/types.d.ts
-COPY --from=wraps-builder /builder/wraps /app/
+COPY --from=wraps-builder /builder/wraps /app/wraps
+
+RUN bun install
 
 ENTRYPOINT ["bun", "/app/index.ts"]

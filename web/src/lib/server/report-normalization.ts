@@ -1,3 +1,5 @@
+import { collectMailIssues } from '$lib/mail-issue-normalization';
+
 export type ReportTool = 'seo' | 'stress' | 'wcag' | 'security' | 'mail';
 export type ReportRowStatus = 'pass' | 'warn' | 'fail' | 'info';
 export type ReportRowSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
@@ -233,8 +235,11 @@ const formatPercent = (value: number | null): string =>
 	value === null ? 'n/a' : `${(value * 100).toFixed(2)}%`;
 
 const normalizeMailRows = (raw: unknown): NormalizedReportRow[] => {
-	// TODO implement this
-}
+	return collectMailIssues(raw).map((row) => ({
+		...row,
+		tool: 'mail'
+	}));
+};
 
 const normalizeStressRows = (raw: unknown): NormalizedReportRow[] => {
 	const source = asRecord(raw);

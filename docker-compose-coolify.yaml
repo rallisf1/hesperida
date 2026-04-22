@@ -128,6 +128,19 @@ services:
       - "STRESS_BODY=${STRESS_BODY:-}"
       - "STRESS_LATENCY_WARN_MS=${STRESS_LATENCY_WARN_MS:-500}"
 
+  mail:
+    image: ghcr.io/rallisf1/hesperida-mail:latest
+    restart: never
+    profiles: [tools]
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+
   orchestrator:
     image: ghcr.io/rallisf1/hesperida-orchestrator:latest
     restart: always

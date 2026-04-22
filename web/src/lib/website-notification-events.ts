@@ -5,6 +5,7 @@ export const defaultWebsiteNotificationEvents = (): ApiWebsiteNotificationEvents
 	JOB_FAILED: true,
 	SEO_SCORE_BELOW: null,
 	STRESS_SCORE_BELOW: null,
+	MAIL_SCORE_BELOW: null,
 	WCAG_SCORE_BELOW: null,
 	SECURITY_SCORE_BELOW: null
 });
@@ -15,8 +16,8 @@ export const describeWebsiteNotificationEvents = (events: ApiWebsiteNotification
 	if (events.JOB_FAILED) labels.push('Job failed');
 	if (events.SEO_SCORE_BELOW !== null) labels.push(`SEO < ${events.SEO_SCORE_BELOW}`);
 	if (events.STRESS_SCORE_BELOW !== null) labels.push(`Stress < ${events.STRESS_SCORE_BELOW}`);
+	if (events.MAIL_SCORE_BELOW !== null) labels.push(`Mail < ${events.MAIL_SCORE_BELOW}`);
 	if (events.WCAG_SCORE_BELOW !== null) labels.push(`WCAG < ${events.WCAG_SCORE_BELOW}`);
 	if (events.SECURITY_SCORE_BELOW !== null) labels.push(`Security < ${events.SECURITY_SCORE_BELOW}`);
 	return labels;
 };
-

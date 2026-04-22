@@ -2,6 +2,13 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { queryOne, withAdminDb } from '$lib/server/db';
 import { normalizeToolRows, type NormalizedReportRow } from '$lib/server/report-normalization';
+import {
+	buildMailTldrLine,
+	extractMailDeductionsFromRaw,
+	getMailDeductionPointsForRow,
+	resolveMailPainPointPriority,
+	type MailDeduction
+} from '$lib/server/mail-report-helpers';
 import { RecordId } from 'surrealdb';
 import { toRouteId } from '$lib/server/record-id';
 import { techSearch, type Technology } from '$lib/server/wappalyzer';
@@ -94,6 +101,7 @@ const buildPainPoints = (params: {
 	seoRows: NormalizedReportRow[];
 	stressRows: NormalizedReportRow[];
 	mailRows: NormalizedReportRow[];
+	mailDeductions: MailDeduction[];
 }): PainPoint[] => {
 	const points: PainPoint[] = [];
 
@@ -152,7 +160,21 @@ const buildPainPoints = (params: {
 	}
 
 	for (const row of params.mailRows) {
-		// TODO calc mail points
+		if (row.status !== 'fail' && row.status !== 'warn') continue;
+
+		const priority = resolveMailPainPointPriority(row, params.mailDeductions);
+		const deductionPoints = getMailDeductionPointsForRow(row, params.mailDeductions);
+		const detail =
+			deductionPoints > 0
+				? `${row.summary} (mail deduction: ${deductionPoints} point${deductionPoints === 1 ? '' : 's'})`
+				: row.summary;
+
+		points.push({
+			title: `Mail (${row.group}): ${row.check}`,
+			detail,
+			severity: priority >= 80 ? 'high' : priority >= 55 ? 'medium' : 'low',
+			priority
+		});
 	}
 
 	const unique = new Map<string, PainPoint>();
@@ -176,6 +198,7 @@ const buildTldr = (params: {
 	wcagRows: NormalizedReportRow[];
 	stressRows: NormalizedReportRow[];
 	mailRows: NormalizedReportRow[];
+	mailDeductions: MailDeduction[];
 	painPoints: PainPoint[];
 }): string[] => {
 	const lines: string[] = [];
@@ -204,7 +227,7 @@ const buildTldr = (params: {
 		lines.push(`Observed performance baseline: ${p95.value} at p95 latency during stress testing.`);
 	}
 
-	// TODO add mail tldr
+	lines.push(buildMailTldrLine(params.mailRows, params.mailDeductions));
 
 	if (params.painPoints.length > 0) {
 		lines.push(`Top immediate priority: ${params.painPoints[0]?.title}.`);
@@ -260,6 +283,7 @@ export const load: PageServerLoad = async (event) => {
 		const securityRows = normalizeToolRows('security', security.raw);
 		const stressRows = stress.raw ? normalizeToolRows('stress', stress.raw) : [];
 		const mailRows = mail.raw ? normalizeToolRows('mail', mail.raw) : [];
+		const mailDeductions = extractMailDeductionsFromRaw(mail.raw);
 		const allWcagRows = wcagByDevice.flatMap((item) => item.rows);
 
 		const wcagAverageScore =
@@ -324,7 +348,8 @@ export const load: PageServerLoad = async (event) => {
 			wcagRows: allWcagRows,
 			seoRows,
 			stressRows,
-			mailRows
+			mailRows,
+			mailDeductions
 		});
 
 		const website = asRecord(jobPlain.website);
@@ -345,6 +370,7 @@ export const load: PageServerLoad = async (event) => {
 			wcagRows: allWcagRows,
 			stressRows,
 			mailRows,
+			mailDeductions,
 			painPoints
 		});
 

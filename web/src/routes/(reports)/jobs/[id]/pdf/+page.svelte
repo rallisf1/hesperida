@@ -655,7 +655,6 @@
 			</Table.Root>
 		</td></tr>
 	{/if}
-	<!-- TODO check that the table structure aligns with the mail row results -->
 	{#if report.tables.mail.length > 0}
 		<tr class="section page-break"><td>
 			<h2>Mail Health Findings</h2>

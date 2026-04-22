@@ -256,7 +256,7 @@ DEFINE EVENT OVERWRITE job_deletion ON jobs WHEN $event = 'DELETE' THEN {
   DELETE FROM schedule WHERE job = $before.id;
 };
 
-DEFINE EVENT IF NOT EXISTS job_completion_check ON jobs WHEN $event = 'UPDATE' AND $after.status != 'completed' THEN {
+DEFINE EVENT OVERWRITE job_completion_check ON jobs WHEN $event = 'UPDATE' AND $after.status != 'completed' THEN {
     LET $has_pending_wcag = ('wcag' IN $after.types) AND (
         array::len((SELECT id FROM job_queue WHERE job = $after.id AND type = 'wcag' AND status IN ['pending','waiting','processing'])) > 0
     );

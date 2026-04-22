@@ -144,6 +144,21 @@ services:
       - "STRESS_BODY=${STRESS_BODY:-}"
       - "STRESS_LATENCY_WARN_MS=${STRESS_LATENCY_WARN_MS:-500}"
 
+  mail:
+    restart: never
+    profiles: [tools]
+    build:
+      context: ./
+      dockerfile: ./mail/Dockerfile
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+
   orchestrator:
     restart: always
     profiles: ["backend", "aio", "dev"]

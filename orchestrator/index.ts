@@ -134,7 +134,8 @@ const DEFAULT_NOTIFICATION_EVENTS: WebsiteNotificationEvents = {
 	SEO_SCORE_BELOW: null,
 	STRESS_SCORE_BELOW: null,
 	WCAG_SCORE_BELOW: null,
-	SECURITY_SCORE_BELOW: null
+	SECURITY_SCORE_BELOW: null,
+	MAIL_SCORE_BELOW: null
 };
 
 const jobStatusById = new Map<string, JobStatus>();
@@ -161,6 +162,10 @@ const normalizeNotificationEvents = (
 	SECURITY_SCORE_BELOW:
 		typeof value?.SECURITY_SCORE_BELOW === 'number' && Number.isFinite(value.SECURITY_SCORE_BELOW)
 			? value.SECURITY_SCORE_BELOW
+			: null,
+	MAIL_SCORE_BELOW:
+		typeof value?.MAIL_SCORE_BELOW === 'number' && Number.isFinite(value.MAIL_SCORE_BELOW)
+			? value.MAIL_SCORE_BELOW
 			: null
 });
 
