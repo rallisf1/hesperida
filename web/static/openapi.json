@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Hesperida Web App Scanner API",
-    "version": "0.10.2",
+    "version": "0.10.3",
     "description": "Use WEB_API_KEY in an x-api-key header, and the token from auth signin/signup in a Bearer Authentication header"
   },
   "servers": [

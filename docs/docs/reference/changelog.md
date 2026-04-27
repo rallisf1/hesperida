@@ -7,6 +7,12 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.10.3] - 2026-04-27
+
+### Incident
+
+- Readme must match package version and package version  must be different for tag workflow to run
+
 ## [0.10.2] - 2026-04-27
 
 ### Fixed
