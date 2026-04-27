@@ -7,6 +7,12 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.10.4] - 2026-04-27
+
+### Fixed
+
+- Docker health checks
+
 ## [0.10.3] - 2026-04-27
 
 ### Incident

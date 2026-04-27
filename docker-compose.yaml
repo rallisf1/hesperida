@@ -164,7 +164,7 @@ services:
         - CMD
         - curl
         - '-f'
-        - 'http://gotenberg:3000/health'
+        - 'http://localhost:3000/health'
       timeout: 10s
 
   db: # comment this service out if you're using SurrealDB SaaS
