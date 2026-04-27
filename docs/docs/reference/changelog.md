@@ -7,6 +7,12 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.10.2] - 2026-04-27
+
+### Fixed
+
+- Mail image was not tagged correctly
+
 ## [0.10.1] - 2026-04-24
 
 ### Added
