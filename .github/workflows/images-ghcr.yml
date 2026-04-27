@@ -115,7 +115,7 @@ jobs:
           TMP_TAG_PREFIX: ${{ needs.prepare.outputs.tmp_tag_prefix }}
         run: |
           set -euo pipefail
-          services=(probe whois ssl domain seo wcag security stress orchestrator web)
+          services=(probe whois ssl domain seo wcag security stress mail orchestrator web)
 
           for service in "${services[@]}"; do
             image="ghcr.io/${OWNER_LC}/${REPO_LC}-${service}"
