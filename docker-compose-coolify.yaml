@@ -6,56 +6,10 @@
 # port: 3000
 
 services:
-  probe:
-    image: ghcr.io/rallisf1/hesperida-probe:latest
-    restart: never
-    profiles: [tools]
-  
-  whois:
-    image: ghcr.io/rallisf1/hesperida-whois:latest
-    restart: never
-    profiles: [tools]
-
-  ssl:
-    image: ghcr.io/rallisf1/hesperida-ssl:latest
-    restart: never
-    profiles: [tools]
-
-  domain:
-    image: ghcr.io/rallisf1/hesperida-domain:latest
-    restart: never
-    profiles: [tools]
-
-  seo:
-    image: ghcr.io/rallisf1/hesperida-seo:latest
-    restart: never
-    profiles: [tools]
-
-  wcag:
-    image: ghcr.io/rallisf1/hesperida-wcag:latest
-    restart: never
-    profiles: [tools]
-    ipc: host
-
-  security:
-    image: ghcr.io/rallisf1/hesperida-security:latest
-    restart: never
-    profiles: [tools]
-
-  stress:
-    image: ghcr.io/rallisf1/hesperida-stress:latest
-    restart: never
-    profiles: [tools]
-
-  mail:
-    image: ghcr.io/rallisf1/hesperida-mail:latest
-    restart: never
-    profiles: [tools]
 
   orchestrator:
     image: ghcr.io/rallisf1/hesperida-orchestrator:latest
     restart: always
-    profiles: ["backend", "aio"]
     depends_on:
       web:
         condition: service_healthy
@@ -93,11 +47,22 @@ services:
       - "STRESS_LATENCY_WARN_MS=${STRESS_LATENCY_WARN_MS:-500}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "const response = await fetch('http://127.0.0.1:8081/health'); if (!response.ok) process.exit(1);",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
 
   web:
     image: ghcr.io/rallisf1/hesperida-web:latest
     restart: always
-    profiles: ["backend", "aio"]
     depends_on:
       db:
         condition: service_healthy
@@ -131,18 +96,19 @@ services:
     healthcheck:
       test:
         [
-          "CMD-SHELL",
-          "curl -fsS http://127.0.0.1:3000/health >/dev/null || exit 1",
+          "CMD",
+          "bun",
+          "-e",
+          "const response = await fetch('http://127.0.0.1:3000/health'); if (!response.ok) process.exit(1);",
         ]
       interval: 15s
       timeout: 3s
       retries: 3
-      start_period: 5s
+      start_period: 20s
 
   apprise:
     restart: always
     image: caronc/apprise:latest
-    profiles: ["backend", "aio"]
     environment:
       - APPRISE_STATEFUL_MODE=disabled
       - APPRISE_API_ONLY=yes
@@ -161,7 +127,6 @@ services:
   pdf:
     restart: always
     image: 'gotenberg/gotenberg:latest'
-    profiles: ["backend", "aio"]
     healthcheck:
       interval: 60s
       test:
@@ -174,7 +139,6 @@ services:
   db:
     restart: always
     image: surrealdb/surrealdb:latest
-    profiles: ["database", "aio"]
     environment:
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"

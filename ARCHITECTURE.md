@@ -231,9 +231,12 @@ Tools are isolated containers launched by orchestrator:
 - `wcag`: Playwright + axe-core, per-device rows + screenshots
 - `security`: nuclei + wapiti + nikto aggregation/scoring
 - `stress`: vegeta metrics/scoring
-- `mail`: wraps `@wraps/email-check` for domain mail health; persists score/passes/warnings/errors + raw findings to `mail_results` and feeds `MAIL_SCORE_BELOW` notification thresholds
+- `mail`: uses `@wraps/email-check` for domain mail health; persists score/passes/warnings/errors + raw findings to `mail_results` and feeds `MAIL_SCORE_BELOW` notification thresholds
 
 Orchestrator injects task context via environment variables and network-attaches spawned containers to the same Docker network.
+On startup, orchestrator also prepares tool images:
+- `NODE_ENV=development`: builds tool images from local `/tools/*` sources (supports `--rebuild`)
+- non-development: resolves its own image tag token and pulls matching GHCR tool image tags, then retags them to local `hesperida-*` names used by task execution
 
 Operational maintenance in orchestrator:
 - Daily `job_queue` retention cleanup based on `JOB_QUEUE_RETENTION` (days, default `365`)

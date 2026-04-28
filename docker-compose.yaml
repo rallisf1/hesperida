@@ -86,6 +86,18 @@ services:
       - "STRESS_LATENCY_WARN_MS=${STRESS_LATENCY_WARN_MS:-500}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "const response = await fetch('http://127.0.0.1:8081/health'); if (!response.ok) process.exit(1);",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
 
   web:
     image: ghcr.io/rallisf1/hesperida-web:latest
@@ -125,13 +137,15 @@ services:
     healthcheck:
       test:
         [
-          "CMD-SHELL",
-          "curl -fsS http://127.0.0.1:3000/health >/dev/null || exit 1",
+          "CMD",
+          "bun",
+          "-e",
+          "const response = await fetch('http://127.0.0.1:3000/health'); if (!response.ok) process.exit(1);",
         ]
       interval: 15s
       timeout: 3s
       retries: 3
-      start_period: 5s
+      start_period: 20s
 
   apprise:
     restart: always

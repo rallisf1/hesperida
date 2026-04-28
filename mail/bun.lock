@@ -5,6 +5,7 @@
     "": {
       "name": "mail",
       "dependencies": {
+        "@wraps.dev/email-check": "^1.0.1",
         "rdapper": "^0.13.0",
         "surrealdb": "^2.0.3",
       },
@@ -22,6 +23,8 @@
     "@types/bun": ["@types/bun@1.3.12", "", { "dependencies": { "bun-types": "1.3.12" } }, "sha512-DBv81elK+/VSwXHDlnH3Qduw+KxkTIWi7TXkAeh24zpi5l0B2kUg9Ga3tb4nJaPcOFswflgi/yAvMVBPrxMB+A=="],
 
     "@types/node": ["@types/node@25.6.0", "", { "dependencies": { "undici-types": "~7.19.0" } }, "sha512-+qIYRKdNYJwY3vRCZMdJbPLJAtGjQBudzZzdzwQYkEPQd+PJGixUL5QfvCLDaULoLv+RhT3LDkwEfKaAkgSmNQ=="],
+
+    "@wraps.dev/email-check": ["@wraps.dev/email-check@1.0.1", "", {}, "sha512-Orr8fYndkl9D1mzF7JZN+F7mIvnM19ntILSeOSOHKk4vAfZ4IYSCzxiFd2/rjJHFoNmWC638zjNaHU4BnMRx/w=="],
 
     "bun-types": ["bun-types@1.3.12", "", { "dependencies": { "@types/node": "*" } }, "sha512-HqOLj5PoFajAQciOMRiIZGNoKxDJSr6qigAttOX40vJuSp6DN/CxWp9s3C1Xwm4oH7ybueITwiaOcWXoYVoRkA=="],
 

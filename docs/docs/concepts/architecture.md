@@ -67,6 +67,9 @@ Queue/container maintenance (orchestrator):
 
 - daily queue retention cleanup removes `job_queue` rows older than `JOB_QUEUE_RETENTION` days (default `365`)
 - startup orphan cleanup removes managed tool containers labeled `com.hesperida.managed=true`
+- startup tool image preparation:
+  - `NODE_ENV=development`: build local tool images from `/tools/*`
+  - non-development: pull GHCR tool images using the resolved orchestrator image tag token, then retag for local runtime names
 
 ## Web Service Modes
 

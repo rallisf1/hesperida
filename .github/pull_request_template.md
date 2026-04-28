@@ -63,12 +63,8 @@ Notes:
 ## Release Notes
 
 - [ ] No changelog entry required
-- [ ] `CHANGELOG.md` && `docs/docs/reference/changelog.md` updated
 - [ ] Version bump in `web/package.json`
-
-If version bumped, confirm matching changelog block exists:
-
-- [ ] `CHANGELOG.md` has `## [<web/package.json version>]`
+- [ ] `CHANGELOG.md` has `## [<web/package.json version>]` && synced to `docs/docs/reference/changelog.md`
 
 ## Security Checklist
 

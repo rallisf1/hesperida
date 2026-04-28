@@ -1,6 +1,6 @@
 import { toRegistrableDomain } from "rdapper";
 import { RecordId, Surreal, Table, type Values} from 'surrealdb';
-import { runEmailCheck } from './wraps/packages/email-check/dist/index.js';
+import { runEmailCheck } from '@wraps.dev/email-check';
 import type { Mail } from './types'
 
 const inputTarget = Bun.argv[2]

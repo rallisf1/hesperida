@@ -45,19 +45,12 @@ ln -s .env web/.env
 __the main branch is for development because it is synced with the original upstream repos, use the hesperida-* branch if you have errors__
 
 ```bash
-cd mail
-git clone https://github.com/rallisf1/wraps.git wraps
-cd wraps
-pnpm install --frozen-lockfile
-pnpm --filter @wraps/core build
-pnpm --filter @wraps/email-check build
-
 cd ../seo
 git clone https://github.com/rallisf1/seo-audit-skill.git seomator
 cd seomator
 npm install && npm run build
 ```
-4. Build tools:
+4. Build tools (optional):
 ```bash
 docker compose -f docker-compose.dev.yaml --profile tools build
 ```
@@ -124,7 +117,7 @@ If you change schema/ACL:
 
 - Update `web/src/lib/server/schema.surql`.
 - When updating existing fields, make sure they use `OVERWRITE` instead of `IF NOT EXISTS`.
-- Increase the version in `web/package.json`.
+- Change the version in `web/package.json`, add your commit id or branch name
 - Verify startup DB init still succeeds (`web/src/lib/server/db-init.ts`).
 - Add/adjust tests for permission behavior and regressions.
 
@@ -145,6 +138,8 @@ npm run build
 ```
 
 `docs` build scripts sync OpenAPI from `web/static/openapi.json`, so keep that file current in PRs that touch API contracts.
+
+Changelog, architecture, installation, deployment, faq, etc. are manually synced between the `docs` and root files (e.g. README.md)
 
 ## CI/CD and Release Expectations
 
@@ -177,6 +172,10 @@ AI Coding is expected at this point. Over 90% of the project's code has been AI 
 
 ## Security and Sensitive Changes
 
-- Never commit secrets in `.env`, workflow files, or tests.
+- Never commit secrets in `.env*`, workflow files, or tests.
 - For auth/ACL changes, include explicit tests for allowed/forbidden paths.
 - For destructive operations (delete/transfer), preserve current safeguards and rollback behavior.
+
+## Backwards compatibility and upgrade path
+
+While Hesperida is still in bet (v0.x.x) there's no backwards compatiblity or pre-defined upgrade path, a.k.a. breaking changes are expected. That said; it's best to keep them minimal.

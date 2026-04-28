@@ -1,4 +1,4 @@
-import Database from "bun:sqlite";
+import { Database } from "bun:sqlite";
 import { config } from '$lib/server/config';
 
 export interface Technology {
@@ -8,7 +8,7 @@ export interface Technology {
   icon: string | null;
 }
 
-const db = new Database(config.wappalyzerDB);
+const db = new Database(config.wappalyzerDB, { readonly: true });
 
 export function techSearch(tech: string): Technology | null {
 

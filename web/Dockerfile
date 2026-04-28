@@ -20,11 +20,9 @@ RUN bun run build
 
 FROM oven/bun:1
 
-RUN apt update && apt install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
+COPY ./data/wappalyzer/db.sqlite /app/wappalyzer.db
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/package.json ./package.json
 

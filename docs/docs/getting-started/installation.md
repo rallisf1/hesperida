@@ -17,18 +17,20 @@ sidebar_position: 1
 
 1. Clone the repository.
 2. Copy and edit the environment file.
-3. Pull tool worker images.
-4. Start services using Compose profiles.
+3. Start services using Compose profiles.
 
 ```bash
 git clone https://github.com/rallisf1/hesperida.git
 cd hesperida
 cp .env.example .env
-docker compose --profile tools pull
 docker compose --profile aio up -d
 ```
 
 Open the web service at `http://localhost:3000` for local access, or through your configured reverse proxy in production.
+
+Tool image handling is automatic at launch:
+- `NODE_ENV=development`: orchestrator builds tool images from local sources
+- non-development: orchestrator pulls matching published tool images and retags them for runtime use
 
 ## Superuser Bootstrap
 
@@ -66,14 +68,13 @@ See [Reverse Proxy](../operations/reverse-proxy.md) for both proxy options.
 - `aio`: full local stack (`db`, `orchestrator`, `web`, `apprise`, `pdf`)
 - `backend`: backend services for external DB setups (`orchestrator`, `web`, `apprise`, `pdf`)
 - `database`: SurrealDB only
-- `tools`: tool image pull/build profile (not long-running in production)
+- `tools`: optional manual tool runs (not long-running in production)
 
 ## Upgrade Flow
 
 ```bash
 docker compose --profile aio down
 docker compose --profile aio pull
-docker compose --profile tools pull
 docker compose --profile aio up -d
 ```
 

@@ -215,6 +215,19 @@ services:
       - ./whois:/tools/whois:ro
       - ./security:/tools/security:ro
       - ./stress:/tools/stress:ro
+      - ./mail:/tools/mail:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "const response = await fetch('http://127.0.0.1:8081/health'); if (!response.ok) process.exit(1);",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
 
   web:
     restart: always
@@ -254,18 +267,18 @@ services:
       - "GOTENBERG_URL=${GOTENBERG_URL:-http://pdf:3000}"
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
-    volumes:
-      - ./data/wappalyzer/db.sqlite:/app/wappalyzer.db:ro
     healthcheck:
       test:
         [
-          "CMD-SHELL",
-          "curl -fsS http://127.0.0.1:3000/health >/dev/null || exit 1",
+          "CMD",
+          "bun",
+          "-e",
+          "const response = await fetch('http://127.0.0.1:3000/health'); if (!response.ok) process.exit(1);",
         ]
       interval: 15s
       timeout: 3s
       retries: 3
-      start_period: 5s
+      start_period: 20s
 
   apprise:
     restart: always

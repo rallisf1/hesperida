@@ -15,6 +15,7 @@ COPY --from=vegeta-builder /go/bin/vegeta /usr/local/bin/vegeta
 
 ARG CACHE_BUST
 
-COPY --chmod=755 ./stress/entrypoint.sh /entrypoint.sh
+COPY ./stress/entrypoint.sh /entrypoint.sh
+RUN chmod 755 /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

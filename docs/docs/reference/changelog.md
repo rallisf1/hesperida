@@ -7,6 +7,24 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.10.5] - 2026-04-28
+
+### Added
+
+- Orchestrator container health check
+
+### Changed
+
+- The tool images are pulled / built (in development) during the orchestrator launch
+- Removed compose profiles and tool services from the Coolify compose file
+- The mail container now uses @wraps.dev/email-check, instead of building it from source
+- Changed web's healthcheck from curl (extra dependency) to bun fetch
+- Revert `COPY --chmod` Dockerfile optmizations to enable development builds with dockerode
+
+### Fixed
+
+- Could not pull tool containers in a Coolify environment
+
 ## [0.10.4] - 2026-04-27
 
 ### Fixed

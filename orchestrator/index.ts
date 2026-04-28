@@ -11,10 +11,14 @@ import type {
 	WebsiteNotificationEvents
 } from './types';
 import { slowTools, tools } from './constants';
-import { readdir } from "node:fs/promises";
 import { PassThrough } from 'node:stream';
 import { hostname } from 'node:os';
 import { sendAppriseNotification } from '../notifications/apprise';
+import {
+	DEFAULT_HEALTH_CHECK_TIMEOUT_MS,
+	evaluateOrchestratorHealth
+} from './health';
+import { prepareToolImages } from './tool-images';
 
 const DEBUG = Bun.env.DEBUG == "true";
 let RUNNERS = 0;
@@ -38,6 +42,9 @@ const DASHBOARD_URL = Bun.env.DASHBOARD_URL?.trim() ?? '';
 const MANAGED_CONTAINER_LABEL = 'com.hesperida.managed';
 const MANAGED_CONTAINER_LABEL_VALUE = 'true';
 const DAILY_QUEUE_CLEANUP_CRON = '0 0 * * *';
+const ORCHESTRATOR_HEALTH_HOST = '127.0.0.1';
+const ORCHESTRATOR_HEALTH_PORT = 8081;
+const ORCHESTRATOR_HEALTH_TIMEOUT_MS = DEFAULT_HEALTH_CHECK_TIMEOUT_MS;
 const BASE_TOOL_ENV_KEYS = [
     'NODE_ENV',
     'SURREAL_USER',
@@ -105,6 +112,32 @@ const BASE_TOOL_ENV = collectEnv(BASE_TOOL_ENV_KEYS);
 console.log('Hesperida Orchestrator starting...');
 
 const docker = new Dockerode({socketPath: '/var/run/docker.sock'});
+const db = new Surreal();
+let orchestratorStartupComplete = false;
+
+const healthServer = Bun.serve({
+	hostname: ORCHESTRATOR_HEALTH_HOST,
+	port: ORCHESTRATOR_HEALTH_PORT,
+	fetch: async (request) => {
+		const url = new URL(request.url);
+		if (request.method !== 'GET' || url.pathname !== '/health') {
+			return new Response('Not Found', { status: 404 });
+		}
+
+		const result = await evaluateOrchestratorHealth({
+			startupComplete: orchestratorStartupComplete,
+			checkDatabase: async () => {
+				await db.query('RETURN 1;').collect();
+			},
+			checkDocker: async () => {
+				await docker.ping();
+			},
+			timeoutMs: ORCHESTRATOR_HEALTH_TIMEOUT_MS
+		});
+
+		return Response.json(result.body, { status: result.statusCode });
+	}
+});
 
 if (DEBUG) {
     console.debug(`Base Docker environment variables: ${JSON.stringify(BASE_TOOL_ENV)}`);
@@ -150,38 +183,13 @@ const removeManagedOrphanContainers = async (): Promise<void> => {
 	}
 };
 
-for (const tool of tools) {
-    let imageExists = false;
-    try {
-        await docker.getImage(`hesperida-${tool}`).inspect();
-        imageExists = true;
-        if(DEBUG) console.debug(`Docker image hesperida-${tool} found.`);
-    } catch(err: any) {
-        if(err.statusCode != 404) { // means we can't run docker commands
-            throw err
-        }
-        if(DEBUG) console.debug(`Docker image hesperida-${tool} NOT found!`);
-    }
-    if (Bun.env.NODE_ENV === "development") {
-        // check/rebuild tool images for development
-        if(!imageExists || REBUILD) {
-            console.log(`${REBUILD ? 'Re-': ''}Building image hesperida-${tool}...`);
-            const files = await readdir(`/tools/${tool}`);
-            const toolFiles = files.filter(f => f !== 'node_modules' && !f.startsWith('.')).map(f => `${tool}/${f}`);
-            let stream = await docker.buildImage({
-                context: '/tools',
-                src: toolFiles
-            },
-            {
-                t: `hesperida-${tool}`,
-                dockerfile: `${tool}/Dockerfile`
-            });
-            await new Promise((resolve, reject) => {
-                docker.modem.followProgress(stream, (err, res) => err ? reject(err) : resolve(res));
-            });
-        }
-    }
-}
+await prepareToolImages({
+	docker,
+	tools,
+	nodeEnv: Bun.env.NODE_ENV,
+	rebuild: REBUILD,
+	debug: DEBUG
+});
 
 const resolveDockerNetwork = async (): Promise<string> => {
     const selfContainerId = hostname();
@@ -205,7 +213,6 @@ try {
 	console.error('Managed orphan container cleanup failed at startup:', error);
 }
 
-const db = new Surreal();
 await db.connect(`${Bun.env.SURREAL_PROTOCOL === 'https' ? 'wss': 'ws'}://${Bun.env.SURREAL_ADDRESS}`, {
 	namespace: Bun.env.SURREAL_NAMESPACE,
 	database: Bun.env.SURREAL_DATABASE,
@@ -624,6 +631,8 @@ const queueCleanupTask = cron.schedule(
 
 process.on("beforeExit", async () => {
     console.log('Hesperida Orchestrator exiting gracefully...');
+	orchestratorStartupComplete = false;
+	healthServer.stop();
     clearInterval(waitingInterval);
 	queueCleanupTask.stop();
 	queueCleanupTask.destroy();
@@ -867,6 +876,7 @@ jobStatusLive.subscribe(({ action, value, recordId }) => {
 });
 
 if(DEBUG) console.debug('Listening for new Jobs...');
+orchestratorStartupComplete = true;
 console.log('Hesperida Orchestrator ready! 🚀🚀🚀');
 
 newJobs.subscribe(async ({action, value, recordId}) => {

@@ -18,7 +18,7 @@ A self-hosted web scanner that shows you how both people and bots see your websi
 | Whois       | [whois](https://github.com/rfc1036/whois)                           | ✅         | Gets IP whois info                                                                |
 | Security    | [nuclei](https://github.com/projectdiscovery/nuclei), [wapiti](https://github.com/wapiti-scanner/wapiti), [nikto](https://github.com/sullo/nikto) | ✅         | Standard vulnerability scanning                                                   |
 | Stress Test | [vegeta](https://github.com/tsenart/vegeta)                               | ✅        | HTTP load testing                                                                 |
-| Mail Health | [wraps](https://github.com/wraps-team/wraps)                               | ✅        | DNS based health check                                                                 |
+| Mail Health | [@wraps/email-check](https://github.com/wraps-team/wraps)                               | ✅        | DNS based health check                                                                 |
 
 ### Dashboard
 
@@ -50,13 +50,16 @@ User notifications are configured via `notification_channels` + `website_notific
 
 1. Download, a.k.a. `git clone https://github.com/rallisf1/hesperida.git && cd hesperida`
 2. `cp .env.example .env` and edit it with your information
-3. `docker compose --profile tools pull` to update all the tools docker images
-4. Start it up:
+3. Start it up:
   - With a self-hosted database
   `docker compose --profile aio up -d`
   - With SurrealDB SaaS
   `docker compose --profile backend up -d`
-5. Open `http://localhost:3000` (or according to your configuration)
+4. Open `http://localhost:3000` (or according to your configuration)
+
+At launch, the orchestrator prepares tool images automatically:
+- `NODE_ENV=development`: builds tool images from local sources
+- non-development: pulls the matching published tool image tags and retags them for runtime execution
 
 ### Super User account
 
@@ -69,8 +72,9 @@ You can change both later
 
 1. `docker compose --profile aio down` to stop the running containers
 2. `docker compose --profile aio pull` to update all the backend docker images
-3. `docker compose --profile tools pull` to update all the tools docker images
-4. `docker compose --profile aio up -d` to start
+3. `docker compose --profile aio up -d` to start
+
+Tool images are refreshed by the orchestrator during startup, so a separate `--profile tools pull` step is not required for normal upgrades.
 
 If you use the bundled Caddy setup, add `-f docker-compose-caddy.yaml` to the `down`, `pull`, and `up` commands.
 
@@ -154,7 +158,7 @@ There is a distinction between light (CLI/Node tools) and heavy (full browsers) 
 
 ### What's with the `tools` docker compose profile?
 
-Those are just there for developer testing and pre-building, you'd never need to run them over docker compose in production.
+Those are just there for developer testing and optional manual pre-build/pre-pull workflows. You do not need to run them in production.
 
 ### Can I host the services on different hosts (a.k.a. servers) ?
 

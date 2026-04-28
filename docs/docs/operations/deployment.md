@@ -22,13 +22,7 @@ cd hesperida
 cp .env.example .env
 ```
 
-3. Pull worker images:
-
-```bash
-docker compose --profile tools pull
-```
-
-4. Start the stack:
+3. Start the stack:
 - Self-hosted DB:
 
   ```bash
@@ -41,7 +35,11 @@ docker compose --profile tools pull
   docker compose --profile backend up -d
   ```
 
-5. Open the dashboard at `http://localhost:3000` for local access, or at the domain configured in your reverse proxy.
+4. Open the dashboard at `http://localhost:3000` for local access, or at the domain configured in your reverse proxy.
+
+At startup, orchestrator handles tool images automatically:
+- `NODE_ENV=development`: builds local tool images
+- non-development: pulls matching published tool image tags and retags them for runtime
 
 ## Bootstrap Superuser
 
@@ -55,7 +53,6 @@ For all-in-one (`aio`) deployments:
 ```bash
 docker compose --profile aio down
 docker compose --profile aio pull
-docker compose --profile tools pull
 docker compose --profile aio up -d
 ```
 
@@ -69,7 +66,7 @@ If you use the bundled Caddy setup, add `-f docker-compose-caddy.yaml` to the `d
 - `db` is required only when not using external SurrealDB.
 - `apprise` and `pdf` are part of backend profiles for notifications and PDF export.
 - `docker-compose-caddy.yaml` is an optional standalone Compose file for deployments that want bundled Caddy.
-- `tools` profile is used to pull/build scan worker images; those containers are not long-running services.
+- `tools` profile is optional for direct manual tool runs; those containers are not long-running services.
 
 ## Reverse Proxy
 

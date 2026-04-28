@@ -7,7 +7,9 @@ sidebar_position: 4
 
 ## What's with the `tools` docker compose profile?
 
-Those containers are mainly for developer testing and pre-building images. You typically do not run them as long-lived services in production.
+Those containers are mainly for developer testing and optional manual pre-build/pre-pull workflows. You typically do not run them as long-lived services in production.
+
+In normal deployments, orchestrator handles tool image preparation during startup (build in development, pull in non-development).
 
 ## Can I host services on different hosts?
 

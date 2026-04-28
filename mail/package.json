@@ -10,6 +10,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@wraps.dev/email-check": "^1.0.1",
     "rdapper": "^0.13.0",
     "surrealdb": "^2.0.3"
   }
