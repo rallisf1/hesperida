@@ -57,7 +57,13 @@
 	let unsubscribe: (() => void) | null = null;
 
 	onMount(() => {
-		connection = source("/streams/job-queue");
+		connection = source("/streams/job-queue", {
+			options: {
+				headers: {
+					"X-Accel-Buffering": 'no',
+				},
+			},
+		});
 		const stream = connection.select("job_queue").json<QueueTaskStreamEvent>();
 		unsubscribe = stream.subscribe((event) => {
 			if (!event) return;

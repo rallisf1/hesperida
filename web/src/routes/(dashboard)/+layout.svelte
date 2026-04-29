@@ -150,7 +150,13 @@
 	});
 
 	onMount(() => {
-		notificationsConnection = source("/streams/notifications");
+		notificationsConnection = source("/streams/notifications", {
+			options: {
+				headers: {
+					"X-Accel-Buffering": 'no',
+				},
+			},
+		});
 		const stream = notificationsConnection
 			.select("notifications")
 			.json<DashboardNotificationEvent>();

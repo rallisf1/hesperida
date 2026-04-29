@@ -7,6 +7,12 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.10.6] - 2026-04-29
+
+### Fixed
+
+- Improve SSE behind Cloudflare Proxy
+
 ## [0.10.5] - 2026-04-28
 
 ### Added
