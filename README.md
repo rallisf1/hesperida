@@ -103,6 +103,7 @@ The root `Caddyfile` also contains commented examples for exposing `pdf` and `ap
 - Task execution reliability still needs tuning under heavy concurrency. Known culprits:
   1. Document locks on rocksdb can conflict with high parallel workloads (e.g. multiple `whois` tasks)
   2. Not enough resources, upgrade your host
+- Although there is a `docker-compose-coolify.yaml`, Coolify is not supported due to this [issue](https://github.com/coollabsio/coolify/discussions/9867).
 
 ## Ideas
 
