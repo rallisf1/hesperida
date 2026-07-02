@@ -1,19 +1,3 @@
-FROM node:22-trixie-slim AS seomator-builder
-
-WORKDIR /builder
-
-RUN apt-get update \
-    && apt-get install -y git \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN git clone -b hesperida-v0.6.0 --single-branch https://github.com/rallisf1/seo-audit-skill.git seomator
-
-WORKDIR /builder/seomator
-
-RUN npm ci \
-    && npm run build \
-    && npm prune --omit=dev
-
 FROM node:22-trixie-slim
 
 ARG NODE_ENV=production
@@ -37,8 +21,5 @@ RUN npm ci --omit=dev
 ARG CACHE_BUST
 
 COPY ./seo /app
-
-COPY --from=seomator-builder /builder/seomator/dist /app/seomator/dist
-COPY --from=seomator-builder /builder/seomator/node_modules /app/seomator/node_modules
 
 ENTRYPOINT ["node", "/app/index.js"]

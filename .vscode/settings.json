@@ -20,5 +20,10 @@
             "name": "wappalyzer",
             "database": "${workspaceFolder:hesperida}/data/wappalyzer/db.sqlite"
         }
-    ]
+    ],
+    "deno.enable": true,
+    "deno.enablePaths": [
+        "mail"
+    ],
+    "deno.lint": true
 }

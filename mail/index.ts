@@ -1,10 +1,11 @@
 import { toRegistrableDomain } from "rdapper";
 import { RecordId, Surreal, Table, type Values} from 'surrealdb';
 import { runEmailCheck } from '@wraps.dev/email-check';
-import type { Mail } from './types'
+import process from "node:process";
+import type { Mail } from './types.d.ts'
 
-const inputTarget = Bun.argv[2]
-const job_id = Bun.argv[3]
+const inputTarget = process.argv[2]
+const job_id = process.argv[3]
 
 if(!inputTarget) throw new Error(`Host parameter missing!`);
 if(!job_id) throw new Error(`Job ID parameter missing!`);
@@ -52,17 +53,17 @@ const result: Values<Mail> = {
     raw: check,
 };
 
-if(Bun.env.DEBUG == "true") console.debug(`Domain results for ${job_id} on ${host}: ${JSON.stringify(result)}`);
+if(Deno.env.get("DEBUG") == "true") console.debug(`Domain results for ${job_id} on ${host}: ${JSON.stringify(result)}`);
 
 try {
     const db = new Surreal();
 
-    await db.connect(`${Bun.env.SURREAL_PROTOCOL}://${Bun.env.SURREAL_ADDRESS}/rpc`, {
-        namespace: Bun.env.SURREAL_NAMESPACE,
-        database: Bun.env.SURREAL_DATABASE,
+    await db.connect(`${Deno.env.get("SURREAL_PROTOCOL")}://${Deno.env.get("SURREAL_ADDRESS")}/rpc`, {
+        namespace: Deno.env.get("SURREAL_NAMESPACE"),
+        database: Deno.env.get("SURREAL_DATABASE"),
         authentication: {
-            username: Bun.env.SURREAL_USER!,
-            password: Bun.env.SURREAL_PASS!
+            username: Deno.env.get("SURREAL_USER")!,
+            password: Deno.env.get("SURREAL_PASS")!
         }
     });
 

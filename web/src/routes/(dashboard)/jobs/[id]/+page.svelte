@@ -108,6 +108,21 @@
 		typeof job.website === 'string' ? ({ url: '' } as ApiWebsite) : job.website
 	);
 	const types = $derived((Array.isArray(job.types) ? job.types : []) as Tool[]);
+	const nonProbeTypes = $derived(types.filter((tool) => tool !== 'probe'));
+	const queueTasksByTool = $derived.by(() => {
+		const entries = new Map<Tool, ApiQueueTask[]>();
+		for (const tool of nonProbeTypes) {
+			const tasks = queueTasks
+				.filter((task) => task.type === tool)
+				.sort((a, b) => {
+					const aTime = new Date(String(a.created_at ?? '')).getTime();
+					const bTime = new Date(String(b.created_at ?? '')).getTime();
+					return aTime - bTime;
+				});
+			entries.set(tool, tasks);
+		}
+		return entries;
+	});
 
 	let wcagArray = $derived(job.wcag ? (job.wcag as ApiWcagResult[]).map(wcag => {
 		return {
@@ -260,6 +275,22 @@
 		}
 	};
 
+	const queueStatusBadgeVariant = (status?: string) => {
+		switch (status) {
+			case 'completed':
+				return 'secondary';
+			case 'failed':
+			case 'canceled':
+				return 'destructive';
+			case 'processing':
+			case 'waiting':
+				return 'default';
+			case 'pending':
+			default:
+				return 'outline';
+		}
+	};
+
 	const isCompleted = $derived(String(job.status ?? '').toLowerCase() === 'completed');
 	let isPdfDownloading = $state(false);
 	let pdfDownloadError = $state('');
@@ -356,13 +387,22 @@
 			<Card.Content class="flex flex-col gap-2">
 				<div class="flex flex-wrap gap-1">
 					Tools: 
-					{#if types.length === 0}
+					{#if nonProbeTypes.length === 0}
 						<span class="text-sm text-muted-foreground">No tools.</span>
 					{:else}
-						{#each types as tool (tool)}
-						{#if tool !== 'probe'}
-							<Badge variant="outline">{tool}</Badge>
-						{/if}
+						{#each nonProbeTypes as tool (tool)}
+							{@const tasks = queueTasksByTool.get(tool) ?? []}
+							{#if tasks.length === 0}
+								<Badge variant="outline">{tool}</Badge>
+							{:else}
+								{#each tasks as task (task.id)}
+									<a href={`/job-queue/${task.id}`} class="inline-flex" title={`View ${tool} queue task`}>
+										<Badge variant={queueStatusBadgeVariant(task.status)} class="cursor-pointer">
+											{tool}{task.target ? ` (${task.target})` : ''}
+										</Badge>
+									</a>
+								{/each}
+							{/if}
 						{/each}
 					{/if}
 				</div>

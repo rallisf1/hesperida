@@ -18,7 +18,7 @@ services:
       - "MAX_ATTEMPTS=${MAX_ATTEMPTS:-4}"
       - "WCAG_RUN_ONLY=${WCAG_RUN_ONLY:-}"
       - "WCAG_EXCLUDE_RULES=${WCAG_EXCLUDE_RULES:-}"
-  
+
   whois:
     restart: never
     profiles: [tools]
@@ -300,7 +300,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
-  
+
   pdf:
     restart: always
     image: 'gotenberg/gotenberg:latest'

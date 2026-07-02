@@ -1,0 +1,62 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:@wraps.dev/email-check@^1.0.1": "1.0.1",
+    "npm:rdapper@0.13": "0.13.0",
+    "npm:surrealdb@^2.0.3": "2.0.3_tslib@2.8.1_typescript@5.9.3"
+  },
+  "npm": {
+    "@surrealdb/cbor@2.0.0-alpha.4": {
+      "integrity": "sha512-l/hNZ3ZCOJq8rzwx1y5ZV/8b2bYCWdhGqRVY33Pu50NAHyAW5qLsMn3ZBkZow77mAKwNCsbDsRGnyYEuU95mjw=="
+    },
+    "@wraps.dev/email-check@1.0.1": {
+      "integrity": "sha512-Orr8fYndkl9D1mzF7JZN+F7mIvnM19ntILSeOSOHKk4vAfZ4IYSCzxiFd2/rjJHFoNmWC638zjNaHU4BnMRx/w=="
+    },
+    "rdapper@0.13.0": {
+      "integrity": "sha512-oaNNMNMzGQf2w1hePWsSrIAzleQjExMN/O+TOFole/7XfVPPCNavWhZ/TadjxQKDcFlgK9/P8CUI/gKV4oU7Lw==",
+      "dependencies": [
+        "tldts"
+      ],
+      "bin": true
+    },
+    "surrealdb@2.0.3_tslib@2.8.1_typescript@5.9.3": {
+      "integrity": "sha512-60dXe7K+7M5EUr6VyIgd/SEUCKFXqc54JHUhCTG8IDlqp7pmuuQQWs2wpgulp2oSXpy+9jwKhgNR/mP3wrEgfw==",
+      "dependencies": [
+        "@surrealdb/cbor",
+        "tslib",
+        "typescript",
+        "uuidv7"
+      ]
+    },
+    "tldts-core@7.0.29": {
+      "integrity": "sha512-W99NuU7b1DcG3uJ3v9k9VztCH3WialNbBkBft5wCs8V8mexu0XQqaZEYb9l9RNNzK8+3EJ9PKWB0/RUtTQ/o+Q=="
+    },
+    "tldts@7.0.19": {
+      "integrity": "sha512-8PWx8tvC4jDB39BQw1m4x8y5MH1BcQ5xHeL2n7UVFulMPH/3Q0uiamahFJ3lXA0zO2SUyRXuVVbWSDmstlt9YA==",
+      "dependencies": [
+        "tldts-core"
+      ],
+      "bin": true
+    },
+    "tslib@2.8.1": {
+      "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="
+    },
+    "typescript@5.9.3": {
+      "integrity": "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==",
+      "bin": true
+    },
+    "uuidv7@1.2.1": {
+      "integrity": "sha512-4kPkK3/XTQW9Hbm4CaqfICn+kY9LJtDVEOfgsRRra/+n2Ofg4NqzRFceAkxvQ/Ud/6BpHOPzj8cirqM7TzTN5Q==",
+      "bin": true
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@wraps.dev/email-check@^1.0.1",
+        "npm:rdapper@0.13",
+        "npm:surrealdb@^2.0.3"
+      ]
+    }
+  }
+}

@@ -4,9 +4,12 @@ import { restrictedTLDs } from './constants';
 import { type Domain, type DomainRecords } from './types';
 import {DateTime, RecordId, Surreal, Table, type Values} from 'surrealdb';
 import { resolve4, resolve6, resolveTxt, resolveCname, resolveMx, resolveNs } from 'node:dns/promises';
+import { promisify } from 'node:util';
+import { exec } from 'node:child_process';
+import { error } from "node:console";
 
-const inputTarget = Bun.argv[2]
-const job_id = Bun.argv[3]
+const inputTarget = process.argv[2]
+const job_id = process.argv[3]
 
 if(!inputTarget) throw new Error(`Host parameter missing!`);
 if(!job_id) throw new Error(`Job ID parameter missing!`);
@@ -23,21 +26,16 @@ const CACHE_FILE = '/rdap-cache.json';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const PASSIVE_SUBDOMAIN_LIMIT = 200;
 
+const execAsync = promisify(exec);
+
 const normalizeDnsValue = (value: string): string => value.toLowerCase().replace(/\.$/, '');
 
 const getPassiveHosts = async (domain: string): Promise<string[]> => {
     try {
-        const process = Bun.spawn({
-            cmd: ['subfinder', '-silent', '-d', domain],
-            stdout: 'pipe',
-            stderr: 'pipe'
-        });
-        const exitCode = await process.exited;
-        const stdout = await new Response(process.stdout).text();
-        const stderr = await new Response(process.stderr).text();
+        const { stdout, stderr } = await execAsync(`subfinder -silent -d ${domain}`);
 
-        if(exitCode !== 0) {
-            if(Bun.env.DEBUG == "true") console.debug(`subfinder failed for ${domain}: ${stderr.trim()}`);
+        if (stderr.length) {
+            if(Bun.env.DEBUG == "true") console.debug(`subfinder failed for ${domain}: ${stderr}`);
             return [];
         }
 
@@ -53,7 +51,8 @@ const getPassiveHosts = async (domain: string): Promise<string[]> => {
         }
 
         return [...discovered];
-    } catch {
+    } catch (error) {
+        if(Bun.env.DEBUG == "true") console.debug(`subfinder failed for ${domain}: ${(error as Error).message}`);
         return [];
     }
 }
@@ -100,7 +99,8 @@ const getDnsRecords = async (domain: string, host: string, discoveredHosts: stri
             safeResolve('AAAA', hostname, () => resolve6(hostname), [] as string[]),
             safeResolve('CNAME', hostname, () => resolveCname(hostname), [] as string[]),
             safeResolve('MX', hostname, () => resolveMx(hostname), [] as {exchange:string;priority:number}[]),
-            resolveTxtWithFallback(hostname)
+            safeResolve('TXT', hostname, () => resolveTxt(hostname), [] as string[][]),
+            //resolveTxtWithFallback(hostname)
         ]);
 
         a[hostname] = [...new Set(aRecords)];

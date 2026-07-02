@@ -42,7 +42,7 @@ User notifications are configured via `notification_channels` + `website_notific
 
 ## Tech Stack
 
-- JavaScript runtimes: [Node.js](https://github.com/nodejs/node) & [Bun](https://github.com/oven-sh/bun)
+- JavaScript runtimes: [Node.js](https://github.com/nodejs/node), [Deno](https://github.com/denoland/deno) & [Bun](https://github.com/oven-sh/bun)
 - Containerization & Deployment: [Docker](https://github.com/docker) & [dockerode](https://github.com/apocas/dockerode)
 - Database: [SurrealDB](https://github.com/surrealdb/)
 
@@ -156,10 +156,6 @@ The more the merrier, but at least:
 There is a distinction between light (CLI/Node tools) and heavy (full browsers) tool containers, and the orchestrator won't run more heavy containers than the available CPU threads.
 
 ## F.A.Q.
-
-### What's with the `tools` docker compose profile?
-
-Those are just there for developer testing and optional manual pre-build/pre-pull workflows. You do not need to run them in production.
 
 ### Can I host the services on different hosts (a.k.a. servers) ?
 

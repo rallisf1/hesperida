@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "lib": [
+      "deno.ns",
+      "deno.window",
+      "esnext"
+    ]
+  },
+  "permissions": {
+    "env": true,
+    "net": true
+  }
+}

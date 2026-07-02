@@ -26,6 +26,7 @@ This project builds on the following third-party tools, services, and libraries.
 ## Core Runtime and Platform
 
 - [Bun](https://github.com/oven-sh/bun)
+- [Deno](https://github.com/denoland/deno)
 - [Node.js](https://github.com/nodejs/node)
 - [Docker](https://github.com/docker)
 - [dockerode](https://github.com/apocas/dockerode)

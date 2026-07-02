@@ -1,5 +1,5 @@
 import { RecordId, Surreal, Table } from "surrealdb";
-import { createAuditor } from './seomator/dist/index.js';
+import { createAuditor } from '@seomator/seo-audit';
 
 const url = process.argv[2];
 const job_id = process.argv[3];

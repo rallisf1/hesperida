@@ -10,6 +10,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@seomator/seo-audit": "^3.0.1",
     "surrealdb": "^2.0.3"
   }
 }

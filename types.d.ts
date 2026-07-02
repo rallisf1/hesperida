@@ -1,4 +1,3 @@
-// @ts-expect-error
 import {type DateTime, RecordId} from 'surrealdb'; // it will be imported where this is loaded
 
 export type Tool = 'probe' | 'seo' | 'ssl' | 'wcag' | 'whois' | 'domain' | 'security' | 'stress' | 'mail';

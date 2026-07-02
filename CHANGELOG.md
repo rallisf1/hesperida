@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.10.7] - 2026-07-02
+
+### Added
+
+- Tool badges in `/jobs/[id]` link to their individual results page, and their style is status dependant 
+
+### Changed
+
+- Drop Bun for Deno in DNS related tools
+- Change Cloudflare DoH fetch for TXT records to dns request
+
 ## [0.10.6] - 2026-04-29
 
 ### Fixed
