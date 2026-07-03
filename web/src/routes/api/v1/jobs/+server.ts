@@ -7,7 +7,11 @@ import { tools as ALLOWED_TOOLS } from '$lib/constants';
 import type { Tool, Website } from '$lib/types';
 import { parsePaginationParams } from '$lib/server/pagination';
 import { verifyWebsiteOwnership } from '$lib/server/website-verification';
-import { RecordId } from 'surrealdb';
+import { RecordId, Table } from 'surrealdb';
+import { normalizeCron } from '$lib/server/schedules';
+import { isValidCron } from 'cron-validator';
+import { isCronMinIntervalAllowed } from '$lib/cron';
+import { config } from '$lib/server/config';
 
 /**
  * @swagger
@@ -141,8 +145,37 @@ export const POST: RequestHandler = async (event) => {
 			payload.options && typeof payload.options === 'object' && !Array.isArray(payload.options)
 				? payload.options
 				: null;
+		const schedulePayload =
+			payload.schedule && typeof payload.schedule === 'object' && !Array.isArray(payload.schedule)
+				? (payload.schedule as Record<string, unknown>)
+				: null;
+		const scheduleEnabled = schedulePayload?.enabled === true;
+		const scheduleCronRaw = typeof schedulePayload?.cron === 'string' ? schedulePayload.cron.trim() : '';
 
 		if (!website) return jsonError(event, 400, 'bad_request', 'website is required.');
+		if (scheduleEnabled) {
+			const cron = normalizeCron(scheduleCronRaw);
+			if (
+				!cron.length ||
+				!isValidCron(cron, {
+					seconds: false,
+					alias: true,
+					allowBlankDay: false,
+					allowSevenAsSunday: true
+				})
+			) {
+				return jsonError(event, 400, 'bad_request', 'Invalid schedule cron expression.');
+			}
+			if (!isCronMinIntervalAllowed(cron, config.scheduleMinIntervalSeconds)) {
+				const minimumMinutes = Math.ceil(config.scheduleMinIntervalSeconds / 60);
+				return jsonError(
+					event,
+					400,
+					'schedule_too_frequent',
+					`Schedule is too frequent. Minimum interval is ${minimumMinutes} minutes.`
+				);
+			}
+		}
 
 		let websiteRow = await (isSuperuser(auth.user)
 			? withAdminDb((db) =>
@@ -189,7 +222,21 @@ export const POST: RequestHandler = async (event) => {
 					createPayload.options = options;
 				}
 				sql += '} RETURN AFTER;';
-				return queryOne(db, sql, createPayload);
+				const job = await queryOne<Record<string, unknown>>(db, sql, createPayload);
+
+				if (job?.id && scheduleEnabled) {
+					const cron = normalizeCron(scheduleCronRaw);
+					await db.create(new Table('schedule')).content({
+						website,
+						types: types.length ? types : ['probe'],
+						options,
+						cron,
+						enabled: true,
+						created: []
+					});
+				}
+
+				return job;
 			};
 
 			const job = await (isSuperuser(auth.user)

@@ -58,7 +58,7 @@
 			<Table.Row>
 				{#if showLinked}
 					<Table.Head class="text-left p-3">Website</Table.Head>
-					<Table.Head class="text-left p-3">Job</Table.Head>
+					<Table.Head class="text-left p-3">Tools</Table.Head>
 				{/if}
 				<Table.Head class="text-left p-3">Cron (UTC)</Table.Head>
 				<Table.Head class="text-left p-3">Enabled</Table.Head>
@@ -81,7 +81,17 @@
 					<Table.Row class="border-t">
 						{#if showLinked}
 							<Table.Cell class="p-3">{schedule.website_url || '-'}</Table.Cell>
-							<Table.Cell class="p-3 font-mono text-xs">{schedule.job_id || '-'}</Table.Cell>
+							<Table.Cell class="p-3">
+								<div class="flex flex-wrap gap-1">
+									{#if (schedule.types ?? schedule.job_types ?? []).length === 0}
+										<span>-</span>
+									{:else}
+										{#each schedule.types ?? schedule.job_types ?? [] as tool (tool)}
+											<Badge variant="outline">{tool}</Badge>
+										{/each}
+									{/if}
+								</div>
+							</Table.Cell>
 						{/if}
 						<Table.Cell class="p-3 font-mono text-xs">{schedule.cron}</Table.Cell>
 						<Table.Cell class="p-3">

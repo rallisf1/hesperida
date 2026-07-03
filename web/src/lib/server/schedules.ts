@@ -6,6 +6,9 @@ import { RecordId, type Surreal } from 'surrealdb';
 
 type ScheduleRow = {
 	id?: unknown;
+	website?: unknown;
+	types?: ApiSchedule['types'];
+	options?: Record<string, unknown> | null;
 	job?: unknown;
 	job_types?: ApiSchedule['job_types'];
 	cron?: string;
@@ -90,7 +93,10 @@ const mapScheduleRow = async (db: Surreal, row: ScheduleRow): Promise<ApiSchedul
 
 	return {
 		id: rowId(row.id),
-		job: rowId(row.job),
+		website: rowId(row.website ?? row.website_id),
+		types: Array.isArray(row.types) ? row.types : Array.isArray(row.job_types) ? row.job_types : [],
+		options: row.options ?? null,
+		job: row.job ? rowId(row.job) : undefined,
 		job_id: row.job_id ? rowId(row.job_id) : undefined,
 		job_types: Array.isArray(row.job_types) ? row.job_types : [],
 		website_id: row.website_id ? rowId(row.website_id) : undefined,
@@ -106,7 +112,7 @@ const mapScheduleRow = async (db: Surreal, row: ScheduleRow): Promise<ApiSchedul
 };
 
 const SCHEDULE_SELECT =
-	'SELECT id, job, job.types AS job_types, cron, created, enabled, created_at, updated_at, job.id AS job_id, job.website.id AS website_id, job.website.url AS website_url, array::len(created ?? []) AS runs_count FROM schedule';
+	'SELECT id, website, types, options, cron, created, enabled, created_at, updated_at, website.id AS website_id, website.url AS website_url, array::len(created ?? []) AS runs_count FROM schedule';
 
 const buildWhere = (filters: ScheduleListFilters): { where: string; vars: Record<string, unknown> } => {
 	const conditions: string[] = [];
@@ -117,11 +123,11 @@ const buildWhere = (filters: ScheduleListFilters): { where: string; vars: Record
 		vars.scheduleId = filters.scheduleId;
 	}
 	if (filters.jobId) {
-		conditions.push('job = $jobId');
+		conditions.push('$jobId IN created');
 		vars.jobId = filters.jobId;
 	}
 	if (filters.websiteId) {
-		conditions.push('job.website = $websiteId');
+		conditions.push('website = $websiteId');
 		vars.websiteId = filters.websiteId;
 	}
 
@@ -160,7 +166,7 @@ export const isValidScheduleCron = (value: string): boolean => {
 	return isValidUtcCron(normalized);
 };
 
-export const ensureAccessibleJob = async (db: Surreal, jobId: RecordId<'jobs'>): Promise<boolean> => {
-	const row = await queryOne<{ id?: unknown }>(db, 'SELECT id FROM jobs WHERE id = $id LIMIT 1;', { id: jobId });
+export const ensureAccessibleWebsite = async (db: Surreal, websiteId: RecordId<'websites'>): Promise<boolean> => {
+	const row = await queryOne<{ id?: unknown }>(db, 'SELECT id FROM websites WHERE id = $id LIMIT 1;', { id: websiteId });
 	return Boolean(row?.id);
 };

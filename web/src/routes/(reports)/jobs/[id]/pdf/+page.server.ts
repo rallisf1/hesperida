@@ -38,6 +38,14 @@ type WcagDeviceSection = {
 	passes: number;
 	warnings: number;
 	errors: number;
+	pages: {
+		url: string;
+		template_key: string;
+		score: number;
+		passes: number;
+		warnings: number;
+		errors: number;
+	}[];
 	rows: NormalizedReportRow[];
 	screenshot_data_url: string | null;
 };
@@ -274,6 +282,17 @@ export const load: PageServerLoad = async (event) => {
 				passes: asNumber(wcag.passes),
 				warnings: asNumber(wcag.warnings),
 				errors: asNumber(wcag.errors),
+				pages: asArray(asRecord(wcag.raw).pages).map((pageValue) => {
+					const page = asRecord(pageValue);
+					return {
+						url: asString(page.url),
+						template_key: asString(page.template_key || page.route_template),
+						score: asNumber(page.score),
+						passes: asNumber(page.passes),
+						warnings: asNumber(page.warnings),
+						errors: asNumber(page.errors)
+					};
+				}),
 				rows: normalizeToolRows('wcag', wcag.raw, { includeWcagPasses: false }),
 				screenshot_data_url: screenshotDataUrl
 			});

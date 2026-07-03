@@ -6,6 +6,7 @@ ARG TARGETARCH
 ENV CGO_ENABLED=0
 
 RUN GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.4.10
+RUN GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go install github.com/projectdiscovery/katana/cmd/katana@v1.2.2
 
 FROM alpine/git AS nikto-builder
 
@@ -25,6 +26,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=nuclei-builder /go/bin/nuclei /usr/local/bin/nuclei
+COPY --from=nuclei-builder /go/bin/katana /usr/local/bin/katana
 COPY --from=nikto-builder /nikto/program /opt/nikto
 
 RUN chmod +x /opt/nikto/nikto.pl \

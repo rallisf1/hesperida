@@ -159,10 +159,10 @@
 							<Table.Cell class="p-3">{schedule.website_url || '-'}</Table.Cell>
 							<Table.Cell class="p-3">
 								<div class="flex flex-wrap gap-1">
-									{#if (schedule.job_types ?? []).length === 0}
+									{#if (schedule.types ?? schedule.job_types ?? []).length === 0}
 										<span>-</span>
 									{:else}
-										{#each schedule.job_types ?? [] as tool (tool)}
+										{#each schedule.types ?? schedule.job_types ?? [] as tool (tool)}
 											<Badge variant="outline">{tool}</Badge>
 										{/each}
 									{/if}
@@ -212,11 +212,13 @@
 												{/snippet}
 											</DropdownMenu.Item>
 										{/if}
-										<DropdownMenu.Item>
-											{#snippet child({ props })}
-												<a href={`/jobs/${schedule.job_id}`} {...props}>View Base Job</a>
-											{/snippet}
-										</DropdownMenu.Item>
+										{#if schedule.job_id}
+											<DropdownMenu.Item>
+												{#snippet child({ props })}
+													<a href={`/jobs/${schedule.job_id}`} {...props}>View Base Job</a>
+												{/snippet}
+											</DropdownMenu.Item>
+										{/if}
 										{#if data.canManage}
 											<DropdownMenu.Separator />
 											<DropdownMenu.Item variant="destructive">

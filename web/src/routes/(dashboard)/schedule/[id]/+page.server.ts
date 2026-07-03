@@ -16,7 +16,7 @@ export const load: PageServerLoad = async (event) => {
 		`Schedule ${schedule.id}`;
 	let linkedJob = null;
 
-	try {
+	if (schedule.job_id) try {
 		const linkedJobData = await callDashboardApi<{ job: ApiJob }>(
 			event,
 			`/api/v1/jobs/${schedule.job_id}`

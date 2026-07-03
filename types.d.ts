@@ -62,7 +62,9 @@ export interface Job {
 
 export interface Schedule {
     id?: RecordId<'schedule'>;
-    job: RecordId<'jobs'>;
+    website: RecordId<'websites'>;
+    types: Tool[];
+    options?: Record<string, unknown> | null;
     cron: string;
     created: RecordId<'jobs'>[];
     enabled: boolean;
@@ -78,6 +80,24 @@ export interface Website {
     url: string;
     verification_id?: RecordId<'website_verifications'>;
     created_at?: DateTime;
+}
+
+export interface WebsiteUrl {
+    id?: RecordId<'website_urls'>;
+    website: RecordId<'websites'>;
+    url: string;
+    normalized_url: string;
+    source: 'migration' | 'manual' | 'seo' | 'wcag' | 'security' | 'sitemap' | 'crawl';
+    status_code?: number | null;
+    content_type?: string | null;
+    selected: boolean;
+    manual: boolean;
+    excluded: boolean;
+    template_key?: string | null;
+    template_label?: string | null;
+    last_seen_at?: DateTime | null;
+    created_at?: DateTime;
+    updated_at?: DateTime;
 }
 
 export interface WebsiteVerification {
@@ -223,6 +243,7 @@ export interface SEO extends CommonResults {
 export interface WCAG extends CommonResults {
     id?: RecordId<'wcag_results'>;
     device: string;
+    url?: string | null;
     screenshot?: string;
 }
 

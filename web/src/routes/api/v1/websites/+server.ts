@@ -6,6 +6,7 @@ import { withRequiredUser } from '$lib/server/route';
 import { parsePaginationParams } from '$lib/server/pagination';
 import { ensureWebsiteVerification } from '$lib/server/website-verification';
 import type { Website } from '$lib/types';
+import { normalizeWebsiteUrl, templateKeyForUrl } from '$lib/server/website-urls';
 
 const websiteSelectSql =
 	'SELECT *, verification_id.verification_code as verification_code, verification_id.verified_at as verified_at, verification_id.verification_method as verification_method FROM websites';
@@ -153,6 +154,47 @@ export const POST: RequestHandler = async (event) => {
 
 			if (!website) {
 				return jsonError(event, 400, 'create_failed', 'Failed to create website.');
+			}
+
+			try {
+				const normalized = normalizeWebsiteUrl(website.url);
+				await (isSuperuser(auth.user)
+					? withAdminDb((db) =>
+							db.query(
+								`CREATE website_urls CONTENT {
+									website: $website,
+									url: $url,
+									normalized_url: $url,
+									source: 'manual',
+									selected: true,
+									manual: true,
+									excluded: false,
+									template_key: $templateKey,
+									template_label: $templateKey,
+									last_seen_at: time::now()
+								};`,
+								{ website: website.id, url: normalized, templateKey: templateKeyForUrl(normalized) }
+							).collect()
+						)
+					: withUserDb(auth.token, (db) =>
+							db.query(
+								`CREATE website_urls CONTENT {
+									website: $website,
+									url: $url,
+									normalized_url: $url,
+									source: 'manual',
+									selected: true,
+									manual: true,
+									excluded: false,
+									template_key: $templateKey,
+									template_label: $templateKey,
+									last_seen_at: time::now()
+								};`,
+								{ website: website.id, url: normalized, templateKey: templateKeyForUrl(normalized) }
+							).collect()
+						));
+			} catch {
+				// Website validation already accepted the URL. URL inventory seeding is best-effort.
 			}
 
 			await ensureWebsiteVerification(website, auth.user.group);

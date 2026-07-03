@@ -91,9 +91,9 @@ export const mapScheduleRunJobToView = (job: ApiScheduleRunJob): ScheduleRunJobV
 export const mapScheduleToView = (schedule: ApiSchedule): ScheduleView => ({
 	...schedule,
 	id: toRouteIdString(schedule.id),
-	job_id: toRouteIdString(schedule.job),
+	job_id: schedule.job ? toRouteIdString(schedule.job) : schedule.job_id ? toRouteIdString(schedule.job_id) : undefined,
 	linked_job_id: schedule.job_id ? toRouteIdString(schedule.job_id) : undefined,
-	website_id: schedule.website_id ? toRouteIdString(schedule.website_id) : undefined,
+	website_id: schedule.website_id ? toRouteIdString(schedule.website_id) : toRouteIdString(schedule.website),
 	created: (schedule.created ?? []).map((jobId) => toRouteIdString(jobId)),
 	created_jobs: (schedule.created_jobs ?? []).map(mapScheduleRunJobToView),
 	created_at: toIsoDateString(schedule.created_at),

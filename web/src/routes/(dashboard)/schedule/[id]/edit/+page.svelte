@@ -217,7 +217,7 @@
 
 		{#if data.canManage}
 			<div>
-				<Button type="submit" disabled={!selectedJobId || !cronValue.trim().length}>
+				<Button type="submit" disabled={!cronValue.trim().length}>
 					<SaveIcon class="size-4" />
 					Save Changes
 				</Button>

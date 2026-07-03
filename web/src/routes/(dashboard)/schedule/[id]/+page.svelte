@@ -34,7 +34,7 @@
 		}
 	};
 
-	const linkedTools = $derived(data.linkedJob?.types ?? data.schedule.job_types ?? []);
+	const linkedTools = $derived(data.linkedJob?.types ?? data.schedule.types ?? data.schedule.job_types ?? []);
 
 	const describeCron = (cron: string): string => {
 		try {
@@ -73,13 +73,17 @@
 	<div class="rounded-md border p-4 text-sm space-y-2">
 		<p><strong>Website:</strong> {data.schedule.website_url || '-'}</p>
 		<p>
-			<strong>Linked Job:</strong>
-			<Button variant="link" href="/jobs/{data.schedule.job_id}" class="font-mono">
-				{data.schedule.job_id}
-			</Button>
+			<strong>Base Job:</strong>
+			{#if data.schedule.job_id}
+				<Button variant="link" href="/jobs/{data.schedule.job_id}" class="font-mono">
+					{data.schedule.job_id}
+				</Button>
+			{:else}
+				<span class="ml-2 text-muted-foreground">Intent-based schedule</span>
+			{/if}
 		</p>
 		<p>
-			<strong>Linked Job Tools:</strong>
+			<strong>Tools:</strong>
 			<span class="ml-2 inline-flex flex-wrap gap-1 align-middle">
 				{#if linkedTools.length === 0}
 					<span>-</span>

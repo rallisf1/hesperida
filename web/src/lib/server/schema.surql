@@ -74,11 +74,47 @@ DEFINE INDEX IF NOT EXISTS users_websites_idx ON websites FIELDS users;
 
 DEFINE EVENT OVERWRITE website_delete ON websites WHEN $event = 'DELETE' THEN {
 	DELETE jobs WHERE website = $before.id;
+	DELETE website_urls WHERE website = $before.id;
 	DELETE website_notifications WHERE website = $before.id;
+	DELETE schedule WHERE website = $before.id;
 	IF $before.verification_id != NONE AND count(SELECT * FROM websites WHERE verification_id = $before.verification_id AND id != $before.id) = 0 {
 		(DELETE website_verifications WHERE id = $before.verification_id);
 	};
 };
+
+-- ------------------------------
+-- TABLE: website_urls
+-- ------------------------------
+
+DEFINE TABLE IF NOT EXISTS website_urls TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR select, update, delete WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND website.owner.group = $auth.group) OR
+		website.owner = $auth.id OR
+		$auth.id IN website.users,
+	FOR create WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND website.owner.group = $auth.group) OR
+		($auth.role = 'editor' AND (website.owner = $auth.id OR $auth.id IN website.users));
+
+DEFINE FIELD IF NOT EXISTS created_at ON website_urls TYPE datetime DEFAULT time::now() READONLY;
+DEFINE FIELD IF NOT EXISTS updated_at ON website_urls TYPE datetime VALUE time::now();
+DEFINE FIELD IF NOT EXISTS website ON website_urls TYPE record<websites> ASSERT record::exists($value);
+DEFINE FIELD IF NOT EXISTS url ON website_urls TYPE string ASSERT string::is_url($value);
+DEFINE FIELD IF NOT EXISTS normalized_url ON website_urls TYPE string ASSERT string::len($value) > 0;
+DEFINE FIELD IF NOT EXISTS source ON website_urls TYPE string DEFAULT 'manual' ASSERT $value IN ['migration', 'manual', 'seo', 'wcag', 'security', 'sitemap', 'crawl'];
+DEFINE FIELD IF NOT EXISTS status_code ON website_urls TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS content_type ON website_urls TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS selected ON website_urls TYPE bool DEFAULT false;
+DEFINE FIELD IF NOT EXISTS manual ON website_urls TYPE bool DEFAULT false;
+DEFINE FIELD IF NOT EXISTS excluded ON website_urls TYPE bool DEFAULT false;
+DEFINE FIELD IF NOT EXISTS template_key ON website_urls TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS template_label ON website_urls TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS last_seen_at ON website_urls TYPE option<datetime>;
+
+DEFINE INDEX IF NOT EXISTS website_urls_unique_idx ON website_urls FIELDS website, normalized_url UNIQUE;
+DEFINE INDEX IF NOT EXISTS website_urls_website_idx ON website_urls FIELDS website;
+DEFINE INDEX IF NOT EXISTS website_urls_template_idx ON website_urls FIELDS website, template_key;
 
 -- ------------------------------
 -- TABLE: website_verifications
@@ -180,22 +216,25 @@ DEFINE INDEX IF NOT EXISTS website_notifications_channel_idx ON website_notifica
 DEFINE TABLE IF NOT EXISTS schedule TYPE NORMAL SCHEMAFULL PERMISSIONS
 	FOR select WHERE
 		$auth.is_superuser = true OR
-		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
-		job.website.owner = $auth.id OR
-		$auth.id IN job.website.users,
+		($auth.role = 'admin' AND website.owner.group = $auth.group) OR
+		website.owner = $auth.id OR
+		$auth.id IN website.users,
 	FOR create, update, delete WHERE
 		$auth.is_superuser = true OR
-		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
-		($auth.role = 'editor' AND (job.website.owner = $auth.id OR $auth.id IN job.website.users));
+		($auth.role = 'admin' AND website.owner.group = $auth.group) OR
+		($auth.role = 'editor' AND (website.owner = $auth.id OR $auth.id IN website.users));
 
 DEFINE FIELD IF NOT EXISTS created_at ON schedule TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS updated_at ON schedule TYPE datetime VALUE time::now();
-DEFINE FIELD IF NOT EXISTS job ON schedule TYPE record<jobs> ASSERT record::exists($value);
+DEFINE FIELD IF NOT EXISTS website ON schedule TYPE record<websites> ASSERT record::exists($value);
+DEFINE FIELD OVERWRITE types ON schedule TYPE array<string> ASSERT !array::is_empty(array::intersect($value, ['probe', 'seo', 'ssl', 'wcag', 'whois', 'domain', 'security', 'stress', 'mail']));
+DEFINE FIELD IF NOT EXISTS types.* ON schedule TYPE string;
+DEFINE FIELD OVERWRITE options ON schedule TYPE option<object> FLEXIBLE;
 DEFINE FIELD IF NOT EXISTS cron ON schedule TYPE string ASSERT string::len($value) > 0;
 DEFINE FIELD IF NOT EXISTS created ON schedule TYPE array<record<jobs>> DEFAULT [];
 DEFINE FIELD IF NOT EXISTS enabled ON schedule TYPE bool DEFAULT true;
 
-DEFINE INDEX IF NOT EXISTS schedule_job_idx ON schedule FIELDS job;
+DEFINE INDEX IF NOT EXISTS schedule_website_idx ON schedule FIELDS website;
 DEFINE INDEX IF NOT EXISTS schedule_enabled_idx ON schedule FIELDS enabled;
 
 
@@ -251,7 +290,6 @@ DEFINE EVENT OVERWRITE job_deletion ON jobs WHEN $event = 'DELETE' THEN {
   IF $before.mail { (DELETE $before.mail) };
   IF type::file('screenshots', record::id($before.id) + '.png').exists() { type::file('screenshots', record::id($before.id) + '.png').delete() };
   DELETE FROM job_queue WHERE job = $before.id;
-  DELETE FROM schedule WHERE job = $before.id;
 };
 
 DEFINE EVENT OVERWRITE job_completion_check ON jobs WHEN $event = 'UPDATE' AND $after.status != 'completed' THEN {
@@ -386,6 +424,7 @@ DEFINE FIELD IF NOT EXISTS job ON seo_results TYPE record<jobs> ASSERT record::e
 DEFINE FIELD IF NOT EXISTS passes ON seo_results TYPE int DEFAULT 0;
 DEFINE FIELD IF NOT EXISTS raw ON seo_results TYPE object FLEXIBLE;
 DEFINE FIELD IF NOT EXISTS score ON seo_results TYPE number;
+DEFINE FIELD IF NOT EXISTS url ON seo_results TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS warnings ON seo_results TYPE int DEFAULT 0;
 
 DEFINE EVENT OVERWRITE seo_completion ON seo_results WHEN $event = 'CREATE' THEN {
@@ -486,6 +525,7 @@ DEFINE FIELD IF NOT EXISTS job ON security_results TYPE record<jobs> ASSERT reco
 DEFINE FIELD IF NOT EXISTS passes ON security_results TYPE int DEFAULT 0;
 DEFINE FIELD IF NOT EXISTS raw ON security_results TYPE object FLEXIBLE;
 DEFINE FIELD IF NOT EXISTS score ON security_results TYPE number;
+DEFINE FIELD IF NOT EXISTS url ON security_results TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS warnings ON security_results TYPE int DEFAULT 0;
 
 DEFINE EVENT IF NOT EXISTS security_completion ON security_results WHEN $event = 'CREATE' THEN {
@@ -540,6 +580,7 @@ DEFINE FIELD IF NOT EXISTS passes ON wcag_results TYPE int DEFAULT 0;
 DEFINE FIELD IF NOT EXISTS raw ON wcag_results TYPE object FLEXIBLE;
 DEFINE FIELD IF NOT EXISTS score ON wcag_results TYPE number;
 DEFINE FIELD IF NOT EXISTS screenshot ON wcag_results TYPE string;
+DEFINE FIELD IF NOT EXISTS url ON wcag_results TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS warnings ON wcag_results TYPE int DEFAULT 0;
 
 DEFINE EVENT IF NOT EXISTS wcag_completion ON wcag_results WHEN $event = 'CREATE' THEN {

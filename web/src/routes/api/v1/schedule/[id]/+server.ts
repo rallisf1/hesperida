@@ -4,7 +4,7 @@ import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { withUserDb } from '$lib/server/db';
 import { canCreateJob } from '$lib/server/policy';
 import {
-	ensureAccessibleJob,
+	ensureAccessibleWebsite,
 	getSchedule,
 	normalizeCron
 } from '$lib/server/schedules';
@@ -13,6 +13,8 @@ import { toRouteId } from '$lib/server/record-id';
 import { isValidCron } from 'cron-validator';
 import { isCronMinIntervalAllowed } from '$lib/cron';
 import { config } from '$lib/server/config';
+import { tools as ALLOWED_TOOLS } from '$lib/constants';
+import type { Tool } from '$lib/types';
 
 /**
  * @swagger
@@ -161,16 +163,29 @@ export const PATCH: RequestHandler = async (event) => {
 		patch.cron = cron;
 	}
 
-	if (typeof payload.job === 'string') {
-		const jobRaw = payload.job.trim();
-		if (!jobRaw.length) {
-			return jsonError(event, 400, 'bad_request', 'job cannot be empty.');
+	if (typeof payload.website === 'string') {
+		const websiteRaw = payload.website.trim();
+		if (!websiteRaw.length) {
+			return jsonError(event, 400, 'bad_request', 'website cannot be empty.');
 		}
-		patch.job = new RecordId('jobs', toRouteId(jobRaw));
+		patch.website = new RecordId('websites', toRouteId(websiteRaw));
+	}
+
+	if (Array.isArray(payload.types)) {
+		const types = payload.types.filter((item): item is Tool => typeof item === 'string' && ALLOWED_TOOLS.includes(item as Tool));
+		if (!types.length) return jsonError(event, 400, 'bad_request', 'types cannot be empty.');
+		patch.types = types;
+	}
+
+	if ('options' in payload) {
+		patch.options =
+			payload.options && typeof payload.options === 'object' && !Array.isArray(payload.options)
+				? payload.options
+				: null;
 	}
 
 	if (!Object.keys(patch).length) {
-		return jsonError(event, 400, 'bad_request', 'At least one field is required (job, cron, enabled).');
+		return jsonError(event, 400, 'bad_request', 'At least one field is required (website, types, options, cron, enabled).');
 	}
 
 	try {
@@ -178,17 +193,17 @@ export const PATCH: RequestHandler = async (event) => {
 			const existing = await getSchedule(db, scheduleId);
 			if (!existing) return null;
 
-			if (patch.job instanceof RecordId) {
-				const hasJob = await ensureAccessibleJob(db, patch.job as RecordId<'jobs'>);
-				if (!hasJob) return 'missing_job' as const;
+			if (patch.website instanceof RecordId) {
+				const hasWebsite = await ensureAccessibleWebsite(db, patch.website as RecordId<'websites'>);
+				if (!hasWebsite) return 'missing_website' as const;
 			}
 
 			await db.update(scheduleId).merge(patch);
 			return getSchedule(db, scheduleId);
 		});
 
-		if (schedule === 'missing_job') {
-			return jsonError(event, 404, 'not_found', 'Linked job not found.');
+		if (schedule === 'missing_website') {
+			return jsonError(event, 404, 'not_found', 'Website not found.');
 		}
 		if (!schedule) {
 			return jsonError(event, 404, 'not_found', 'Schedule not found.');

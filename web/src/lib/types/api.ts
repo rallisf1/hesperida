@@ -78,6 +78,26 @@ export interface ApiWebsite {
 	created_at?: ApiDateTime;
 }
 
+export type ApiWebsiteUrlSource = 'migration' | 'manual' | 'seo' | 'wcag' | 'security' | 'sitemap' | 'crawl';
+
+export interface ApiWebsiteUrl {
+	id: ApiRecordId;
+	website: ApiRecordId;
+	url: string;
+	normalized_url: string;
+	source: ApiWebsiteUrlSource;
+	status_code?: number | null;
+	content_type?: string | null;
+	selected: boolean;
+	manual: boolean;
+	excluded: boolean;
+	template_key?: string | null;
+	template_label?: string | null;
+	last_seen_at?: ApiDateTime | null;
+	created_at?: ApiDateTime;
+	updated_at?: ApiDateTime;
+}
+
 export interface ApiJob {
 	id: ApiRecordId;
 	options?: Record<string, unknown>;
@@ -119,7 +139,10 @@ export interface ApiScheduleRunJob {
 
 export interface ApiSchedule {
 	id: ApiRecordId;
-	job: ApiRecordId;
+	website: ApiRecordId;
+	types: Tool[];
+	options?: Record<string, unknown> | null;
+	job?: ApiRecordId;
 	job_id?: ApiRecordId;
 	job_types?: Tool[];
 	website_id?: ApiRecordId;
@@ -242,6 +265,7 @@ export type ApiSecurityResult = ApiCommonScoreResult;
 
 export interface ApiWcagResult extends ApiCommonScoreResult {
 	device: string;
+	url?: string | null;
 	screenshot?: string;
 }
 

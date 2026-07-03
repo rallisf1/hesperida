@@ -1,14 +1,16 @@
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
-import { withUserDb } from '$lib/server/db';
+import { queryOne, withUserDb } from '$lib/server/db';
 import { canCreateJob } from '$lib/server/policy';
-import { ensureAccessibleJob, getSchedule, listSchedules, normalizeCron } from '$lib/server/schedules';
+import { ensureAccessibleWebsite, getSchedule, listSchedules, normalizeCron } from '$lib/server/schedules';
 import { toRouteId } from '$lib/server/record-id';
 import { RecordId, Table } from 'surrealdb';
 import { isValidCron } from 'cron-validator';
 import { isCronMinIntervalAllowed } from '$lib/cron';
 import { config } from '$lib/server/config';
+import { tools as ALLOWED_TOOLS } from '$lib/constants';
+import type { Tool } from '$lib/types';
 
 /**
  * @swagger
@@ -105,12 +107,20 @@ export const POST: RequestHandler = async (event) => {
 		return jsonError(event, 400, 'bad_request', (error as Error).message);
 	}
 
+	const websiteRaw = typeof payload.website === 'string' ? payload.website.trim() : '';
 	const jobRaw = typeof payload.job === 'string' ? payload.job.trim() : '';
 	const cronRaw = typeof payload.cron === 'string' ? payload.cron.trim() : '';
 	const enabled = typeof payload.enabled === 'boolean' ? payload.enabled : true;
+	const types = Array.isArray(payload.types)
+		? payload.types.filter((item): item is Tool => typeof item === 'string' && ALLOWED_TOOLS.includes(item as Tool))
+		: [];
+	const options =
+		payload.options && typeof payload.options === 'object' && !Array.isArray(payload.options)
+			? payload.options
+			: null;
 
-	if (!jobRaw || !cronRaw) {
-		return jsonError(event, 400, 'bad_request', 'job and cron are required.');
+	if ((!websiteRaw && !jobRaw) || !cronRaw) {
+		return jsonError(event, 400, 'bad_request', 'website and cron are required.');
 	}
 
 	const cron = normalizeCron(cronRaw);
@@ -139,17 +149,36 @@ export const POST: RequestHandler = async (event) => {
 		);
 	}
 
-	const jobId = new RecordId('jobs', toRouteId(jobRaw));
-
 	try {
 		const schedule = await withUserDb(auth.token, async (db) => {
-			const hasJob = await ensureAccessibleJob(db, jobId);
-			if (!hasJob) return null;
+			let websiteId = websiteRaw ? new RecordId('websites', toRouteId(websiteRaw)) : null;
+			let scheduleTypes = types;
+			let scheduleOptions = options;
+
+			if (!websiteId && jobRaw) {
+				const jobId = new RecordId('jobs', toRouteId(jobRaw));
+				const source = await queryOne<{ website?: RecordId<'websites'>; types?: Tool[]; options?: Record<string, unknown> | null }>(
+					db,
+					'SELECT website, types, options FROM jobs WHERE id = $id LIMIT 1;',
+					{ id: jobId }
+				);
+				if (!source?.website) return null;
+				websiteId = new RecordId('websites', toRouteId(source.website));
+				scheduleTypes = Array.isArray(source.types) ? source.types : [];
+				scheduleOptions = source.options ?? null;
+			}
+
+			if (!websiteId) return null;
+			const hasWebsite = await ensureAccessibleWebsite(db, websiteId);
+			if (!hasWebsite) return null;
+			if (!scheduleTypes.length) scheduleTypes = ['probe'];
 
 			const createdRows = await db
 				.create(new Table('schedule'))
 				.content({
-					job: jobId,
+					website: websiteId,
+					types: scheduleTypes,
+					options: scheduleOptions,
 					cron,
 					enabled,
 					created: []
@@ -161,7 +190,7 @@ export const POST: RequestHandler = async (event) => {
 		});
 
 		if (!schedule) {
-			return jsonError(event, 404, 'not_found', 'Linked job not found.');
+			return jsonError(event, 404, 'not_found', 'Website not found.');
 		}
 
 		return jsonOk(event, { schedule }, 201);

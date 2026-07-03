@@ -24,6 +24,14 @@
 		passes: number;
 		warnings: number;
 		errors: number;
+		pages: {
+			url: string;
+			template_key: string;
+			score: number;
+			passes: number;
+			warnings: number;
+			errors: number;
+		}[];
 		rows: NormalizedReportRow[];
 		screenshot_data_url: string | null;
 	};
@@ -508,6 +516,29 @@
 					</header>
 					{#if wcag.screenshot_data_url}
 						<img class="wcag-shot" src={wcag.screenshot_data_url} alt={`WCAG screenshot (${wcag.device})`} />
+					{/if}
+					{#if wcag.pages.length > 0}
+						<h4>Scanned Pages</h4>
+						<Table.Root class="overflow-x-clip">
+							<Table.Header>
+								<Table.Row>
+									<Table.Head>URL</Table.Head>
+									<Table.Head>Template</Table.Head>
+									<Table.Head>Score</Table.Head>
+									<Table.Head>Issues</Table.Head>
+								</Table.Row>
+							</Table.Header>
+							<Table.Body>
+								{#each wcag.pages as page (`${wcag.device}-${page.url}`)}
+									<Table.Row>
+										<Table.Cell class="mono whitespace-break-spaces break-all">{page.url}</Table.Cell>
+										<Table.Cell class="mono">{page.template_key || '-'}</Table.Cell>
+										<Table.Cell>{formatScore(page.score)}</Table.Cell>
+										<Table.Cell>{page.warnings + page.errors}</Table.Cell>
+									</Table.Row>
+								{/each}
+							</Table.Body>
+						</Table.Root>
 					{/if}
 					<Table.Root class="overflow-x-clip">
 						<Table.Header>

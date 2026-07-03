@@ -4,6 +4,7 @@ import { RecordId, Surreal, Table, type Values } from "surrealdb";
 
 type RiskLevel = "info" | "low" | "medium" | "high" | "critical";
 type Scanner = "nuclei" | "wapiti" | "nikto";
+type CommandScanner = Scanner | "katana";
 const severityRank: Record<RiskLevel, number> = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
 const thresholdInput = Number.parseFloat(Bun.env.SECURITY_SCORE_THRESHOLD ?? "400");
 const THRESHOLD = Number.isFinite(thresholdInput) && thresholdInput > 0 ? thresholdInput : 400;
@@ -41,11 +42,12 @@ interface SecurityResultRecord {
             };
         };
         command_status: {
+            katana: number;
             nuclei: number;
             wapiti: number;
             nikto: number;
         };
-        scanner_metrics: Record<Scanner, {
+        scanner_metrics: Record<CommandScanner, {
             elapsed_seconds: number;
             timed_out: boolean;
             output_exists: boolean;
@@ -60,6 +62,9 @@ interface SecurityResultRecord {
             wapiti_max_attack_time_seconds: number | null;
             nuclei_timeout_seconds: number | null;
             nuclei_retries: number | null;
+            wapiti_scope: string;
+            nuclei_discovery: string;
+            nuclei_url_count: number;
         };
         debug?: {
             findings_before_dedupe: number;
@@ -144,13 +149,25 @@ function parsePositiveIntegerEnv(name: string): number | null {
     return value === null ? null : Math.trunc(value);
 }
 
+function parseJsonEnv(name: string): Record<string, unknown> | null {
+    const raw = Bun.env[name];
+    if (!raw || !raw.trim().length) return null;
+    try {
+        const parsed = JSON.parse(raw) as unknown;
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+    } catch {
+        if (DEBUG) console.warn(`Ignoring invalid ${name} JSON.`);
+        return null;
+    }
+}
+
 function stderrTail(stderr: string): string {
     const trimmed = stderr.trim();
     if (trimmed.length <= STDERR_TAIL_CHARS) return trimmed;
     return trimmed.slice(trimmed.length - STDERR_TAIL_CHARS);
 }
 
-async function runCommand(scanner: Scanner, args: string[], timeoutSeconds = 0): Promise<{ timedOut: boolean; exitCode: number; elapsedSeconds: number }> {
+async function runCommand(scanner: CommandScanner, args: string[], timeoutSeconds = 0): Promise<{ timedOut: boolean; exitCode: number; elapsedSeconds: number }> {
     if (DEBUG) console.debug(`[${scanner}] starting: ${args.join(" ")}`);
 
     const proc = Bun.spawn(args, {
@@ -186,6 +203,13 @@ async function runCommand(scanner: Scanner, args: string[], timeoutSeconds = 0):
     }
 
     return { timedOut, exitCode, elapsedSeconds };
+}
+
+async function loadTextLines(filePath: string): Promise<string[]> {
+    const file = Bun.file(filePath);
+    if (!(await file.exists())) return [];
+    const content = await file.text();
+    return [...new Set(content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean))];
 }
 
 function parseNuclei(rows: unknown[], findings: SecurityFinding[]) {
@@ -363,17 +387,60 @@ async function main() {
     await mkdir(workDir, { recursive: true });
 
     const nucleiOutput = join(workDir, "nuclei_scan.jsonl");
+    const nucleiUrls = join(workDir, "nuclei_urls.txt");
     const wapitiOutput = join(workDir, "wapiti_scan.json");
     const niktoOutput = join(workDir, "nikto_scan.json");
 
     const nucleiTemplates = parseTemplateInput(Bun.env.SECURITY_NUCLEI_TEMPLATES ?? "");
+    const nucleiOptions = parseJsonEnv("nuclei") ?? {};
+    const nucleiDiscovery = String(nucleiOptions.discovery ?? Bun.env.SECURITY_NUCLEI_DISCOVERY ?? "none");
+    const scope = String(Bun.env.scope ?? Bun.env.SECURITY_SCOPE ?? "root").toLowerCase();
+    const wapitiScope = scope === "domain" ? "domain" : "folder";
     const nucleiTimeout = parsePositiveIntegerEnv("SECURITY_NUCLEI_TIMEOUT");
     const nucleiRetries = parsePositiveIntegerEnv("SECURITY_NUCLEI_RETRIES");
     const wapitiMaxScanTime = parsePositiveNumberEnv("SECURITY_WAPITI_MAX_SCAN_TIME");
     const wapitiMaxAttackTime = parsePositiveNumberEnv("SECURITY_WAPITI_MAX_ATTACK_TIME");
     const niktoRequestTimeout = parsePositiveIntegerEnv("SECURITY_NIKTO_REQUEST_TIMEOUT");
 
-    const nucleiArgs = ["nuclei", "-target", website, "-jsonl", "-o", nucleiOutput];
+    let katanaRun = { timedOut: false, exitCode: 0, elapsedSeconds: 0 };
+    if (nucleiDiscovery === "katana") {
+        const katanaArgs = ["katana", "-u", website, "-silent", "-o", nucleiUrls];
+        katanaRun = await runCommand("katana", katanaArgs);
+    } else if (nucleiDiscovery === "selected_urls") {
+        const db = new Surreal();
+        try {
+            await db.connect(`${Bun.env.SURREAL_PROTOCOL}://${Bun.env.SURREAL_ADDRESS}/rpc`, {
+                namespace: Bun.env.SURREAL_NAMESPACE,
+                database: Bun.env.SURREAL_DATABASE,
+                authentication: {
+                    username: Bun.env.SURREAL_USER!,
+                    password: Bun.env.SURREAL_PASS!,
+                },
+            });
+            const [jobRows] = await db.query<[{ website?: RecordId<"websites"> }[]]>(
+                "SELECT website FROM jobs WHERE id = $job LIMIT 1;",
+                { job: jobRecordId }
+            ).collect();
+            const selectedWebsite = jobRows?.[0]?.website;
+            const [rows] = selectedWebsite
+                ? await db.query<[{ normalized_url?: string; url?: string }[]]>(
+                    `SELECT normalized_url, url FROM website_urls
+                     WHERE website = $website
+                     AND excluded = false
+                     AND (selected = true OR manual = true);`,
+                    { website: selectedWebsite }
+                ).collect()
+                : [[]];
+            await Bun.write(nucleiUrls, [...new Set((rows ?? []).map((row) => String(row.normalized_url || row.url || "").trim()).filter(Boolean))].join("\n"));
+        } finally {
+            await db.close();
+        }
+    }
+
+    const nucleiUrlList = await loadTextLines(nucleiUrls);
+    const nucleiArgs = nucleiUrlList.length
+        ? ["nuclei", "-list", nucleiUrls, "-jsonl", "-o", nucleiOutput]
+        : ["nuclei", "-target", website, "-jsonl", "-o", nucleiOutput];
     if (nucleiTemplates.length) {
         for (const template of nucleiTemplates) {
             nucleiArgs.push("-t", template);
@@ -383,6 +450,7 @@ async function main() {
     if (nucleiRetries !== null) nucleiArgs.push("-retries", String(nucleiRetries));
 
     const wapitiArgs = ["wapiti", "-u", website, "-o", wapitiOutput, "-f", "json"];
+    if (wapitiScope === "domain") wapitiArgs.push("--scope", "domain");
     if (wapitiMaxScanTime !== null) wapitiArgs.push("--max-scan-time", String(wapitiMaxScanTime));
     if (wapitiMaxAttackTime !== null) wapitiArgs.push("--max-attack-time", String(wapitiMaxAttackTime));
 
@@ -461,11 +529,18 @@ async function main() {
                 by_scanner: byScanner,
             },
             command_status: {
+                katana: katanaRun.exitCode,
                 nuclei: nucleiRun.exitCode,
                 wapiti: wapitiRun.exitCode,
                 nikto: niktoRun.exitCode,
             },
             scanner_metrics: {
+                katana: {
+                    elapsed_seconds: katanaRun.elapsedSeconds,
+                    timed_out: katanaRun.timedOut,
+                    output_exists: await outputExists(nucleiUrls),
+                    output_items: nucleiUrlList.length,
+                },
                 nuclei: {
                     elapsed_seconds: nucleiRun.elapsedSeconds,
                     timed_out: nucleiRun.timedOut,
@@ -494,6 +569,9 @@ async function main() {
                 wapiti_max_attack_time_seconds: wapitiMaxAttackTime,
                 nuclei_timeout_seconds: nucleiTimeout,
                 nuclei_retries: nucleiRetries,
+                wapiti_scope: wapitiScope,
+                nuclei_discovery: nucleiDiscovery,
+                nuclei_url_count: nucleiUrlList.length,
             },
             ...(DEBUG ? {
                 debug: {

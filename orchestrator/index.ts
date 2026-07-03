@@ -531,37 +531,30 @@ const appendScheduleRun = async (scheduleId: RecordId, jobId: RecordId): Promise
 	).collect();
 };
 
-const triggerSchedule = async (scheduleId: RecordId, sourceJobId: RecordId): Promise<void> => {
-	const [rows] = await db
-		.query<[{ id?: RecordId<'jobs'>; website?: RecordId<'websites'>; types?: Tool[]; options?: Record<string, unknown> }[]]>(
-			'SELECT id, website, types, options FROM jobs WHERE id = $id LIMIT 1;',
-			{ id: sourceJobId }
-		)
-		.collect();
-	const source = rows?.[0];
-	if (!source?.id || !source.website || !Array.isArray(source.types) || !source.types.length) {
-		await disableSchedule(scheduleId);
+const triggerSchedule = async (schedule: Partial<Schedule>): Promise<void> => {
+	if (!schedule.id || !schedule.website || !Array.isArray(schedule.types) || !schedule.types.length) {
+		if (schedule.id) await disableSchedule(schedule.id);
 		return;
 	}
 
-	const website = await db.select<Website>(source.website);
+	const website = await db.select<Website>(schedule.website);
 	if (!website?.id) {
-		await disableSchedule(scheduleId);
+		await disableSchedule(schedule.id);
 		return;
 	}
 
 	const createdRows = await db
 		.create<Job>(new Table('jobs'))
 		.content({
-			website: source.website,
-			types: source.types,
-			options: source.options ?? {},
+			website: schedule.website,
+			types: schedule.types,
+			options: schedule.options ?? {},
 			status: 'pending'
 		});
 	const created = Array.isArray(createdRows) ? createdRows[0] : createdRows;
 	if (!created?.id) return;
 
-	await appendScheduleRun(scheduleId, created.id);
+	await appendScheduleRun(schedule.id, created.id);
 };
 
 const reconcileSchedule = (schedule: Partial<Schedule> | null | undefined): void => {
@@ -570,7 +563,8 @@ const reconcileSchedule = (schedule: Partial<Schedule> | null | undefined): void
 	stopScheduledTask(scheduleId);
 
 	if (!schedule.enabled) return;
-	if (!schedule.job) return;
+	if (!schedule.website) return;
+	if (!Array.isArray(schedule.types) || !schedule.types.length) return;
 
 	const cronExpression = normalizeCronExpression(String(schedule.cron ?? ''));
 	if (!cron.validate(cronExpression)) {
@@ -581,7 +575,7 @@ const reconcileSchedule = (schedule: Partial<Schedule> | null | undefined): void
 	const task = cron.schedule(
 		cronExpression,
 		() => {
-			void triggerSchedule(schedule.id!, schedule.job!);
+			void triggerSchedule(schedule);
 		},
 		{ timezone: 'UTC' }
 	);
@@ -590,7 +584,7 @@ const reconcileSchedule = (schedule: Partial<Schedule> | null | undefined): void
 
 const bootstrapSchedules = async (): Promise<void> => {
 	const [rows] = await db
-		.query<[(Partial<Schedule>)[]]>('SELECT id, job, cron, enabled FROM schedule WHERE enabled = true;')
+		.query<[(Partial<Schedule>)[]]>('SELECT id, website, types, options, cron, enabled FROM schedule WHERE enabled = true;')
 		.collect();
 	for (const row of rows ?? []) {
 		reconcileSchedule(row);
@@ -708,6 +702,16 @@ const getWcagTaskEnvOptions = (wcagOptions: Record<string, unknown> | undefined)
         envOptions.WCAG_EXCLUDE_RULES = excludeRules.map(v => String(v)).join(',');
     } else if(typeof excludeRules === 'string' && excludeRules.trim().length) {
         envOptions.WCAG_EXCLUDE_RULES = excludeRules.trim();
+    }
+
+    const crawl = wcagOptions.crawl;
+    if(crawl && typeof crawl === 'object' && !Array.isArray(crawl)) {
+        envOptions.crawl = crawl;
+    }
+
+    const urls = wcagOptions.urls;
+    if(urls && typeof urls === 'object' && !Array.isArray(urls)) {
+        envOptions.urls = urls;
     }
 
     return envOptions;

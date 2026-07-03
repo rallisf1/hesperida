@@ -75,6 +75,7 @@ export const resetData = async (): Promise<void> => {
 				DELETE notification_channels;
 				DELETE job_queue;
 				DELETE jobs;
+				DELETE website_urls;
 				DELETE websites;
 				DELETE users;
 				DELETE probe_results;
@@ -159,6 +160,22 @@ export const createWebsite = async (input: {
 		}
 	);
 	if (!website) return null;
+
+	await adminOne(
+		`CREATE website_urls CONTENT {
+			website: $website,
+			url: $url,
+			normalized_url: $url,
+			source: 'manual',
+			selected: true,
+			manual: true,
+			excluded: false,
+			template_key: '/',
+			template_label: '/',
+			last_seen_at: time::now()
+		};`,
+		{ website: website.id, url: input.url }
+	);
 
 	let parsed: URL;
 	try {

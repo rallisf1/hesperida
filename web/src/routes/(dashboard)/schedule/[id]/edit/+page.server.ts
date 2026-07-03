@@ -47,15 +47,14 @@ export const actions: Actions = {
 		const cron = String(formData.get('cron') ?? '').trim();
 		const enabled = formData.get('enabled') !== null;
 
-		if (!job || !cron) {
-			return fail(400, { update_error: 'job and cron are required.' });
+		if (!cron) {
+			return fail(400, { update_error: 'cron is required.' });
 		}
 
 		try {
 			await callDashboardApi(event, `/api/v1/schedule/${event.params.id}`, {
 				method: 'PATCH',
 				body: {
-					job,
 					cron,
 					enabled
 				}

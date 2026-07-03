@@ -51,9 +51,9 @@ export interface ScheduleRunJobView extends Omit<ApiScheduleRunJob, 'id' | 'webs
 }
 
 export interface ScheduleView
-	extends Omit<ApiSchedule, 'id' | 'job' | 'job_id' | 'website_id' | 'created' | 'created_jobs'> {
+	extends Omit<ApiSchedule, 'id' | 'website' | 'job' | 'job_id' | 'website_id' | 'created' | 'created_jobs'> {
 	id: string;
-	job_id: string;
+	job_id?: string;
 	linked_job_id?: string;
 	website_id?: string;
 	created: string[];
